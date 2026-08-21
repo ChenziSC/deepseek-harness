@@ -273,6 +273,9 @@ export function presentGrepResult(
  * @param caps - the deployment's resolved grep caps (plugin config after defaulting).
  */
 export function applyGrepTool(ctx: Context, caps: GrepToolCaps): void {
+  // 下方英文会作为 grep Tool 的 system prompt 指引发送给模型。中文译文：搜索文件内容时
+  // 使用 grep，不要调用 shell grep 或 rg；需要匹配行周边上下文时，再对相应文件使用
+  // read。运行时原文保持不变，以免改变模型 Tool 路由与快照。
   ctx.systemPrompt.section({
     name: 'tool:grep',
     order: 104,

@@ -1,14 +1,14 @@
-/** Reconstruct durable steering identity from the event-sourced agent inbox. */
+/** 从事件溯源的 Agent inbox 重建持久 steering 身份。 */
 
 import type { SessionEvent } from '@deepseek-ai/dsh-session/types'
 import type { InboxTarget } from '@deepseek-ai/dsh-agent/types'
 
-/** Minimal pending identity retained while replaying durable inbox splices. */
+/** 重放持久 inbox splice 时保留的最小等待身份。 */
 interface PendingIdentity {
   readonly id: string
 }
 
-/** Client-side structural view of the host-owned inbox event. */
+/** Host 所有 inbox 事件在客户端的结构视图。 */
 interface InboxSplice {
   readonly target: InboxTarget
   readonly start: number
@@ -18,10 +18,9 @@ interface InboxSplice {
 }
 
 /**
- * Incrementally identifies `user/message` events claimed from the next-step
- * inbox. The agent loop records all admitted input as `user/message`; the
- * preceding `agent/inbox/spliced` events preserve whether it came from the
- * queued-turn list or the next-step list.
+ * 增量识别从 next-step inbox 取出的 `user/message` 事件。Agent loop 将所有准入输入
+ * 记录为 `user/message`；此前的 `agent/inbox/spliced` 事件保留其来自 queued-turn
+ * 列表还是 next-step 列表的信息。
  */
 export class SteeringHistory {
   private readonly inbox: Record<InboxTarget, PendingIdentity[]> = {
@@ -31,7 +30,7 @@ export class SteeringHistory {
 
   private readonly claimedNextStep = new Set<string>()
 
-  /** Clear all replay state before rebuilding a history window. */
+  /** 重建历史窗口前清除全部重放状态。 */
   reset(): void {
     this.inbox['next-turn'] = []
     this.inbox['next-step'] = []
@@ -39,9 +38,9 @@ export class SteeringHistory {
   }
 
   /**
-   * Apply one event and report whether it is a durable human steering message.
-   * @param event - next raw session event in sequence order.
-   * @returns true only for a user-origin message previously claimed from `next-step`.
+   * 应用一条事件，并报告它是否为持久的人类 steering 消息。
+   * @param event - 按顺序到达的下一条原始 session 事件。
+   * @returns 仅当消息源自用户且此前从 `next-step` 取出时返回 true。
    */
   apply(event: SessionEvent): boolean {
     if (event.type === 'agent/inbox/spliced') {
@@ -54,7 +53,7 @@ export class SteeringHistory {
     return event.data.source.kind === 'user'
   }
 
-  /** Replay one host-validated inbox splice. */
+  /** 重放一次经 Host 校验的 inbox splice。 */
   private applySplice({ target, start, removedCount = 0, inserted, outcome }: InboxSplice): void {
     const removed = this.inbox[target].splice(start, removedCount, ...inserted)
     for (const identity of inserted) this.claimedNextStep.delete(identity.id)

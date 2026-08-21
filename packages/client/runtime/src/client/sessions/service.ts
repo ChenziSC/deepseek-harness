@@ -1,25 +1,21 @@
 /**
- * SessionRuntime: root sessions service — list snapshot store (manager
- * projection; carries `current`, the persisted selection every
- * session-scoped surface keys off), Agent scope tree (mintScope pattern: no-op plugin
- * Fiber + ctx.extend scope tag; one scope per session, agent id === session
- * id), stable SessionBinding cache, breadcrumb-route projection.
+ * SessionRuntime 是根 sessions 服务：包含列表快照 store（manager 投影，其中 `current`
+ * 是所有 session scope 界面共同依据的持久选择）、Agent scope 树（mintScope 模式：
+ * 无操作插件 Fiber + ctx.extend scope 标签；每 session 一个 scope，Agent ID 等于
+ * session ID）、稳定 SessionBinding 缓存和面包屑路由投影。
  *
- * Scope lifecycle is stage-driven: a scope is minted lazily on first
- * resolution (pure — resolution has no side effects and is render-safe);
- * the event window and deferred teardown key off the STAGED session, which
- * follows `list.current` exactly. Staging is the open signal: the window
- * opens ⟺ the session is on stage (today the stage is `current`; the staged
- * state can widen to a multi-pane list later). A session leaving the list
- * tears its scope down immediately unless it is the staged one, whose scope
- * survives frozen (read-only view) until the stage moves on.
+ * Scope 生命周期由 stage 驱动：首次解析时延迟创建 scope；解析是纯操作、无副作用，
+ * 可安全用于渲染。事件窗口和延迟拆除都以 staged session 为键，后者严格跟随
+ * `list.current`。进入 stage 就是打开信号：session 在 stage 上当且仅当窗口打开。
+ * 当前 stage 就是 `current`，以后可扩展为多面板列表。Session 离开列表时立即拆除
+ * scope；若它仍在 stage 上，则保留冻结只读视图，直到 stage 移开。
  */
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import type {
   IApiClient, RpcError, RpcResult, SessionId, SubagentAddress, JobView, WorkspaceId,
 } from '@deepseek-ai/dsh-api-remotes/client'
-// Value import from the inline-safe wire layer (not the connection plugin):
-// plugin-to-plugin value imports are a bundle purity error.
+// 值从可安全内联的传输层导入，而不是 connection 插件；插件间值导入会违反 bundle
+// 纯度要求。
 import { SESSION_SEARCH_RESULT_LIMIT } from '@deepseek-ai/dsh-host-apiproxy/api'
 import type {
   HostObservable, SessionMaybeProvideInfo, SessionProvideInfo,
@@ -38,78 +34,74 @@ import type { PendingInteractionStatus } from './pending.ts'
 import { SessionProvideChannel } from './provide.ts'
 import type { Session } from './session.ts'
 
-/** Session list row projected from the host list RPC plus live stream increments. */
+/** 根据 Host 列表 RPC 和实时流增量投影出的 session 列表行。 */
 export interface SessionSummary {
   id: SessionId
-  /** Latest durable log-backed title, absent until the host projects one. */
+  /** 由持久日志支撑的最新标题；Host 尚未投影时不存在。 */
   title?: string
-  /** Human-facing label: durable title, project basename, then session id. */
+  /** 面向人的标签，依次回退为持久标题、项目 basename、session ID。 */
   displayTitle: string
   cwd?: string
   /**
-   * Agent preset this session's agent was composed from; absent when the
-   * deployment composes no presets. The session header labels what the
-   * session actually runs rather than the deployment's current default.
+   * 组装本 session Agent 时使用的 Agent preset；部署未组装 preset 时不存在。Session
+   * 标题展示其实际运行配置，而不是部署当前默认值。
    */
   agentPreset?: string
   parentId?: SessionId
-  /** Coarse durable origin for navigation filtering; not a continuation capability. */
+  /** 供导航筛选的粗粒度持久来源；不表示 continuation 能力。 */
   origin?: 'subagent'
   running: boolean
-  /** User interaction currently blocking this session (sidebar amber-dot state). */
+  /** 当前阻塞本 session 的用户交互，对应侧边栏琥珀色圆点。 */
   pendingInteraction?: PendingInteractionStatus
-  /** Finished while not selected and not yet opened — the sidebar's green "done" reminder. Absent = false. */
+  /** 未选中且尚未打开时完成，对应侧边栏绿色“完成”提醒；缺失等同 false。 */
   completed?: boolean
   /**
-   * Empty-log bit (host summary derivation mirror). New Session reuses a blank
-   * one targeting the same workspace. Filtering stays with the consumer: the
-   * store carries every row, while the Workspace browser shows only the
-   * selected blank entry.
+   * 空日志标记，是 Host 摘要推导值的镜像。New Session 会复用指向同一 workspace 的
+   * 空白 session。筛选由消费者负责：store 保留所有行，Workspace 浏览器只显示已选中
+   * 的空白条目。
    */
   blank: boolean
   updatedAt: number
-  /** Current host-computed projection values retained by the object layer. */
+  /** 对象层保留的 Host 当前计算投影值。 */
   projectionValues?: Readonly<Partial<SessionProjectionMap>>
 }
 
 /**
- * Session list store shape. `current` rides the same snapshot (arbitrated:
- * the single useSessions standard hook reads list and selection together —
- * sidebar highlighting and SessionProvider share one fact source).
+ * Session 列表 store 结构。`current` 与列表位于同一快照中；唯一 useSessions 标准
+ * hook 会同时读取列表和选择，因此侧边栏高亮与 SessionProvider 共用一个事实来源。
  */
 export interface SessionListState {
-  /** Host-list order; addressed breadcrumb-only rows are excluded. */
+  /** Host 列表顺序；不包含只用于面包屑寻址的行。 */
   ids: SessionId[]
-  /** Host rows plus the current addressed subagent route used by navigation. */
+  /** Host 行以及导航所用的当前已寻址 subagent 路由。 */
   byId: Record<SessionId, SessionSummary>
   current: SessionId | undefined
-  /** Arrival lifecycle projected 1:1 from the manager snapshot (see SessionListPhase): empty-with-ready means "truly no sessions". */
+  /** 与 manager 快照一一对应的到达生命周期；见 SessionListPhase。ready 且空表示确实没有 sessions。 */
   phase: SessionListPhase
-  /** Direct durable catalogs keyed by their selected parent address. */
+  /** 以所选父地址为键的直接持久目录。 */
   subagentsByParent: Readonly<Record<SessionId, SubagentCatalogSnapshot>>
   /**
-   * Background jobs each session can see, mirrored last-wins from
-   * `session/jobs`. A missing key is an empty set — the Host sends no baseline
-   * for a session without tasks — so consumers read absence, never a sentinel.
+   * 每个 session 可见的后台 jobs，按 last-wins 从 `session/jobs` 镜像。键缺失表示空集；
+   * Host 不会为无任务 session 发送基线，因此消费者读取缺失而非哨兵值。
    */
   jobsBySession: Readonly<Record<SessionId, readonly JobView[]>>
-  /** Current session's catalog-derived address, absent on ordinary navigation. */
+  /** 当前 session 从目录得出的地址；普通导航时不存在。 */
   currentAddress: SubagentAddress | undefined
 }
 
-/** Persisted navigation cell: address survives refresh for correct history routing. */
+/** 持久导航 cell：刷新后仍保留地址，以正确路由历史。 */
 interface SessionSelection {
   sessionId?: SessionId
   subagentAddress?: SubagentAddress
 }
 
-/** Structured session-create failure. */
+/** 结构化 session 创建失败。 */
 export class SessionCreateError extends Error {
   override readonly name = 'SessionCreateError'
 
   /**
-   * @param rpcError - Host business or folded transport error.
-   * @param requestedSessionId - caller-preallocated id used for later stream/list reconciliation.
+   * @param rpcError - Host 业务错误或折叠后的传输错误。
+   * @param requestedSessionId - 调用方预分配 ID，用于后续流/列表协调。
    */
   constructor(
     readonly rpcError: RpcError,
@@ -119,13 +111,13 @@ export class SessionCreateError extends Error {
   }
 }
 
-/** Structured session-fork failure. */
+/** 结构化 session fork 失败。 */
 export class SessionForkError extends Error {
   override readonly name = 'SessionForkError'
 
   /**
-   * @param rpcError - Host business or folded transport error.
-   * @param sourceSessionId - the session the fork was cut from.
+   * @param rpcError - Host 业务错误或折叠后的传输错误。
+   * @param sourceSessionId - fork 的源 session。
    */
   constructor(
     readonly rpcError: RpcError,
@@ -135,36 +127,32 @@ export class SessionForkError extends Error {
   }
 }
 
-/** Session assembly handle for SessionProvider/inject factories (identity-stable per session). */
+/** 供 SessionProvider/inject factory 使用的 session 组装 handle；每 session 身份稳定。 */
 export interface SessionBinding {
   readonly sessionId: SessionId
-  /** The outward session face only — feature code never sees the concrete class. */
+  /** 只提供 session 对外接口；功能代码不会接触具体类。 */
   readonly session: SessionFace
   readonly ctx: AgentContext
 }
 
-// Scope primitives live in ../agents/scope.ts (the client mirror of host
-// dsh-scope, keyed by Agent identity); re-exported here so existing
-// consumers keep their import site.
+// Scope 基元位于 ../agents/scope.ts，是以 Agent 身份为键的 Host dsh-scope 客户端镜像；
+// 这里重新导出，使现有消费者无需更改导入位置。
 export { scopeOf } from '../agents/scope.ts'
 
 /**
- * Workspace display title of a session cwd: the path's last non-empty
- * segment (both separators accepted; trailing separators ignored), or ''
- * for separator-only paths — callers own their fallback (session id, raw
- * cwd, default-directory copy). The repo-wide single basename derivation —
- * every surface naming a workspace (picker rows, toggle labels, list titles)
- * calls this instead of re-splitting paths.
- * @param cwd - workspace directory path.
- * @returns basename title, or '' when no non-empty segment exists.
+ * 根据 session cwd 得出 Workspace 显示标题：取路径最后一个非空段，接受两种分隔符并
+ * 忽略末尾分隔符；只有分隔符时返回 ''。调用方负责回退到 session ID、原始 cwd 或
+ * 默认目录文案。这是仓库唯一 basename 推导方法；所有命名 workspace 的界面都调用
+ * 它，不再自行切分路径。
+ * @param cwd - workspace 目录路径。
+ * @returns basename 标题；没有非空段时返回 ''。
  */
 export function workspaceTitleOf(cwd: string): string {
   return cwd.replace(/[/\\]+$/, '').split(/[/\\]/).pop() ?? ''
 }
 
 /**
- * Display title projection: durable title, project directory basename, then
- * the raw id.
+ * 显示标题投影：依次使用持久标题、项目目录 basename、原始 ID。
  */
 function displayTitleOf(title: string | undefined, cwd: string | undefined, id: SessionId): string {
   if (title !== undefined) return title
@@ -176,10 +164,9 @@ function displayTitleOf(title: string | undefined, cwd: string | undefined, id: 
 }
 
 /**
- * Increment a trailing fork number while preserving its half-width or
- * full-width parentheses; an unnumbered title starts with ` (1)`.
- * @param title - source session's durable title.
- * @returns the title assigned to the fork child.
+ * 递增末尾 fork 编号，同时保留半角或全角括号；没有编号的标题追加 ` (1)`。
+ * @param title - 源 session 的持久标题。
+ * @returns 分配给 fork 子项的标题。
  */
 function increasedForkTitle(title: string): string {
   const ascii = /^(.*?)\((\d+)\)$/u.exec(title)

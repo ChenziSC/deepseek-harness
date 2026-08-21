@@ -242,6 +242,10 @@ export function apply(ctx: Context, config: Config = {}): void {
   }
   /* jscpd:ignore-end */
 
+  // 下方英文会作为 pwsh Tool 的 system prompt 指引发送给模型。中文译文：非零退出以
+  // `[exit code: N]` 标记报告，继续前应先调查失败。在 Windows 上，被终止的进程会以
+  // `[exit code: 1]` 结束而没有 signal 标记；中断之后只有 exit 1 时，应视为进程终止，
+  // 而不是命令执行失败。运行时原文保持不变。
   ctx.systemPrompt.section({
     name: 'tool:pwsh',
     order: 105,

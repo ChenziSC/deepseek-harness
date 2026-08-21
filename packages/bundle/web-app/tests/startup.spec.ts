@@ -123,7 +123,7 @@ describe('web command-line provider', () => {
 
   it('rejects a non-numeric port before the consumer activates', async () => {
     const { values, observed } = await bootProvider(['--port', 'abc'])
-    expect(observed.out).toContain('--port must be a number')
+    expect(observed.out).toContain('--port 必须是数字')
     expect(values).toBeUndefined()
     expect(observed.readerConfig).toBeUndefined()
     expect(observed.exits).toEqual([1])
@@ -131,7 +131,7 @@ describe('web command-line provider', () => {
 
   it('rejects the intentionally unsupported all-interfaces host before the consumer activates', async () => {
     const { values, observed } = await bootProvider(['--host', '0.0.0.0'])
-    expect(observed.out).toContain('--host 0.0.0.0 is intentionally not supported yet for safety: it would expose remote code execution to the network; use 127.0.0.1 instead')
+    expect(observed.out).toContain('出于安全考虑，目前有意不支持 --host 0.0.0.0；该地址会向网络暴露远程代码执行能力，请改用 127.0.0.1')
     expect(values).toBeUndefined()
     expect(observed.readerConfig).toBeUndefined()
     expect(observed.exits).toEqual([1])

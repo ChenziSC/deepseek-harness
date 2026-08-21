@@ -1,7 +1,7 @@
-/* Shell-owned global base: full-height mount plus the theme token sheets.
- * The five ui-theme sheets are the sole token source (--dsw-*); the shell
- * links them here so tokens exist before any plugin CSS lands. scrollbar.css
- * follows design-platform.css because it reads that sheet's tokens. */
+/* shell 所有的全局基础样式：全高挂载区域和主题 token 样式表。五个 ui-theme
+ * 样式表是 --dsw-* token 的唯一来源；shell 在此引入它们，确保任何插件 CSS
+ * 生效前 token 已存在。scrollbar.css 会读取 design-platform.css 的 token，
+ * 因而必须排在后面。 */
 @import '@deepseek-ai/dsh-client-ui-theme/styles/base.css';
 @import '@deepseek-ai/dsh-client-ui-theme/styles/design-platform.css';
 @import '@deepseek-ai/dsh-client-ui-theme/styles/scrollbar.css';
@@ -17,17 +17,17 @@ body,
 
 body {
   font-family: var(--dsw-font-family);
-  /* Grayscale antialiasing over subpixel rendering: WebKit/Blink and the
-     Firefox macOS equivalent; other engines ignore both lines. */
+  /* 使用灰度抗锯齿而非子像素渲染：分别覆盖 WebKit/Blink 与 Firefox macOS；
+     其他引擎会忽略这两行。 */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-bg-base);
 }
 
-/* Form controls don't inherit the body font (UA sheets pin their families —
-   Chrome buttons fall back to Arial, textareas to monospace), so the app
-   stack is re-applied to them explicitly, as upstream's global reset does. */
+/* 表单控件不会继承 body 字体：UA 样式表固定了字体族，例如 Chrome 按钮回退到
+   Arial、textarea 回退到等宽字体。因此与上游全局 reset 一样，在此显式重新
+   应用应用字体栈。 */
 button,
 input,
 select,

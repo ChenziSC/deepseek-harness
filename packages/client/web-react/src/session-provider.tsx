@@ -1,4 +1,4 @@
-/** Internal React bindings for the renderer host and active session provide bundle. */
+/** 渲染器宿主与当前会话 provide bundle 的内部 React 绑定。 */
 import { createContext, useContext, type ReactNode } from 'react'
 import type {
   HostObservable, MaybeSnapshotSelectorHook, SessionMaybeProvideInfo, SessionProvideInfo,
@@ -7,20 +7,18 @@ import type {
 import { bindSnapshotSelector } from './bind.ts'
 
 /**
- * A missing-provider assembly error: the shell wired the tree wrong. The slot
- * error boundary rethrows this class so misassembly stays fail-loud while
- * registrant errors (inject factories, entry components) are contained
- * per entry.
+ * 提供方缺失的装配错误，表示 shell 对树的接线有误。slot 错误边界会重新抛出此类，
+ * 让错误装配保持明确失败；注册方错误（inject 工厂、配置项组件）则按配置项隔离。
  */
 export class SlotAssemblyError extends Error {}
 
-/** In-package renderer host context. */
+/** 包内渲染器宿主上下文。 */
 export const HostContext = createContext<SlotRendererHost | null>(null)
 
 /**
- * Read the installed renderer host; throws outside the rendered root tree
- * (framework components must not render detached from the renderer).
- * @returns the host API.
+ * 读取已安装的渲染器宿主。在已渲染根树之外调用会抛错，因为框架组件不得脱离渲染器
+ * 单独渲染。
+ * @returns 宿主 API。
  */
 export function useHost(): SlotRendererHost {
   const host = useContext(HostContext)
@@ -30,7 +28,7 @@ export function useHost(): SlotRendererHost {
 
 const BindingContext = createContext<SessionMaybeProvideInfo | null>(null)
 
-/** Read the current-session-optional bundle supplied at the root. */
+/** 读取根部提供的当前会话可选 bundle。 */
 export function useSessionMaybeProvideInfo(): SessionMaybeProvideInfo {
   const info = useContext(BindingContext)
   if (!info) throw new SlotAssemblyError('session-aware slot rendered outside the root binding provider')
@@ -38,9 +36,9 @@ export function useSessionMaybeProvideInfo(): SessionMaybeProvideInfo {
 }
 
 /**
- * Read the enclosing session provide bundle; throws outside a SessionProvider
- * subtree (session slots must not render without a session).
- * @returns the enclosing bundle.
+ * 读取外层会话 provide bundle。在 SessionProvider 子树之外调用会抛错，因为会话 slot
+ * 不得在没有会话时渲染。
+ * @returns 外层 bundle。
  */
 export function useSessionProvideInfo(): SessionProvideInfo {
   const info = useSessionMaybeProvideInfo()
@@ -49,11 +47,11 @@ export function useSessionProvideInfo(): SessionProvideInfo {
 }
 
 /**
- * Identity-stable selector hook per host observable. uSES resubscribes when
- * the subscribe reference changes, so the bound hook must be created once per
- * source — cached here by source identity (sources are host-owned singletons).
- * @param source - host-provided observable.
- * @returns the cached selector hook.
+ * 每个宿主 observable 对应一个标识稳定的选择器钩子。subscribe 引用变化时 uSES 会
+ * 重新订阅，因此每个数据源只能创建一次绑定钩子；这里按数据源标识缓存，而数据源是
+ * 宿主所有的单例。
+ * @param source - 宿主提供的 observable。
+ * @returns 缓存的选择器钩子。
  */
 export function observableHook<T>(source: HostObservable<T>): SnapshotSelectorHook<T> {
   let hook = hookCache.get(source)
@@ -70,28 +68,26 @@ const absentSource: HostObservable<undefined> = {
   subscribe: () => () => {},
 }
 
-/** Bind a source that disappears with the current session to an optional selector hook. */
+/** 把会随当前会话消失的数据源绑定为可选选择器钩子。 */
 export function maybeObservableHook<T>(source: HostObservable<T> | undefined): MaybeSnapshotSelectorHook<T> {
   if (source !== undefined) return observableHook(source)
   return useAbsentSnapshot
 }
 
 function useAbsentSnapshot<S>(_selector: (snapshot: never) => S, _equal?: (a: S, b: S) => boolean): S | undefined {
-  // The uSES subscription must still run (hook-order stability); the absent
-  // source always snapshots undefined, returned explicitly.
+  // 为保持钩子顺序稳定，仍必须运行 uSES 订阅；缺失数据源始终产生 undefined 快照，
+  // 并在此显式返回。
   observableHook(absentSource)(() => undefined)
   return undefined
 }
 
 /**
- * The useProjection framework seat (docs/subsystems/session-projection.md), one bound
- * function per provide bundle (cached by info identity — components may hold
- * it across renders). Key-addressed: the key resolves a per-session value
- * face off the projection store; the bound selector hook comes from the same
- * per-source cache as every other kit hook, so exactly one uSES subscription
- * runs per call and the subscribe reference stays stable per key. A key no
- * baseline or frame has carried (or a no-session bundle) reads `undefined` —
- * capability absence — keeping the hook order constant.
+ * useProjection 框架 seat，参见 docs/subsystems/session-projection.md。每个
+ * provide bundle 对应一个绑定函数，按 info 标识缓存，组件可跨渲染持有。它按键寻址：
+ * 键从投影存储解析每会话值接口；绑定后的选择器钩子与其他工具包钩子共用按数据源
+ * 缓存，因此每次调用恰好运行一个 uSES 订阅，且每个键的 subscribe 引用保持稳定。
+ * 尚未由基线或帧携带的键以及无会话 bundle 都读取为 `undefined`，表示能力缺失，
+ * 同时保持钩子顺序不变。
  */
 export function projectionHook(info: SessionMaybeProvideInfo): (
   key: string, selector?: (value: unknown) => unknown, eq?: (a: unknown, b: unknown) => boolean,
@@ -99,13 +95,11 @@ export function projectionHook(info: SessionMaybeProvideInfo): (
   let hook = projectionHookCache.get(info)
   if (hook === undefined) {
     hook = (key, selector, eq) => {
-      // The no-session (faceless) branch binds the shared absent source so
-      // the caller's selector still runs over `undefined` (absence flows
-      // through the selector) and the uSES call count stays constant.
+      // 无会话（无接口）分支绑定共享缺失数据源，使调用方选择器仍针对 `undefined`
+      // 运行，让缺失状态穿过选择器，并保持 uSES 调用次数不变。
       const useValue = observableHook(info.projections?.faceOf(key) ?? absentSource)
-      // Whole values are finished wire payloads (reference changes only when
-      // a frame or baseline lands), so the identity selector needs no
-      // equality function.
+      // 完整值是已完成的协议载荷，仅在帧或基线到达时改变引用，因此标识选择器不需要
+      // 相等性函数。
       return useValue(selector ?? (value => value), eq)
     }
     projectionHookCache.set(info, hook)
@@ -117,10 +111,9 @@ const projectionHookCache = new WeakMap<SessionMaybeProvideInfo, (
 ) => unknown>()
 
 /**
- * Root-level binding provider. It follows current selection without a key;
- * per-entry identity is the outlet's adoption bookkeeping (SessionMaybeEntry):
- * a blank-born incarnation adopts the first session without remounting, and
- * every later transition (switch or loss) remounts like a strict entry.
+ * 根级绑定提供方。它不使用 key 而跟随当前选择；每配置项标识由 outlet 的接管记录
+ * SessionMaybeEntry 管理：从空白创建的 incarnation 不重新挂载即可接管首个会话，
+ * 后续每次切换或丢失都像严格配置项一样重新挂载。
  */
 export function SessionMaybeProvider({ children }: { children: ReactNode }) {
   const host = useHost()
@@ -132,20 +125,18 @@ export function SessionMaybeProvider({ children }: { children: ReactNode }) {
   )
 }
 
-/** SessionProvider API: render-prop body plus the no-session branch. */
+/** SessionProvider API：render prop 内容和无会话分支。 */
 export interface SessionProviderProps {
-  /** No-session body (also covers a current id whose session cannot be resolved). */
+  /** 无会话内容；也覆盖当前 id 无法解析到会话的情况。 */
   empty?: (() => ReactNode) | undefined
-  /** Session body; remounted per session via key={sessionId}. */
+  /** 会话内容；通过 key={sessionId} 按会话重新挂载。 */
   children: (sessionId: string) => ReactNode
 }
 
 /**
- * Framework-wired session area: subscribes to the host's current provide
- * source and remounts the body under `key={sessionId}` so a session switch
- * rebuilds the session subtree. This dependency-inverted layer uses plain
- * string ids; `PropsRuntime` applies the branded type at the component
- * boundary.
+ * 由框架接线的会话区域：订阅宿主的当前 provide 数据源，并在
+ * `key={sessionId}` 下重新挂载内容，使切换会话时重建会话子树。该依赖反转层使用
+ * 普通字符串 id；`PropsRuntime` 在组件边界应用品牌类型。
  */
 export function SessionProvider({ empty, children }: SessionProviderProps) {
   const host = useHost()

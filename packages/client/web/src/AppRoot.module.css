@@ -1,7 +1,6 @@
-/* Boot page styles are self-contained: the theme base stylesheets are linked
-   by the shell, but the loading page must render acceptably even before/without
-   them, so this file uses tokens with neutral fallbacks (the one sanctioned
-   fallback site — plugin packages must not do this). */
+/* 启动页样式自包含：shell 虽会引入主题基础样式表，但加载页必须在样式表尚未
+   就绪或加载失败时仍可正常显示。因此本文件为 token 提供中性回退值；这是唯一
+   获准使用回退值的位置，插件包不得照搬。 */
 
 .boot {
   height: 100%;

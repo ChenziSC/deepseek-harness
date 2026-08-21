@@ -1,31 +1,29 @@
 /**
- * Shell root: boot loading page → (boot settled) → real UI in one switch.
- * Pure kernel component with zero plugin dependencies — before settled it may
- * only rely on itself (the fail-loud presentation must not depend on the
- * system whose failure it reports; the status/signal stores are kernel-own,
- * shell self-sufficiency rule); the real UI is produced by the
- * app-shell entry once every entry is active. A failed boot keeps the
- * loading page, lists the per-entry fiber states and the sweep report (fail
- * loud, no partial UI).
+ * Shell 根组件：启动加载页 → 启动结算 → 一次切换到真实 UI。
+ *
+ * 这是不依赖任何插件的纯内核组件。结算前只能依赖自身：错误展示不能依赖
+ * 正在报告失败的系统，status/signal 存储也归内核所有，从而满足 shell
+ * 自给规则。所有配置项激活后，app-shell 配置项才生成真实 UI。启动失败时
+ * 保持加载页，列出各配置项的 fiber 状态和扫描报告，明确失败且不显示局部 UI。
  */
 import { useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
 import type { KernelSignal, LoaderStatus } from './loader-status.ts'
 import css from './AppRoot.module.css'
 
-/** AppRoot props: settled signal, fiber-state projection feed, boot failure report, deferred real-UI factory. */
+/** AppRoot 属性：结算信号、fiber 状态投影、启动失败报告和延迟创建真实 UI 的工厂。 */
 export interface AppRootProps {
-  /** True once the boot chain settled (loader quiesced + all entries ACTIVE); the boot closure flips it. */
+  /** 启动链结算后为 true，即 loader 完全停稳且所有配置项均为 ACTIVE；由启动闭包切换。 */
   settled: KernelSignal<boolean>
-  /** Per-entry fiber-state projection store (drives loading/failed rendering). */
+  /** 按配置项记录的 fiber 状态投影存储，用于驱动加载和失败界面。 */
   status: KernelSignal<LoaderStatus>
-  /** Boot failure report (the settle rejection message); undefined while loading or after success. */
+  /** 启动失败报告，即结算拒绝消息；加载中或成功后为 undefined。 */
   error: KernelSignal<string | undefined>
-  /** Builds the real UI; called only after settled. */
+  /** 创建真实 UI；仅在启动结算后调用。 */
   renderApp: () => ReactNode
 }
 
-/** Boot gate: loading page until the boot settles; failures stay here. */
+/** 启动门控：结算前显示加载页，失败也停留在此处。 */
 export function AppRoot(props: AppRootProps) {
   const settled = useSyncExternalStore(props.settled.subscribe, props.settled.getSnapshot)
   const status = useSyncExternalStore(props.status.subscribe, props.status.getSnapshot)

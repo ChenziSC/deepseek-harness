@@ -7,29 +7,29 @@ export type {
   AssistantProvenanceView, AssistantRequestConfig,
 } from './conversation.ts'
 
-/** Complete model-visible request header in force for an ordinary generation. */
+/** 普通生成过程中生效的完整模型可见请求头。 */
 export interface ConversationPromptSnapshot {
-  /** Provider/model and sampling configuration from the effective request header. */
+  /** 有效请求头中的 Provider/model 和采样配置。 */
   config: AssistantRequestConfig
-  /** Rendered system prompt text; empty when the request had no system prompt. */
+  /** 渲染后的 system prompt 文本；请求没有 system prompt 时为空。 */
   system: string
-  /** Complete tool catalog sent with the request, including tools that were never called. */
+  /** 随请求发送的完整工具目录，包括从未调用的工具。 */
   tools: readonly ToolSchema[]
 }
 
-/** System/tool change introduced while preparing one ordinary request. */
+/** 准备一次普通请求时引入的 system/tool 变化。 */
 export interface RequestPromptChange {
-  /** Sequence of the request/header event that introduced this state. */
+  /** 引入此状态的 request/header 事件 seq。 */
   seq: number
-  /** Unix epoch ms from the request/header event. */
+  /** request/header 事件的 Unix epoch 毫秒时间。 */
   time: number
-  /** How the model-visible prompt differs from the previous recorded state. */
+  /** 模型可见 Prompt 相对上一记录状态的变化方式。 */
   kind: 'initial' | 'system' | 'tools' | 'system-and-tools'
-  /** State immediately before this change; absent for the initial header. */
+  /** 本次变化前的状态；初始请求头不存在。 */
   previous?: ConversationPromptSnapshot
 }
 
-/** Lifecycle fields shared by ordinary generation and compaction requests. */
+/** 普通生成与压缩请求共用的生命周期字段。 */
 interface RequestViewBase {
   /** Sequence that opened the operation represented by this request. */
   startSeq: number
@@ -40,45 +40,45 @@ interface RequestViewBase {
   provenance?: AssistantProvenanceView
   requestConfig?: AssistantRequestConfig
   usage?: unknown
-  /** Assistant message or compaction summary sequence produced by this request. */
+  /** 本请求生成的 Assistant 消息或压缩摘要 seq。 */
   resultSeq?: number
 }
 
-/** One ordinary assistant generation assembled from durable request events. */
+/** 根据持久请求事件组装的一次普通 Assistant 生成。 */
 interface AssistantRequestView extends RequestViewBase {
   purpose: 'assistant'
   turn: number
-  /** Agent-loop step that issued this request. */
+  /** 发出本请求的 Agent loop step。 */
   step: number
-  /** Effective ordinary request input, inherited until a later header changes it. */
+  /** 有效普通请求输入；在后续请求头更改前持续继承。 */
   prompt?: ConversationPromptSnapshot
-  /** Prompt change logged while preparing this request. */
+  /** 准备本请求时记录的 Prompt 变化。 */
   promptChange?: RequestPromptChange
-  /** Retry ordinal scheduled after a failed ordinary request. */
+  /** 普通请求失败后安排的重试序号。 */
   retry?: number
   maxRetries?: number
   retryDelayMs?: number
 }
 
-/** One compaction provider request, either turn-owned or standalone between turns. */
+/** 一次压缩 Provider 请求；可归某个 turn 所有，也可独立发生在 turns 之间。 */
 interface CompactionRequestView extends RequestViewBase {
   purpose: 'compaction'
-  /** Owning turn, or `null` when manual compaction ran between turns. */
+  /** 所属 turn；在 turns 之间手动压缩时为 `null`。 */
   turn: number | null
-  /** Direct compaction requests do not consume an agent-loop step. */
+  /** 直接压缩请求不占用 Agent loop step。 */
   step: 0
-  /** Compaction replacement message sequence, when one was committed. */
+  /** 已提交压缩替换消息时的消息 seq。 */
   replacementSeq?: number
-  /** Safe compaction summary projection. */
+  /** 可安全展示的压缩摘要投影。 */
   summary?: readonly ContentBlock[]
-  /** Complete compaction provider output before the safe projection. */
+  /** 安全投影前的完整压缩 Provider 输出。 */
   rawOutput?: readonly ContentBlock[]
 }
 
-/** One provider request assembled from durable request lifecycle events. */
+/** 根据持久请求生命周期事件组装的一次 Provider 请求。 */
 export type RequestView = AssistantRequestView | CompactionRequestView
 
-/** Request data consumed by the stage-oriented Trajectory layout. */
+/** 面向阶段的 Trajectory 布局所消费的请求数据。 */
 export interface RequestInspectionSnapshot {
   requests: readonly RequestView[]
   callSchemas: ReadonlyMap<string, ToolSchema>

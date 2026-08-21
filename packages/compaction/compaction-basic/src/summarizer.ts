@@ -1,5 +1,5 @@
 /**
- * Default one-shot summarization and durable checkpoint framing.
+ * 默认的一次性摘要生成与持久化 checkpoint 封装。
  *
  * @module @deepseek-ai/dsh-compaction-basic/summarizer
  */
@@ -17,17 +17,57 @@ interface SummaryConfig {
   readonly maxTokens: number
 }
 
-/** Tags wrapping the structured summary inside the landed checkpoint node. */
+/** 在最终 checkpoint 节点中包裹结构化摘要的标签。 */
 const SUMMARY_OPEN_TAG = '<compacted-summary>'
 const SUMMARY_CLOSE_TAG = '</compacted-summary>'
 
+// 这段英文指令会在压缩时作为回放对话后的最后一条 user 消息发送给摘要模型，
+// 并要求模型输出固定 Markdown 结构。标题、顺序和“只输出 checkpoint”等约束
+// 都会影响持久化摘要、后续恢复与快照；为保持现有模型行为和 KV Cache 前缀，
+// 运行时原文不做本地化，修改时必须同步验证摘要结构与组装后 transcript。
 /**
- * The summarization directive, delivered as the FINAL user message after the
- * replayed conversation rather than as a distinct summarizer system prompt.
- * Keeping the conversation's own system prompt, tools, and message prefix in
- * front of it makes the auxiliary call a genuine prefix of the last routed
- * request, so the provider's KV cache is reused instead of invalidated.
+ * 摘要指令作为回放对话后的最后一条 user 消息发送，而不是单独的摘要 system prompt。
+ * 对话原有的 system prompt、Tool 与消息前缀保持在它之前，使辅助调用成为最近一次路由
+ * 请求的真实前缀，从而复用而不是失效 Provider 的 KV Cache。
  */
+/*
+中文译文（仅供学习和维护，不参与运行时）：
+
+你现在是这个 AI 编码助手的压缩引擎。请把上方对话浓缩为结构化 checkpoint，使另一个模型能够在不丢失关键上下文的情况下继续工作。
+
+必须严格按以下 Markdown 结构输出：保留全部章节及其顺序；使用简短项目符号，不写散文段落；空章节写“(none)”，绝不能省略章节。
+
+## 主要请求与意图
+- 用户最初及演变后的目标；精确措辞重要时逐字引用。
+
+## 关键技术概念
+- 涉及的技术、框架、模式与约定。
+
+## 文件与代码
+- 精确路径、文件为何重要，以及关键修改或片段。
+
+## 错误与修复
+- 错误、解决方式和相关用户反馈。
+
+## 待处理工作
+- 用户明确要求但尚未完成的工作。
+
+## 当前工作
+- 生成此 checkpoint 时正在进行的精确工作。
+
+## 下一步
+- 与最近请求直接一致的唯一下一项行动；没有则写“(none)”。
+
+## 关键上下文
+- 决策及理由、约束、用户偏好、开放问题，以及继续工作所需的数据。
+
+规则：
+- 使用简洁的英文工程表述。精确保留文件路径、命令、错误字符串、标识符、数值、函数签名和语法片段。
+- 忠实记录用户反馈和明确指令，尤其是纠正意见。
+- 不要提及本次摘要请求，也不要说明上下文已被压缩。
+- 只输出 checkpoint 文本；不要调用 Tool 或执行其他操作。
+- 若对话中已有 <compacted-summary> 块，它是旧 checkpoint。不要逐字复制；保留仍然成立的事实、删除过时内容，并把新信息合并为采用同一结构的单一摘要。
+*/
 const COMPACTION_INSTRUCTION = [
   'You are now acting as a compaction engine for this AI coding assistant. Condense the conversation ABOVE into a structured checkpoint that lets another model resume the work with no loss of essential context.',
   '',
@@ -65,58 +105,59 @@ const COMPACTION_INSTRUCTION = [
   `- If the conversation already contains a ${SUMMARY_OPEN_TAG} block, it is a PRIOR checkpoint. Do not copy it forward verbatim: preserve still-true facts, drop stale ones, and merge newer information into a single consolidated summary under the same structure.`,
 ].join('\n')
 
-/** Framing that makes the replacement user message established context. */
+// 下方英文前言会进入替换后的 user 消息，使摘要成为后续模型的既定上下文；运行时原文
+// 保持不变。中文译文：这是一个自动生成的 checkpoint，用于浓缩较早的一段对话并释放
+// 上下文空间。应将其中内容视为已建立的背景，在其基础上继续，不要复述。直接从后续消息
+// 继续任务，不要确认或提及该 checkpoint。
+/** 让替换 user 消息成为既定上下文的封装前言。 */
 const CHECKPOINT_PREAMBLE =
   'This is an automatically generated checkpoint condensing an earlier span of the conversation to free up context. Treat the captured context as established background and build on it without restating it. Continue the task directly from the messages that follow, without acknowledging this checkpoint.'
 
 /**
- * The replayed conversation surface the summarizer condenses. Reproducing the
- * last routed request's system prompt, tools, and leading messages verbatim
- * lets the auxiliary call reuse the provider's warm prefix cache; the trailing
- * compaction instruction is then the only novel input.
+ * 摘要器要压缩的回放对话内容。逐字复现最近一次路由请求的 system prompt、Tool 和前置
+ * 消息，使辅助调用能够复用 Provider 已预热的前缀缓存；末尾的压缩指令是唯一新输入。
  */
 export interface SummarizationInput {
-  /** The conversation's own system prompt, reused for prefix-cache alignment; absent for a system-less request. */
+  /** 对话自己的 system prompt，用于对齐前缀缓存；无 system 的请求中缺省。 */
   readonly system?: string
-  /** The conversation's tool schemas, reused for prefix-cache alignment; absent when the request carried none. */
+  /** 对话的 Tool schema，用于对齐前缀缓存；请求没有 Tool 时缺省。 */
   readonly tools?: readonly ToolSchema[]
-  /** The shadowed region, in surface order, that precedes the compaction instruction. */
+  /** 按展示顺序排列、位于压缩指令之前的被遮蔽区间。 */
   readonly messages: readonly Message[]
 }
 
-/** Safe summary content plus the exact auxiliary call envelope recorded with it. */
+/** 安全的摘要内容，以及随摘要记录的精确辅助调用 envelope。 */
 export type SummaryResult = {
   summary: ContentBlock[]
   provider: string
   model: string
   maxTokens?: number
-  /** Provider-reported usage for this summarization request. */
+  /** Provider 为本次摘要请求报告的用量。 */
   usage?: TokenUsage
 } & (
   | {
-    /** Complete provider output before the text-only summary projection. */
+    /** 投影为纯文本摘要前的完整 Provider 输出。 */
     rawOutput: ContentBlock[]
-    /** Identifies exactly one call through this context's `ctx.llm.stream()`. */
+    /** 精确标识一次通过当前上下文 `ctx.llm.stream()` 发出的调用。 */
     llmStreamCall: true
   }
   | {
-    /** Optional complete output from an unmarked template, remote, or other summarizer. */
+    /** 未标记模板、远端或其他摘要器的可选完整输出。 */
     rawOutput?: ContentBlock[]
-    /** An unmarked result does not identify a call through this context's LLM seam. */
+    /** 未标记结果不代表通过当前上下文 LLM seam 发出的调用。 */
     llmStreamCall?: never
   }
 )
 
 /**
- * Run the default cache-reusing `ctx.llm.stream()` summarization call: replay
- * the conversation prefix, then append the compaction instruction as the final
- * user message so the provider's warm prefix cache is reused.
- * @param ctx - context providing the LLM service.
- * @param config - resolved backend configuration.
- * @param input - replayed conversation prefix (system, tools, and leading messages) to condense.
- * @param agent - supplies routed-model history, fallback model, and session id.
- * @param signal - optional cancellation forwarded to the adapter.
- * @returns safe text-only summary blocks and the exact call envelope and output.
+ * 执行默认的、可复用缓存的 `ctx.llm.stream()` 摘要调用：先回放对话前缀，再把压缩指令
+ * 作为最后一条 user 消息追加，以复用 Provider 已预热的前缀缓存。
+ * @param ctx - 提供 LLM 服务的上下文。
+ * @param config - 解析后的后端配置。
+ * @param input - 要压缩的回放对话前缀，包括 system、Tool 和前置消息。
+ * @param agent - 提供已路由模型历史、后备模型和 Session id。
+ * @param signal - 可选的取消信号，向下传给 adapter。
+ * @returns 安全的纯文本摘要块，以及精确的调用 envelope 与输出。
  */
 export async function summarizeWithLlm(
   ctx: Context,
@@ -182,9 +223,9 @@ export async function summarizeWithLlm(
 }
 
 /**
- * Wrap raw summary blocks in the durable checkpoint framing.
- * @param summary - safe text-only model output.
- * @returns content for the synthesized replacement user message.
+ * 使用持久化 checkpoint 封装原始摘要块。
+ * @param summary - 安全的纯文本模型输出。
+ * @returns 合成的替换 user 消息内容。
  */
 export function frameSummary(summary: readonly ContentBlock[]): ContentBlock[] {
   return [
@@ -194,7 +235,7 @@ export function frameSummary(summary: readonly ContentBlock[]): ContentBlock[] {
   ]
 }
 
-/** Map a terminal summarization finish to its fail-closed error. */
+/** 将摘要终止原因映射为 fail-closed 错误。 */
 function finishError(finish: FinishReason): Error | undefined {
   switch (finish.kind) {
     case 'error':
@@ -213,7 +254,7 @@ function finishError(finish: FinishReason): Error | undefined {
   }
 }
 
-/** Reject visual output and keep only text before synthesizing a user message. */
+/** 合成 user 消息前拒绝视觉输出，只保留文本。 */
 function summaryText(
   blocks: readonly ContentBlock[],
 ): Array<Extract<ContentBlock, { type: 'text' }>> {

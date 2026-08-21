@@ -1,8 +1,7 @@
 /**
- * useInvoke: wrap an async action into a stable trigger plus pending flag.
- * Pending is tracked in a per-hook external store read through uSES instead
- * of setState, keeping the render body side-effect free and the invoke
- * reference stable across renders (idempotent-hook rules).
+ * useInvoke：把异步 action 包装为稳定触发器和 pending 标志。pending 使用每个钩子
+ * 独立的外部存储并通过 uSES 读取，而非 setState；这样渲染体不产生副作用，invoke
+ * 引用也能跨渲染保持稳定，符合幂等钩子规则。
  */
 import { useRef, useSyncExternalStore } from 'react'
 
@@ -23,8 +22,7 @@ function createCell(fn: () => Promise<unknown>): InvokeCell {
     invoke: () => {
       bump(cell, 1)
       cell.fn().catch((error: unknown) => {
-        // Domain errors surface through the event echo (session log); the
-        // framework only guarantees pending resets and leaves a trace.
+        // 领域错误通过事件回显（会话日志）展示；框架只保证重置 pending 并留下记录。
         console.error('useInvoke action failed:', error)
       }).finally(() => { bump(cell, -1) })
     },
@@ -46,11 +44,10 @@ function bump(cell: InvokeCell, delta: number): void {
 }
 
 /**
- * Wrap an async action into a stable invoke callback plus pending flag.
- * Concurrent invocations are counted: pending stays true until the last
- * in-flight call settles. The latest `fn` is always the one invoked.
- * @param fn - async action.
- * @returns invoke trigger and pending state.
+ * 把异步 action 包装为稳定 invoke 回调和 pending 标志。并发调用会计数，最后一个
+ * 进行中的调用结算前 pending 始终为 true；执行时总是调用最新的 `fn`。
+ * @param fn - 异步 action。
+ * @returns invoke 触发器和 pending 状态。
  */
 export function useInvoke(fn: () => Promise<unknown>): [invoke: () => void, pending: boolean] {
   const ref = useRef<InvokeCell | null>(null)

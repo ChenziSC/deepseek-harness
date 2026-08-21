@@ -1,6 +1,6 @@
 /**
- * React renderer for declarative slots. Per-entry bindings enforce child
- * authorization, and entry boundaries contain registrant failures.
+ * 声明式 slot 的 React 渲染器。每配置项绑定负责执行子项授权，配置项边界负责隔离
+ * 注册方失败。
  */
 import { Component, useMemo, useState, useSyncExternalStore, type FC, type ReactNode } from 'react'
 import {
@@ -29,10 +29,9 @@ type RenderSlotBinding = (key: string, owner: object, opts?: RenderOpts) => Reac
 type RenderSlotChainBinding = (key: string, owner: object, opts?: ChainRenderOpts) => ReactNode
 
 /**
- * Per-entry renderSlot bindings. The binding is identity-stable per entry
- * (memoized components must not resubscribe on unrelated re-renders) and dies
- * with the entry: a retained closure calling after the entry's disposal hits
- * the in-ledger check and throws.
+ * 每配置项 renderSlot 绑定。每个配置项的绑定标识稳定，避免记忆化组件因无关重渲染
+ * 重新订阅；绑定与配置项一同结束。配置项 dispose 后若保留闭包仍被调用，会命中
+ * ledger 存在性检查并抛错。
  */
 const renderSlotCache = new WeakMap<StoredEntry, RenderSlotBinding>()
 
@@ -43,7 +42,7 @@ function boundRenderSlot(host: SlotRendererHost, entry: StoredEntry): RenderSlot
       if (!host.isLive(entry)) {
         throw new StaleAuthorizationError(`renderSlot('${key}') from a disposed registration`)
       }
-      // Plain-JS backstop; typed callers are narrowed to the declared keys.
+      // 普通 JavaScript 的后备保护；类型化调用方已经收窄到已声明键。
       const declared = entry.children?.[key]
       if (declared === undefined) {
         throw new SlotOwnershipError(`slot '${key}' is not declared by this entry's children`)
@@ -59,10 +58,9 @@ function boundRenderSlot(host: SlotRendererHost, entry: StoredEntry): RenderSlot
 }
 
 /**
- * Per-entry renderSlotChain bindings: identity-stable per entry (same cache
- * axis as renderSlot — a per-frame dispatch must not rebuild the binding) and
- * dead with the entry. The chain-kind check is the plain-JS backstop twin of
- * the declaration check; typed callers are narrowed to chain keys.
+ * 每配置项 renderSlotChain 绑定：标识在配置项内稳定，与 renderSlot 使用相同缓存轴，
+ * 每帧分发不得重建绑定，并随配置项结束。chain kind 检查是声明检查对应的普通
+ * JavaScript 后备保护；类型化调用方已经收窄到 chain 键。
  */
 const renderSlotChainCache = new WeakMap<StoredEntry, RenderSlotChainBinding>()
 
@@ -88,10 +86,9 @@ function boundRenderSlotChain(host: SlotRendererHost, entry: StoredEntry): Rende
 }
 
 /**
- * Inject results cache: root entries per entry, session entries per
- * (entry x provide bundle). WeakMap keys are entry/info objects (both
- * identity-stable per registration/session scope), so cache lifetime rides
- * the same axes as the values it memoizes.
+ * inject 结果缓存：根配置项按配置项缓存，会话配置项按“配置项 × provide bundle”缓存。
+ * WeakMap 键是 entry/info 对象，分别在注册和会话作用域内标识稳定，因此缓存生命周期
+ * 与其记忆化值使用相同轴。
  */
 const rootInjectCache = new WeakMap<StoredEntry, InjectedProps>()
 const sessionInjectCache = new WeakMap<StoredEntry, WeakMap<SessionProvideInfo, InjectedProps>>()
@@ -102,8 +99,7 @@ const EMPTY_INJECTED_PROPS: InjectedProps = {}
 function runInject(entry: StoredEntry, info: SessionMaybeProvideInfo | undefined, actions: object | undefined): InjectedProps {
   const inject = entry.inject
   if (!inject) return EMPTY_INJECTED_PROPS
-  // Declaration-derived positional arguments: sessionId for session scope,
-  // baked actions when a store is declared.
+  // 从声明推导位置参数：会话作用域使用 sessionId，声明存储时加入烘焙后的 actions。
   const args: unknown[] = []
   if (info !== undefined) args.push(info.sessionId)
   if (actions !== undefined) args.push(actions)
@@ -111,8 +107,8 @@ function runInject(entry: StoredEntry, info: SessionMaybeProvideInfo | undefined
 }
 
 /**
- * Normalize one entry-owned inject face on its existing cache axis. Its hooks
- * compartment remains the original Observable-only contract.
+ * 在现有缓存轴上规范化一个配置项所有的 inject 接口。其 hooks 分区继续遵循原始的
+ * 仅 Observable 约定。
  */
 function bindInjectHooks(face: InjectedProps): InjectedProps {
   const sources = face['hooks']
@@ -129,7 +125,7 @@ function bindInjectHooks(face: InjectedProps): InjectedProps {
 const slotInjectCache = new WeakMap<object, BoundSlotInject>()
 const EMPTY_SLOT_INJECT: BoundSlotInject = { props: EMPTY_INJECTED_PROPS }
 
-/** Normalize one dispatcher-owned inject face by its stable object identity. */
+/** 按稳定对象标识规范化一个分发器所有的 inject 接口。 */
 function cachedSlotInject(face: object | undefined): BoundSlotInject {
   if (face === undefined) return EMPTY_SLOT_INJECT
   let bound = slotInjectCache.get(face)
@@ -159,7 +155,7 @@ function cachedSlotInject(face: object | undefined): BoundSlotInject {
   return bound
 }
 
-/** Bind deferred slot-level factories for one stable renderSlot occurrence. */
+/** 为一次稳定 renderSlot 调用绑定延迟执行的 slot 级工厂。 */
 function bindSlotHookFactories(
   factories: SlotHookFactories,
   standard: InjectedProps,
@@ -215,12 +211,10 @@ function cachedSessionMaybeInject(
 }
 
 /**
- * Locale `t` seat bindings, cached per (face, namespace, revision). The
- * revision is part of the cache key ON PURPOSE: a locale switch mints a NEW
- * function reference per namespace, so `React.memo` components taking `t`
- * re-render through ordinary shallow comparison — freshness rides identity,
- * no extra invalidation channel. Within one revision the reference is stable
- * (memoized children do not churn on unrelated re-renders).
+ * locale `t` seat 绑定，按“接口、命名空间、revision”缓存。revision 有意成为缓存键
+ * 的一部分：切换 locale 会为每个命名空间创建新函数引用，使接收 `t` 的
+ * `React.memo` 组件通过普通浅比较重渲染。新鲜度由标识承载，不需要额外失效通道。
+ * 同一 revision 内引用保持稳定，记忆化子项不会因无关重渲染抖动。
  */
 const localeSeatCache = new WeakMap<LocaleFace, Map<string, { revision: number; t: Translate }>>()
 
@@ -234,7 +228,7 @@ function localeSeat(face: LocaleFace, ns: string): Translate {
   const cached = perNs.get(ns)
   if (cached && cached.revision === revision) return cached.t
   const bound = face.bind(ns)
-  // Fresh wrapper per revision: bind() itself may return a stable reference.
+  // 每个 revision 创建新包装函数，因为 bind() 本身可能返回稳定引用。
   const t: Translate = (key, params) => bound(key, params)
   perNs.set(ns, { revision, t })
   return t
@@ -244,10 +238,9 @@ const noopSubscribe = (): (() => void) => () => {}
 const zeroRevision = (): number => 0
 
 /**
- * Per-face subscribe/getSnapshot closure pair. Cached by face identity: the
- * face is one global source shared by every outlet, and uSES resubscribes
- * whenever the subscribe reference changes — fresh closures per render would
- * churn one unsubscribe/resubscribe pair per outlet per render.
+ * 每接口 subscribe/getSnapshot 闭包对，按接口标识缓存。接口是所有 outlet 共享的
+ * 全局数据源；subscribe 引用变化时 uSES 会重新订阅。如果每次渲染创建新闭包，
+ * 每个 outlet 每次渲染都会产生一次取消订阅与重新订阅。
  */
 const localeSubscriptionCache = new WeakMap<LocaleFace, {
   subscribe: (fn: () => void) => () => void
@@ -267,12 +260,10 @@ function localeSubscription(face: LocaleFace): { subscribe: (fn: () => void) => 
 }
 
 /**
- * Subscribe an outlet to the installed locale face's revision (0 while none
- * is installed — exactly one uSES call either way, keeping hook order
- * stable). Every outlet re-renders on a locale switch; entry bodies then
- * re-derive their `t` seat at the new revision. The face must be installed
- * before the first render that needs it — a face appearing later has no
- * notification channel to already-mounted outlets.
+ * 让 outlet 订阅已安装 locale 接口的 revision。未安装时使用 0；两种情况都恰好进行
+ * 一次 uSES 调用，以保持钩子顺序稳定。切换 locale 时每个 outlet 都会重渲染，
+ * 配置项主体再按新 revision 重新推导 `t` seat。接口必须在首次需要它的渲染前安装，
+ * 后出现的接口没有通道通知已经挂载的 outlet。
  */
 function useLocaleRevision(face: LocaleFace | undefined): number {
   const subscription = face !== undefined ? localeSubscription(face) : undefined
@@ -283,14 +274,11 @@ function useLocaleRevision(face: LocaleFace | undefined): number {
 }
 
 /**
- * Entry-identity React keys for entry boundaries. An outlet renders one
- * winner per position (single/keyed/list cell head, chain election) through
- * an error boundary; without a key, a boundary that failed on entry A would
- * survive a winner change (re-election, shadowing fallback after an
- * abdication, HMR re-registration) and keep a healthy entry B blacked out.
- * Keying by entry identity remounts the boundary fresh whenever the winner
- * changes (entries are identity-stable per registration, so the key is
- * stable while the same entry stays the winner).
+ * 配置项边界使用的、按配置项标识生成的 React key。outlet 通过错误边界为每个位置
+ * 渲染一个胜出项，包括 single/keyed/list 单元格头和 chain 选举。如果没有 key，
+ * 在配置项 A 上失败的边界会跨胜出项变化继续存在，例如重新选举、退出后的遮蔽回退、
+ * HMR 重新注册，进而继续遮蔽健康的配置项 B。按配置项标识设置 key，可在胜出项变化
+ * 时重新挂载全新边界；配置项在一次注册内标识稳定，因此同一胜出项期间 key 稳定。
  */
 let nextEntryKey = 0
 const entryKeys = new WeakMap<StoredEntry, number>()
@@ -305,14 +293,11 @@ function entryKeyOf(entry: StoredEntry): number {
 }
 
 /**
- * Per-entry isolation: one registrant crashing (component render or inject
- * factory) must not take down siblings. Assembly errors (missing providers)
- * rethrow — a miswired shell must fail loud, not degrade into fallbacks.
- * Every catch reports through `onEntryError` (the ledger's supervision
- * seam); for shadowing kinds the report abdicates the entry, the outlet
- * re-renders onto the cell's next survivor, and this boundary's crash face
- * only shows until that re-render lands (permanently once the cell is dry —
- * the outlet then owns the crash face).
+ * 按配置项隔离：一个注册方在组件渲染或 inject 工厂中崩溃，不得拖垮同级项。装配
+ * 错误（例如提供方缺失）会重新抛出；接线错误的 shell 必须明确失败，不能降级为回退。
+ * 每次捕获都通过 ledger 的监督 seam `onEntryError` 报告。对支持遮蔽的 kind，报告
+ * 会使配置项退出，outlet 重新渲染该单元格的下一个存活项；边界崩溃界面只显示到
+ * 重渲染落地。单元格耗尽时则永久显示，此后崩溃界面归 outlet 所有。
  */
 class SlotErrorBoundary extends Component<
   { slotKey: string; onEntryError: (error: unknown) => void; children: ReactNode }, { failed: boolean }
@@ -340,7 +325,7 @@ interface StandardPropsCache {
 
 const standardPropsCache = new WeakMap<SlotRendererHost, StandardPropsCache>()
 
-/** Stable official-props object used by contextual Hook factories. */
+/** 上下文 Hook 工厂使用的稳定官方属性对象。 */
 function standardProps(
   host: SlotRendererHost,
   scope: SlotScope,
@@ -381,16 +366,13 @@ function standardProps(
 }
 
 /**
- * Standard-kit synthesis shared by both scope branches: the global
- * useSessions/useWorkspaces hooks, the per-session provide bundle (every
- * `hooks` source becomes a `use<Name>` selector hook — useSession is the
- * runtime's own 'session' contribution, no special case — and `props` spread
- * verbatim), the store pair when declared, the renderSlot binding when
- * children are declared, and the SessionProvider seat when the children
- * declare a session-scope slot. Hosts hand out BARE observable sources
- * (hooks never cross the host contract); every hook is bound HERE, cached
- * per source (observableHook), so spreading a fresh kit object per render
- * never churns child subscriptions.
+ * 两种 scope 分支共用的标准工具包合成：全局 useSessions/useWorkspaces 钩子；
+ * 每会话 provide bundle，其中每个 `hooks` 数据源转换为 `use<Name>` 选择器钩子，
+ * useSession 只是 runtime 自身的 `session` 贡献，无需特例，`props` 则原样展开；
+ * 已声明时加入存储对；声明 children 时加入 renderSlot 绑定；children 声明会话作用域
+ * slot 时加入 SessionProvider seat。宿主只交付裸可观察数据源，钩子不会跨越宿主约定；
+ * 所有钩子都在这里绑定并由 observableHook 按数据源缓存，因此每次渲染展开新的工具包
+ * 对象不会使子项订阅抖动。
  */
 function standardKit(
   host: SlotRendererHost,
@@ -406,8 +388,8 @@ function standardKit(
   const kit: InjectedProps = { ...standard }
   if (entry.locale !== undefined) {
     const face = host.locale
-    // Loud assembly failure: locale is immediately-tier infrastructure; a
-    // declared namespace with no installed face is a miswired composition.
+    // 明确的装配失败：locale 属于 immediately 层基础设施，声明命名空间但没有安装接口
+    // 表示组合接线错误。
     if (face === undefined) {
       throw new SlotAssemblyError(
         `entry declares locale namespace '${entry.locale}' but no locale face is installed (locale plugin missing from the composition?)`)
@@ -418,21 +400,20 @@ function standardKit(
     ? undefined
     : host.storeOf(entry, info?.sessionId)
   if (store !== undefined) {
-    // The instance IS an observable snapshot source (contract getSnapshot/
-    // subscribe); the useStore hook binds here, cached per instance.
+    // 实例本身就是遵循 getSnapshot/subscribe 约定的可观察快照数据源；useStore 钩子
+    // 在这里绑定并按实例缓存。
     kit['useStore'] = observableHook(store)
     kit['actions'] = store.actions
   }
   if (entry.children !== undefined) {
     kit['renderSlot'] = boundRenderSlot(host, entry)
-    // renderSlotChain rides the same declaration source: only entries whose
-    // children include a chain-kind slot receive the chain dispatch seat.
+    // renderSlotChain 使用相同声明真源；只有 children 包含 chain kind slot 的配置项
+    // 才会收到 chain 分发 seat。
     if (Object.values(entry.children).some(spec => spec.kind === 'chain')) {
       kit['renderSlotChain'] = boundRenderSlotChain(host, entry)
     }
-    // SessionProvider standard seat: entries declaring a session-scope child
-    // render the session area, so the framework hands them the self-wired
-    // provider (module-level component = stable reference; no value import).
+    // SessionProvider 标准 seat：声明会话作用域子项的配置项负责渲染会话区域，因此
+    // 框架向其提供已自行接线的 provider。模块级组件可保持稳定引用，且不需要值导入。
     if (Object.values(entry.children).some(spec => spec.scope === 'session')) {
       kit['SessionProvider'] = SessionProvider
     }
@@ -441,9 +422,9 @@ function standardKit(
 }
 
 /**
- * One rendered entry: standard kit + cached entry inject + common slot inject
- * + owner props (owner wins). The shares are erased at this render boundary;
- * the registration and renderSlot seams already proved their contracts.
+ * 一个已渲染配置项由标准工具包、缓存的配置项 inject、公共 slot inject 和所有方属性
+ * 组成，冲突时所有方属性优先。各部分在渲染边界擦除类型；注册与 renderSlot seam
+ * 已经证明其约定。
  */
 function ContextualEntry({
   slotKey, Comp, kit, standard, injected, slotInjected, ownerProps, hookContext, hasHookContext,
@@ -532,17 +513,14 @@ function SessionMaybeEntryBody({ entry, ownerProps, info, slotKey, slotInjected,
 }
 
 /**
- * Session-maybe identity: adoption — the ONLY behavior (there is no
- * hold-identity-forever mode). An incarnation born session-less ADOPTS the
- * first session that arrives: identity holds across that one transition
- * (undefined → first id), so a blank shell's DOM survives the moment a
- * session appears. From then on the entry behaves exactly like a strict
- * session entry: switching to a DIFFERENT session remounts (component-local
- * state must not leak between sessions), and dropping back to no-session
- * remounts into a fresh blank incarnation, which will adopt again.
- * Component-local per-session state therefore clears by construction; state
- * that must SURVIVE a switch belongs in session-bound sources (machine,
- * store, hooks) — the existing layering rule, now load-bearing.
+ * session-maybe 标识只支持接管，不存在永久保持标识模式。从无会话状态创建的
+ * incarnation 会接管首个到达的会话：在 undefined → 首个 id 这次转换中标识保持
+ * 不变，使空白 shell 的 DOM 在会话出现时继续存在。此后配置项与严格会话配置项行为
+ * 完全相同：切换到不同会话会重新挂载，防止组件局部状态跨会话泄漏；退回无会话也会
+ * 重新挂载为新的空白 incarnation，之后可以再次接管。
+ *
+ * 因此每会话组件局部状态会由结构保证清理。需要跨切换保留的状态必须位于会话绑定
+ * 数据源，例如 machine、store 或 hooks；既有分层规则在此承担实际正确性责任。
  */
 function SessionMaybeEntry({ entry, ownerProps, slotKey, slotInjected, hookContext, hasHookContext }: {
   entry: StoredEntry
@@ -553,25 +531,23 @@ function SessionMaybeEntry({ entry, ownerProps, slotKey, slotInjected, hookConte
   hasHookContext: boolean
 }) {
   const info = useSessionMaybeProvideInfo()
-  // The child key is an incarnation counter, NOT the session id: adoption
-  // must keep the key constant across undefined → first id. Bookkeeping
-  // lives in this stable (unkeyed) wrapper via the render-phase setState
-  // form (React's sanctioned derived-state pattern: setState during render
-  // of the same component re-renders once before children mount, and the
-  // guard conditions make it convergent — StrictMode-safe).
+  // 子项 key 是 incarnation 计数器，不是会话 id；接管必须在 undefined → 首个 id
+  // 期间保持 key 不变。记录位于这个稳定且无 key 的包装层，并使用渲染阶段 setState
+  // 形式。这是 React 允许的派生状态模式：同一组件渲染期间 setState 会在子项挂载前
+  // 额外渲染一次，保护条件保证过程收敛并兼容 StrictMode。
   const [state, setState] = useState<MaybeIncarnation>(FIRST_INCARNATION)
   let { adopted, epoch } = state
   if (info.sessionId !== undefined && adopted === undefined) {
-    // Adoption: same epoch — no remount.
+    // 接管：epoch 不变，不重新挂载。
     adopted = info.sessionId
     setState({ adopted, epoch })
   } else if (adopted !== undefined && info.sessionId !== undefined && info.sessionId !== adopted) {
-    // Post-adoption session switch: next incarnation, born already adopted.
+    // 接管后的会话切换：进入下一个 incarnation，创建时已完成接管。
     adopted = info.sessionId
     epoch += 1
     setState({ adopted, epoch })
   } else if (adopted !== undefined && info.sessionId === undefined) {
-    // Back to no-session: next incarnation, born blank (adopts anew later).
+    // 回到无会话：进入下一个空白 incarnation，之后可重新接管。
     adopted = undefined
     epoch += 1
     setState({ adopted, epoch })
@@ -590,11 +566,11 @@ function SessionMaybeEntry({ entry, ownerProps, slotKey, slotInjected, hookConte
   )
 }
 
-/** Adoption bookkeeping of one session-maybe outlet (see SessionMaybeEntry). */
+/** 一个 session-maybe outlet 的接管记录，见 SessionMaybeEntry。 */
 interface MaybeIncarnation {
-  /** Session this incarnation adopted; undefined while born blank and unadopted. */
+  /** 本 incarnation 接管的会话；处于初始空白且尚未接管时为 undefined。 */
   readonly adopted: string | undefined
-  /** Incarnation counter — the child key; bumps exactly when an incarnation dies. */
+  /** incarnation 计数器，也是子项 key；仅在一个 incarnation 结束时递增。 */
   readonly epoch: number
 }
 
@@ -626,8 +602,8 @@ function StrictSessionEntry({ slotKey, entry, ownerProps, slotInjected, hookCont
 }) {
   const info = useSessionMaybeProvideInfo()
   if (info.sessionId === undefined) return null
-  // Per-session remount rides this key; per-entry remount rides the outer
-  // element's entry-identity key (the outlet's guarded() call).
+  // 每会话重新挂载使用此 key；每配置项重新挂载使用外层元素的配置项标识 key，
+  // 即 outlet 的 guarded() 调用。
   return (
     <SlotErrorBoundary slotKey={slotKey} key={info.sessionId} onEntryError={onEntryError}>
       <SessionEntry
@@ -644,10 +620,9 @@ function StrictSessionEntry({ slotKey, entry, ownerProps, slotInjected, hookCont
 }
 
 /**
- * Anchor style shared by every outlet wrapper: `display:contents` keeps the
- * wrapper out of layout (grid/flex parents see the slot's own children), so
- * the anchor is purely addressable surface. Module-level constant — a stable
- * reference so the wrapper never diffs its style prop.
+ * 所有 outlet 包装层共享的锚点样式。`display:contents` 让包装层不参与布局，使
+ * grid/flex 父级直接看到 slot 子项，因此锚点只提供可寻址接口。模块级常量保持稳定
+ * 引用，使包装层无需比较 style 属性变化。
  */
 const ANCHOR_STYLE = { display: 'contents' } as const
 
@@ -657,21 +632,19 @@ function SlotOutlet({ slotKey, ownerProps, opts }: {
   opts?: (RenderOpts & ChainRenderOpts) | undefined
 }) {
   const host = useHost()
-  // Version tick drives entries() re-read; the host batches per microtask.
+  // version 推进驱动重新读取 entries()；宿主按微任务批处理。
   useSyncExternalStore(
     fn => host.subscribe(slotKey, fn),
     () => host.getVersion(slotKey),
   )
-  // Locale revision tick: a locale switch re-renders every outlet, and entry
-  // bodies re-derive their `t` seat at the new revision (fresh identity).
+  // locale revision 推进：切换 locale 会重渲染每个 outlet，配置项主体再按新 revision
+  // 重新推导具有新标识的 `t` seat。
   useLocaleRevision(host.locale)
   const sessionInfo = useSessionMaybeProvideInfo()
-  // Anchor contract: every slot render site exposes a stable
-  // `[data-slot="<key>"]` wrapper — the addressable seam dynamic styles
-  // target — and `display:contents` keeps it layout-neutral. The wrapper
-  // rides the outlet, not the dispatch outcome: fallback, crash-face, and
-  // undeclared-empty states all render inside it, so the anchor's presence
-  // never flickers with registration churn.
+  // 锚点约定：每个 slot 渲染位置都公开稳定的 `[data-slot="<key>"]` 包装层，作为
+  // 动态样式可寻址 seam 的目标；`display:contents` 使其不影响布局。包装层属于 outlet
+  // 而非分发结果，回退、崩溃界面和未声明空状态都在其中渲染，因此锚点不会随注册变动
+  // 忽隐忽现。
   return (
     <div data-slot={slotKey} style={ANCHOR_STYLE}>
       {renderOutletContent(host, slotKey, ownerProps, opts, sessionInfo)}
@@ -679,7 +652,7 @@ function SlotOutlet({ slotKey, ownerProps, opts }: {
   )
 }
 
-/** Kind dispatch behind the outlet anchor (single/keyed/list/chain, fallbacks, crash faces). */
+/** outlet 锚点内部的 kind 分发，包括 single、keyed、list、chain、回退和崩溃界面。 */
 function renderOutletContent(
   host: SlotRendererHost,
   slotKey: string,
@@ -688,29 +661,25 @@ function renderOutletContent(
   sessionInfo: SessionMaybeProvideInfo,
 ): ReactNode {
   const spec = host.specOf(slotKey)
-  // Undeclared (or no-longer-declared) keys render empty: a declaring entry's
-  // unload returns the slot to the undeclared state while retained elements
-  // may still be mounted — natural empty, not an ownership failure.
+  // 未声明或已撤销声明的键渲染为空。声明配置项卸载时，slot 会回到未声明状态，但保留
+  // 元素可能仍已挂载；这是自然空状态，不是所有权失败。
   if (!spec) return null
   const strictSessionAbsent = spec.scope === 'session' && sessionInfo.sessionId === undefined
   if (strictSessionAbsent && (spec.kind !== 'chain' || !opts?.overlay)) {
     return <>{opts?.fallback ?? null}</>
   }
-  // An absent strict overlay chain follows its ordinary empty-election path,
-  // preserving the Fragment/fallback-wrapper shape across session arrival.
+  // 缺少严格会话的 overlay chain 走普通空选举路径，使 Fragment/回退包装层结构在
+  // 会话到达前后保持一致。
   const entries = strictSessionAbsent ? [] : host.entriesOf(slotKey)
   const slotInjected = cachedSlotInject(spec.inject)
 
-  // The boundary must wrap the Entry ELEMENT, not live inside it: inject
-  // factories and kit synthesis run in the Entry body and must land in the
-  // per-entry fallback rather than escaping to the tree above.
+  // 边界必须包装配置项元素，不能位于其内部。inject 工厂和工具包合成都在配置项主体
+  // 运行，失败必须落入每配置项回退，不能逃逸到上层树。
   const guarded = (entry: StoredEntry, key?: string | number, owner: object = ownerProps) => {
     const hasHookContext = opts !== undefined && Object.hasOwn(opts, 'hookContext')
     const hookContext = opts?.hookContext
-    // Shadowing kinds abdicate on crash (the cell falls to its next
-    // survivor); chain reports without abdicating — election alternatives
-    // resolve at select time, and retiring a crashed elected entry would
-    // change the static crash face.
+    // 支持遮蔽的 kind 崩溃后退出，单元格回退到下一个存活项。chain 只报告而不退出，
+    // 因为选举备选项在 select 时解析；让已选中但崩溃的项退役会改变静态崩溃界面。
     const onEntryError = (error: unknown) => {
       host.reportEntryError(slotKey, entry, error, { abdicate: spec.kind !== 'chain' })
     }
@@ -753,9 +722,8 @@ function renderOutletContent(
         </SlotErrorBoundary>
       )
   }
-  // A cell whose every registration abdicated keeps the crash face: the
-  // shadowing collapse ran out of survivors, which is a failure state, not
-  // the owner's natural-empty fallback.
+  // 所有注册项都退出的单元格继续显示崩溃界面。遮蔽回退已耗尽存活项，这属于失败状态，
+  // 不是所有方的自然空回退。
   const deadCell = () => <div data-slot-error={slotKey} />
 
   if (spec.kind === 'single') {
@@ -772,23 +740,19 @@ function renderOutletContent(
     return guarded(entry, entryKeyOf(entry))
   }
   if (spec.kind === 'chain') {
-    // Entries arrive priority-sorted from the ledger (the core orders at
-    // register, ties keep registration sequence). Selectors are pure
-    // functions of the owner props (register-face contract), so the routing
-    // pass runs per render with zero mount side effects: the first non-null
-    // election renders, decliners never mount.
+    // 配置项从 ledger 到达时已按优先级排序；核心在 register 时排序，相同值保持注册
+    // 顺序。选择器是只依赖所有方属性的纯函数，属于 register 接口约定，因此每次渲染
+    // 都能执行无挂载副作用的路由：首个非 null 选举项负责渲染，拒绝项从不挂载。
     let elected: ReactNode = null
     for (const entry of entries) {
       let matched: unknown
       try {
-        // Chain entries always carry select (SlotCore register validation).
+        // SlotCore register 已校验 chain 配置项始终携带 select。
         matched = (entry.select as (owner: object) => unknown)(ownerProps)
       } catch (error) {
-        // A throwing selector is a registrant contract breach (select MUST be
-        // pure and total), but it runs before the entry's SlotErrorBoundary
-        // exists — uncontained it would black out the whole owner region. So
-        // it degrades to a decline: the chain and the fallback stay intact,
-        // and the breach is reported like a crashed entry.
+        // 选择器抛错表示注册方违反约定，因为 select 必须为纯函数且对所有输入有定义。
+        // 但它运行时配置项的 SlotErrorBoundary 尚不存在；若不隔离会使整个所有方区域
+        // 黑屏。因此将其降级为拒绝：chain 和回退保持可用，并像配置项崩溃一样报告违约。
         console.error(
           `chain selector crashed in '${slotKey}' (${entry.registrant ?? 'unknown registrant'}), treating as declined:`,
           error)
@@ -800,11 +764,10 @@ function renderOutletContent(
       }
     }
     if (opts?.overlay) {
-      // Overlay chain (ChainRenderOpts.overlay): the fallback stays mounted
-      // through elections — hidden via inline display:none (decisive over any
-      // author CSS), shown via display:contents so the wrapper never affects
-      // the owner's layout. The wrapper's tree position is constant, so React
-      // reconciles instead of remounting and fallback state survives takeover.
+      // overlay chain（ChainRenderOpts.overlay）在选举期间继续挂载回退内容。隐藏时
+      // 使用内联 display:none，优先于作者 CSS；显示时使用 display:contents，使包装层
+      // 永不影响所有方布局。包装层树位置恒定，因此 React 会进行协调而非重新挂载，
+      // 回退状态可跨接管保留。
       return (
         <>
           <div
@@ -819,10 +782,9 @@ function renderOutletContent(
     }
     return elected ?? <>{opts?.fallback ?? null}</>
   }
-  // list: one row per id cell — the cell's shadowing winner, or the crash
-  // face once every entry of the cell abdicated (a dry cell must not
-  // silently drop its row). Row sequence: registration order refined by
-  // explicit order, optional id filter, as before shadowing existed.
+  // list 中每个 id 单元格对应一行：显示单元格的遮蔽胜出项；所有项都退出后显示崩溃
+  // 界面，耗尽单元格不得静默丢行。行顺序以注册顺序为基础，再按显式 order 细分，
+  // 并可选按 id 筛选，与引入遮蔽前一致。
   const winners = host.entriesOfSlot(slotKey)
   const rows: { entry: StoredEntry | undefined; id: string | undefined; order: number }[] = winners.map(entry => ({
     entry,
@@ -833,14 +795,14 @@ function renderOutletContent(
   for (const entry of entries) {
     if (rowIds.has(entry.options.id)) continue
     rowIds.add(entry.options.id)
-    // Dry cells anchor their row at the cell head's declared order.
+    // 耗尽单元格按单元格头声明的 order 固定其行位置。
     rows.push({ entry: undefined, id: entry.options.id, order: entry.options.order ?? 0 })
   }
   let list = [...rows].sort((a, b) => a.order - b.order)
   if (opts?.only !== undefined) list = list.filter(item => item.id === opts.only)
   if (list.length === 0) return <>{opts?.fallback ?? null}</>
-  // Winner rows key by entry identity (see entryKeyOf); dry-cell rows key by
-  // id — the disjoint prefixes keep the two namespaces from colliding.
+  // 胜出行按配置项标识设置 key，见 entryKeyOf；耗尽单元格行按 id 设置 key。互斥前缀
+  // 防止两个命名空间冲突。
   return (
     <>
       {list.map((item, i) => item.entry !== undefined
@@ -850,7 +812,7 @@ function renderOutletContent(
   )
 }
 
-/** Root outlet: the shell's single ctx-level render entry — an unregistered 'root' is a boot-order failure, never a silent blank. */
+/** 根 outlet：shell 唯一的 ctx 级渲染入口。未注册的 `root` 表示启动顺序失败，绝不静默留白。 */
 function RootOutlet({ ownerProps }: { ownerProps: object }) {
   const host = useHost()
   useSyncExternalStore(
@@ -860,14 +822,13 @@ function RootOutlet({ ownerProps }: { ownerProps: object }) {
   useLocaleRevision(host.locale)
   const entry = host.entriesOfSlot('root')[0]
   if (!entry) {
-    // Registrations exist but every one abdicated: the shadowing collapse ran
-    // dry, so the crash face replaces the tree (registered-but-broken is a
-    // crash, not the boot-order assembly failure below).
+    // 注册项存在但全部退出，说明遮蔽回退已经耗尽，因此用崩溃界面替换树。“已注册但
+    // 损坏”属于崩溃，不是下方的启动顺序装配失败。
     if (host.entriesOf('root').length > 0) return <div data-slot-error="root" />
     throw new SlotAssemblyError("renderSlot('root') before any 'root' registration (boot order)")
   }
-  // Same anchor contract as SlotOutlet: 'root' is a slot like any other, and
-  // display:contents keeps the wrapper out of the shell's layout.
+  // 与 SlotOutlet 使用相同锚点约定：`root` 与其他 slot 相同，display:contents 使
+  // 包装层不参与 shell 布局。
   return (
     <div data-slot="root" style={ANCHOR_STYLE}>
       <SlotErrorBoundary
@@ -889,10 +850,10 @@ function RootOutlet({ ownerProps }: { ownerProps: object }) {
 }
 
 /**
- * Build the renderer the shell installs into the runtime SlotRegistry
- * (ctx.slots.install(createSlotRenderer()) at boot; the service owns the
- * install/renderSlot contract and the double-install/not-installed throws).
- * @returns the renderer.
+ * 创建由 shell 安装到 runtime SlotRegistry 的渲染器。启动时调用
+ * ctx.slots.install(createSlotRenderer())；服务所有 install/renderSlot 约定，
+ * 并负责重复安装或尚未安装时抛错。
+ * @returns 渲染器。
  */
 export function createSlotRenderer(): SlotRenderer {
   return {

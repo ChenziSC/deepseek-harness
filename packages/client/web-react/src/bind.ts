@@ -1,19 +1,17 @@
 /**
- * uSES bridge: turns any bare observable snapshot source into a typed
- * selector hook. Client-side-rendered only, so no server snapshot is wired.
- * This is the ONE hook constructor in the client stack — engines and hosts
- * traffic in bare sources; binding happens on the React side.
+ * uSES 桥：把任意裸可观察快照数据源转换为类型化选择器钩子。这里只进行客户端渲染，
+ * 因此不接入服务端快照。这是客户端栈唯一的钩子构造器；引擎和宿主只传递裸数据源，
+ * 绑定发生在 React 侧。
  */
 import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector.js'
 import type { HostObservable, SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
 
 /**
- * Bind a bare observable source to a typed uSES selector hook.
- * subscribe/getSnapshot are captured once per source into stable closures
- * (also re-binds `this` for method-based sources), so components never
- * resubscribe across renders. Equality defaults to Object.is.
- * @param w - snapshot source (engine store, Session object, store instance).
- * @returns the selector hook.
+ * 把裸可观察数据源绑定为类型化 uSES 选择器钩子。每个数据源只捕获一次
+ * subscribe/getSnapshot 并形成稳定闭包，同时为方法型数据源重新绑定 `this`，因此
+ * 组件不会在多次渲染之间重新订阅。相等性判断默认使用 Object.is。
+ * @param w - 快照数据源，例如引擎存储、Session 对象或存储实例。
+ * @returns 选择器钩子。
  */
 export function bindSnapshotSelector<T>(w: HostObservable<T>): SnapshotSelectorHook<T> {
   const subscribe = (fn: () => void) => w.subscribe(fn)

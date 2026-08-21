@@ -1,7 +1,6 @@
 /**
- * Local typings for use-sync-external-store 1.2.0: the package ships no types
- * and the DefinitelyTyped package is unavailable offline. Mirrors the shim's
- * with-selector build (the only entry this package consumes).
+ * use-sync-external-store 1.2.0 的本地类型。该包没有随附类型，离线环境也无法取得
+ * DefinitelyTyped 包。这里只镜像 shim 的 with-selector 构建，因为本包只消费该入口。
  */
 declare module 'use-sync-external-store/shim/with-selector.js' {
   export function useSyncExternalStoreWithSelector<Snapshot, Selection>(

@@ -1,15 +1,14 @@
 /**
- * ClientModuleSystem — the implementation behind the {@link ClientModuleLoader}
- * contract. The conceptual contract (lazy CJS model, resolution branch order) is
- * documented on the public interfaces in `./manifest.ts`; this file owns the
- * state tables and the load/materialize machinery.
+ * ClientModuleSystem 是 {@link ClientModuleLoader} 接口背后的实现。延迟 CJS 模型、
+ * 解析分支顺序等概念约定记录在 `./manifest.ts` 的公开接口上；本文件负责状态表以及
+ * 加载、实例化机制。
  */
 import type {
   BootModuleRow, ClientModuleLoader, ClientModuleRecord,
   ClientModuleSystemOptions, ClientPluginHandoff, DshWindow,
 } from './manifest.ts'
 
-/** Default bundle-load hook: same-origin external classic script. */
+/** 默认 bundle 加载钩子：同源的外部经典 script。 */
 const defaultLoadBundle = (url: string): Promise<void> => new Promise((resolve, reject) => {
   const el = document.createElement('script')
   el.async = true
@@ -26,17 +25,15 @@ const defaultLoadBundle = (url: string): Promise<void> => new Promise((resolve, 
 })
 
 /**
- * A plugin bundle IS its package's client half: `<id>/client` (the exports
- * subpath external bundles emit) and the bare graph id name the same
- * exports, so table lookups normalize the suffix away.
+ * 插件 bundle 就是对应包的客户端部分。外部 bundle 生成的 exports 子路径
+ * `<id>/client` 与图中的裸 ID 指向同一份 exports，因此查表前要去掉该后缀。
  */
 const stripClientSuffix = (spec: string): string =>
   spec.endsWith('/client') ? spec.slice(0, -'/client'.length) : spec
 
 /**
- * Claim and inventory the <style> tags a factory injected during
- * materialization: preset-emitted tags arrive pre-tagged with data-plugin;
- * any untagged tag is claimed for the materializing plugin (HMR bookkeeping).
+ * 认领并清点 factory 在实例化期间注入的 <style> 标签。preset 生成的标签已带有
+ * data-plugin；其余未标记标签归当前正在实例化的插件所有，供 HMR 记账。
  */
 const claimStyles = (id: string): string[] => {
   if (typeof document === 'undefined') return []
@@ -51,10 +48,9 @@ const claimStyles = (id: string): string[] => {
 }
 
 /**
- * The client module system: state tables plus the arrival/materialization
- * machinery implementing {@link ClientModuleLoader} (whose members carry the
- * contract documentation). Construction indexes the boot rows and installs the
- * `window.__ModuleLoader__` registration sink — once per page.
+ * 客户端模块系统：由状态表以及实现 {@link ClientModuleLoader} 的到达、实例化机制
+ * 组成；成员约定见该接口文档。构造时为启动条目建立索引，并为每个页面安装一次
+ * `window.__ModuleLoader__` 注册接收器。
  */
 export class ClientModuleSystem implements ClientModuleLoader {
   readonly version = 'client'
@@ -63,16 +59,16 @@ export class ClientModuleSystem implements ClientModuleLoader {
   private readonly seed: Map<string, unknown>
   private readonly statics = new Map<string, unknown>()
   private readonly factories = new Map<string, ClientPluginHandoff['factory']>()
-  /** In-flight prefetch (script load) per id; concurrent callers share it. */
+  /** 各 ID 正在进行的预取（script 加载）；并发调用方共享同一任务。 */
   private readonly pendingArrival = new Map<string, Promise<void>>()
-  /** Materialization re-entrancy guard: factory-form CJS cannot deliver partial exports, so a cycle is fatal. */
+  /** 实例化重入保护：factory 形式的 CJS 无法提供部分 exports，因此循环依赖必须失败。 */
   private readonly materializing = new Set<string>()
   private readonly graphRows = new Map<string, BootModuleRow>()
   private readonly loadBundle: (url: string) => Promise<void>
 
   /**
-   * Build the module system over the parsed boot rows.
-   * @param options - Module rows, module-table staticModules, and bundle-load hook.
+   * 根据已解析的启动条目构建模块系统。
+   * @param options - 模块条目、模块表 staticModules 和 bundle 加载钩子。
    */
   constructor(options: ClientModuleSystemOptions) {
     this.seed = new Map(Object.entries(options.staticModules))
@@ -87,15 +83,15 @@ export class ClientModuleSystem implements ClientModuleLoader {
     if (win.__ModuleLoader__ !== undefined) throw new Error('client-modules: window.__ModuleLoader__ already installed (double boot?)')
     win.__ModuleLoader__ = {
       load: (handoff: ClientPluginHandoff): void => {
-        // Registration is keyed by the handoff id; a duplicate means a bundle
-        // executed twice without an invalidate — always a bug, always loud.
+        // 注册以交接 ID 为键；重复注册表示 bundle 未经 invalidate 就执行了两次，
+        // 属于必须明确报错的程序错误。
         if (this.factories.has(handoff.id)) throw new Error(`client-modules: duplicate factory registration for "${handoff.id}" (bundle executed twice without invalidate?)`)
         this.factories.set(handoff.id, handoff.factory)
       },
     }
   }
 
-  /** Load one graph row so its factory is registered (idempotent per in-flight arrival). */
+  /** 加载一个图条目以注册其 factory；对同一个进行中到达任务保持幂等。 */
   private arrive(row: BootModuleRow): Promise<void> {
     const { id, url } = row
     const pending = this.pendingArrival.get(id)
@@ -110,12 +106,12 @@ export class ClientModuleSystem implements ClientModuleLoader {
     return task
   }
 
-  /** Materialize a registered factory (synchronous; memoized in loadCache). */
+  /** 同步实例化已注册 factory，并在 loadCache 中缓存结果。 */
   private materialize(id: string): ClientModuleRecord {
     const existing = this.loadCache.get(id)
     if (existing !== undefined) return existing
     const registered = this.factories.get(id)
-    /* v8 ignore next -- callers check the factory branch before dispatching here. */
+    /* v8 ignore next -- 调用方会先检查 factory 分支再分派到这里。 */
     if (registered === undefined) throw new Error(`client-modules: no registered factory for "${id}"`)
     if (this.materializing.has(id)) {
       throw new Error(`client-modules: require cycle through "${id}" (factory-form CJS cannot deliver partial exports)`)
@@ -133,11 +129,10 @@ export class ClientModuleSystem implements ClientModuleLoader {
   }
 
   /**
-   * The synchronous require answered to factories: seed → static → memoized
-   * record → registered factory (recursive materialization — this is what
-   * makes load order self-resolving). Fetching is async and therefore
-   * unreachable from here; an unregistered plugin specifier is loud (and a
-   * cross-plugin value import is already a build error upstream).
+   * 提供给 factory 的同步 require 按 seed → static → 缓存记录 → 已注册 factory 的
+   * 顺序解析；最后一支会递归实例化，使加载顺序能够自行解析。获取 bundle 是异步
+   * 操作，这里无法执行；未注册的插件 specifier 会明确报错，而跨插件值导入在上游
+   * 构建阶段本就会失败。
    */
   private makeRequire(edges: Set<string>): (spec: string) => unknown {
     return (spec: string): unknown => {

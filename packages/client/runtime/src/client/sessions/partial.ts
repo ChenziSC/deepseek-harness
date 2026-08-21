@@ -1,15 +1,14 @@
-// PartialAccumulator: assistant/chunk accumulator.
-// Folds the six StreamChunk variants into AssistantBlock[] keyed by block index;
-// block-level immutability (a delta only swaps that block's reference).
+// PartialAccumulator 是 assistant/chunk 累加器。它把六种 StreamChunk 按 block 索引
+// 折叠为 AssistantBlock[]，并保持 block 级不可变性：delta 只替换对应 block 的引用。
 
 import type { StreamChunk } from '@deepseek-ai/dsh-llm/types'
 import type { AssistantBlock, PartialAssistant } from './conversation.ts'
 import { toAssistantBlock } from './conversation.ts'
 
 /**
- * Whether a stream chunk changes the partial assistant projection shown by the UI.
- * @param type - Stream chunk discriminant.
- * @returns Whether publishing the accumulated partial can change the visible snapshot.
+ * 判断一个流 chunk 是否会改变 UI 展示的部分 Assistant 投影。
+ * @param type - Stream chunk 判别字段。
+ * @returns 发布累计部分内容是否可能改变可见快照。
  */
 export function isVisibleAssistantChunk(type: string): boolean {
   return type === 'block-start'
@@ -19,17 +18,17 @@ export function isVisibleAssistantChunk(type: string): boolean {
     || type === 'block-end'
 }
 
-/** assistant/chunk accumulator: folds StreamChunks into AssistantBlock[] with block-level immutability. */
+/** assistant/chunk 累加器：把 StreamChunks 折叠为 block 级不可变的 AssistantBlock[]。 */
 export class PartialAccumulator {
-  // Sparse on purpose: block-start may arrive out of order, leaving holes until compaction.
+  // 有意保持稀疏：block-start 可能乱序到达，空洞会保留到压紧时。
   private blocks: (AssistantBlock | undefined)[] = []
   private changed = true
   private snapshot: PartialAssistant
 
   /**
-   * @param turn - Owning agent turn.
-   * @param step - Owning model step.
-   * @param initialBlocks - Materialized prefix when accumulation begins after history replay.
+   * @param turn - 所属 Agent turn。
+   * @param step - 所属模型 step。
+   * @param initialBlocks - 历史重放后开始累加时已有的实例化前缀。
    */
   constructor(
     readonly turn: number,
@@ -41,9 +40,9 @@ export class PartialAccumulator {
   }
 
   /**
-   * Fold one chunk.
-   * @param chunk - the stream chunk.
-   * @returns whether it caused a visible change (usage/finish return false, skipping notification).
+   * 折叠一个 chunk。
+   * @param chunk - 流 chunk。
+   * @returns 是否造成可见变化；usage/finish 返回 false 并跳过通知。
    */
   push(chunk: StreamChunk): boolean {
     switch (chunk.type) {
@@ -82,19 +81,19 @@ export class PartialAccumulator {
         return true
       }
       default:
-        // usage / finish / merge-extensible unknown variants: no visible block change
-        // (finish is immediately followed by the assistant/message that supersedes the partial).
+        // usage、finish 和通过声明合并扩展的未知变体不会改变可见 block；finish 后会
+        // 立即跟随 assistant/message，取代部分内容。
         return false
     }
   }
 
   /**
-   * Current partial projection.
-   * @returns the cached snapshot (the blocks array reference only changes after a mutation).
+   * 当前部分投影。
+   * @returns 缓存快照；blocks 数组引用只在发生修改后变化。
    */
   toPartial(): PartialAssistant {
     if (this.changed) {
-      // Compact sparse indexes (out-of-order block-start) into render order.
+      // 将乱序 block-start 形成的稀疏索引压紧为渲染顺序。
       this.snapshot = { turn: this.turn, step: this.step, blocks: this.blocks.filter((b): b is AssistantBlock => b !== undefined) }
       this.changed = false
     }
@@ -103,9 +102,9 @@ export class PartialAccumulator {
 }
 
 /**
- * Create the empty client projection for one streamed Assistant block kind.
- * @param blockType - wire block kind.
- * @returns empty projected block ready to receive deltas.
+ * 为一种流式 Assistant block kind 创建空客户端投影。
+ * @param blockType - 传输层 block kind。
+ * @returns 可接收 delta 的空投影 block。
  */
 export function emptyAssistantBlock(blockType: string): AssistantBlock {
   switch (blockType) {

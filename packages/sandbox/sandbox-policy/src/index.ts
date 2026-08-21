@@ -34,7 +34,14 @@ function resolveWorkspaceRoot(path: string): string {
   return resolvePath(canonicalPath(path))
 }
 
-/** Render the policy without claiming which capabilities are mounted. */
+// 下方三段英文按当前 SandboxMode 生成动态 user-role 上下文，不声称具体挂载了哪些能力。
+// read-only：DSH 文件 Sandbox 强制的可用操作在当前模式下不能修改文件；不要仅凭此策略
+// 拒绝必要修改，应正常尝试可用 Tool，并遵循返回的拒绝与升级指引。
+// workspace-write：受 DSH 文件 Sandbox 强制的可用操作可以修改 Session workspace 下的
+// 文件（路径由 workspaceRoot 插入），部分平台临时目录也可能可写。
+// danger-full-access：DSH 文件 Sandbox 不限制可用操作修改文件。
+// 运行时英文与枚举保持不变，以保证缓存、模型行为和回放一致。
+/** 在不声称已挂载哪些能力的前提下渲染策略。 */
 function renderPolicyContext(policy: SandboxExecutionPolicy): string {
   switch (policy.mode) {
     case 'read-only':

@@ -109,7 +109,15 @@ const GOAL_VALUE_SCHEMA = {
   ],
 } as const
 
-/** Render policy guidance with its deployment-selected blocked threshold. */
+// 下方英文会作为三个 Goal Tool 的共用 system prompt 指引发送给模型。中文译文：在当前
+// Session 中，只为一个长期完成目标使用 Goal Tool。create_goal 可以从任何语言的直接人类
+// 请求中推断目标意图，但不要用于普通单轮工作。update_goal 前先调用 get_goal，并复制精确
+// goal_id 与 revision。Session 恢复或 fork 后，active Goal 会解除 armed 状态；人类以任何
+// 语言要求继续时，用 update_goal 的 resume 动作重新 armed。仅在目标确实完成时标记
+// complete；只有同一阻塞条件连续存在至少 blockedAfter 轮时才能标记 blocked，并在
+// blocked_reason 中写明具体条件。困难、不确定或仍有有用工作都不算 blocked。
+// blockedAfter 是部署配置插入的阈值；运行时英文保持不变。
+/** 使用部署选择的 blocked 阈值渲染策略指引。 */
 function guidance(blockedAfter: number): string {
   return 'Use goal tools for one long-running completion objective in the current session. '
     + 'create_goal may infer goal intent from a direct human request in any language; do not '

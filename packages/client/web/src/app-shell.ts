@@ -1,45 +1,43 @@
 /**
- * App-shell assembly plugin. Its pseudo package id exists only in the host
- * graph and shell registry; there is no npm package behind it.
+ * app-shell 装配插件。它的伪包 id 只存在于宿主图和 shell 注册表中，
+ * 并不存在对应的 npm 包。
  */
 import type { ReactNode } from 'react'
 import type { Context } from '@deepseek-ai/cordis'
 import { createSlotRenderer } from '@deepseek-ai/dsh-client-web-react'
 import { buildRenderApp } from './app.tsx'
 
-/** Shell-owned pseudo entry id under which the host graph mounts this plugin. */
+/** 宿主图挂载本插件时使用的、由 shell 所有的伪配置项 id。 */
 export const APP_SHELL_ID = '@deepseek-ai/dsh-client-app-shell'
 
-/** The assembled-UI face AppRoot renders once the boot settles. */
+/** 启动结算后由 AppRoot 渲染的已装配 UI 接口。 */
 export interface AppShellService {
-  /** Build (once) and render the real UI tree. */
+  /** 创建一次并渲染真实 UI 树。 */
   renderApp: () => ReactNode
 }
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
-    /** The shell assembly face, provided by the app-shell entry once its inject set is active. */
+    /** shell 装配接口；app-shell 配置项的 inject 集合激活后提供。 */
     appShell: AppShellService
   }
 }
 
-/** Cordis plugin name. */
+/** Cordis 插件名称。 */
 export const name = 'app-shell'
 
-/** Services required before shell assembly. */
+/** shell 装配前必须就绪的服务。 */
 export const inject = ['slots', 'sessions', 'layout']
 
-/** Installs the React renderer and exposes the assembled application.
- * @param ctx - Plugin context.
+/** 安装 React 渲染器并公开装配后的应用。
+ * @param ctx - 插件上下文。
  */
 export function apply(ctx: Context): void {
-  // The renderer install is shell territory (web-react is shell-bundled),
-  // but ctx.slots exists only once the runtime entry is active — so it lands
-  // here, on the entry whose inject set guarantees that ordering.
+  // 渲染器安装属于 shell（web-react 随 shell 打包），但只有 runtime 配置项激活后
+  // ctx.slots 才存在，因此安装逻辑位于这里，由本配置项的 inject 集合保证顺序。
   ctx.slots.install(createSlotRenderer())
 
-  // Assemble once on first render: the closure must be identity-stable
-  // across AppRoot re-renders.
+  // 首次渲染时只装配一次；AppRoot 重渲染期间闭包标识必须保持稳定。
   let renderApp: (() => ReactNode) | undefined
   ctx.reflect.provide('appShell', {
     renderApp: (): ReactNode => {

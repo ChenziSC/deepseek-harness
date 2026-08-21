@@ -1,9 +1,8 @@
 /**
- * Web shell library entry. The shell's product is {@link AppWebEntry} —
- * apps/web's vite entry runs it against #root; everything else (AppRoot
- * gate, app-shell assembly entry, module-table staticModules, platform constants) is
- * internal to the boot chain. PLATFORM_MODULES is re-exported as the
- * single source of truth for the tsdown client externals projection.
+ * Web shell 库入口。shell 的产物是 {@link AppWebEntry}，apps/web 的 Vite
+ * 入口将其运行在 #root 上。其余内容（AppRoot 门控、app-shell 装配配置项、
+ * 模块表 staticModules 和平台常量）均为启动链内部实现。重新导出
+ * PLATFORM_MODULES，作为 tsdown 客户端 externals 投影的唯一真源。
  * @module @deepseek-ai/dsh-client-web
  */
 

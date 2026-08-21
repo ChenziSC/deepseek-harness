@@ -27,6 +27,8 @@ dsh --profile web --help            # the web app's flags, not the launcher's
 dsh --help                          # the launcher's own help
 ```
 
+启动器和随附应用自有的帮助说明、示例与用法诊断使用简体中文。命令名、flag、profile id、机器可读的配置导出，以及 `dsh plugin` 转发的 pnpm 输出保持不变。
+
 ## Profile
 
 profile 目录包含一个 `package.json`，其中记录树外插件依赖，以及 profile manifest（元数据清单）`dsh.profile` 和其中按顺序排列的 `bundles` 列表；还包含一个 `cordis.patch.yml`，其中保存用户自己的 patch 层。

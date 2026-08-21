@@ -74,6 +74,10 @@ export function formatEditOutput(displayPath: string, replaceAll: boolean): stri
  * @param sandbox - the shared sandbox-escalation API (advertisement, mode stamping, denial mapping).
  */
 export function applyEditTool(ctx: Context, sandbox: FsSandboxController): void {
+  // 下方英文会作为 edit Tool 的 system prompt 指引发送给模型。中文译文：对现有 UTF-8
+  // 文本文件做局部修改时使用 edit；它把字面量 old_string 替换为 new_string。默认要求
+  // old_string 恰好出现一次；出现多次时应提供更具体的文本，或有意替换全部时设置
+  // replace_all。运行时原文保持不变，以保护 Tool 选择行为与快照兼容性。
   ctx.systemPrompt.section({
     name: 'tool:edit',
     order: 102,

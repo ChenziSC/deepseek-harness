@@ -51,6 +51,11 @@ export function installReportTool(
   ctx: Context,
   delivery: SubagentReportDelivery,
 ): () => void {
+  // 下方英文会作为可继续子 Agent 的 report Tool 指引发送给模型。中文译文：结束前用
+  // report Tool 交付结果，只调用一次并给出自包含答案。启动你的 Agent 虽共享 workspace，
+  // 但不会自动获得你的 transcript、Tool 输出或推理，因此仅说“done”没有可用信息。
+  // 部分发现会改变父 Agent 下一步时也应提前报告；report 不会结束当前 turn。
+  // 运行时原文保持不变，以保护子 Agent 交付协议和快照。
   const disposeSection = childCtx.systemPrompt.section({
     name: 'tool:report',
     order: REPORT_SECTION_ORDER,

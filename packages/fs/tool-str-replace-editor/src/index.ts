@@ -143,6 +143,8 @@ function formatFileView(
   let lines = allLines
   let initialLine = 1
   let finalLine: number | undefined
+  // 下方英文是 str_replace_editor 的模型可见 Tool 结果前言。中文含义：以下是 path 的带
+  // 行号内容，文件总计 allLines.length 行。它属于 Tool 反馈协议和既有快照，保持原文。
   let prompt = `Here's the content of ${path} with line numbers (which has a total of ${allLines.length} lines)`
   if (viewRange !== undefined) {
     const [requestedInitialLine, requestedFinalLine] = viewRange

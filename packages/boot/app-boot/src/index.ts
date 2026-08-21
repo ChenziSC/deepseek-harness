@@ -821,6 +821,10 @@ export const HARNESS_SOURCE_SECTION = 'harness:source'
 export function addHarnessSourceSection(ctx: Context, sourceRoot: string): (() => void) | undefined {
   const systemPrompt = ctx.get('systemPrompt')
   if (systemPrompt === undefined) return undefined
+  // 下方英文会在应用启动后加入全局 system prompt。中文译文：DeepSeek Harness 实现代码
+  // checkout 位于 sourceRoot。checkout 位置与当前工作目录是两个可能不同的值，不能从该
+  // 路径推断工作目录；应使用 pwd 获取当前工作目录。只有检查或扩展 DSH 自身时才使用此
+  // checkout。sourceRoot 是启动时解析的绝对路径；运行时原文保持不变。
   return systemPrompt.section({
     name: HARNESS_SOURCE_SECTION,
     order: -99,

@@ -1,10 +1,8 @@
 /**
- * Platform-singleton module-table. These are the ONLY entities the shell
- * shares into the frozen module table — fetch bundles resolve their externals
- * against exactly this set through the loader's require. Keys come from the
- * platform constant module ({@link ./platform.ts}, the single source
- * of truth with the tsdown client externals); values stay shell-static
- * imports so every bundle sees the same instance.
+ * 平台单例模块表。shell 只会把这些实体共享到冻结模块表；通过 fetch 获得的
+ * bundle 使用 loader 的 require，严格针对这组实体解析 externals。键来自平台
+ * 常量模块（{@link ./platform.ts}，同时也是 tsdown 客户端 externals 的唯一
+ * 真源）；值保持为 shell 静态导入，确保所有 bundle 看到同一个实例。
  */
 import * as React from 'react'
 import * as ReactJsxRuntime from 'react/jsx-runtime'
@@ -19,13 +17,12 @@ import * as SchemaForm from '@deepseek-ai/dsh-client-schema-form'
 import type { PlatformModule } from './platform.ts'
 
 /**
- * Build the static table handed to the module loader at boot.
- * @returns module specifier → exported entity (one entry per platform word).
+ * 创建启动时交给模块 loader 的静态表。
+ * @returns 模块说明符到导出实体的映射；每个平台模块对应一项。
  */
 export function getStaticModules(): Record<string, unknown> {
-  // The satisfies pin is the projection contract: a word added to
-  // PLATFORM_MODULES without a static import here (or vice versa) fails to
-  // compile instead of drifting into a runtime require miss.
+  // satisfies 固定了投影约定：如果 PLATFORM_MODULES 新增模块但这里没有对应
+  // 静态导入（或反之），编译会直接失败，而不会拖到运行时才出现 require 缺失。
   return {
     'react': React,
     'react/jsx-runtime': ReactJsxRuntime,

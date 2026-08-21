@@ -91,7 +91,17 @@ export function resolveLanTrust(bindHost: string, extra: readonly string[]): Web
   return { lanAddresses, trustedHosts: [...lanAddresses, ...extra] }
 }
 
-/** Model-visible orientation and acceptance boundary for sessions created through `dsh web`. */
+// 该函数生成通过 `dsh web` 创建的 Session 所见 system prompt 段。中文译文：
+// 你正通过 webUrl 指向的 DeepSeek Harness Web GUI 与用户交互。用户未指定其他目标而说
+// “此页面”“此 GUI”或“此应用”时，指的就是该 GUI。浏览器不会隐式提供 DOM、路由或
+// 截图上下文。client-plugin HMR receiver 已启用，但只有同一 checkout 还运行
+// `pnpm run dev:web` 重建 bundle 时，client-plugin 修改才能无刷新加载；承诺自动更新前
+// 应先确认 watcher。其他修改（apps/web shell 和普通 package）都必须重建受影响的 Web
+// artifact，并刷新页面后在现有 URL 验证。启动另一台 server 不会更新当前 GUI。
+// apps/web 的 Vite entry 只构建 shell，不是独立应用，因为只有 dsh web 注入
+// window.__DSH_BOOT__。除非用户要求，不要启动替代 server；确有需要时，用受管后台 Job
+// 并验证准确 URL。webUrl 在运行时插入；英文原文保持不变以维持模型行为。
+/** 为通过 `dsh web` 创建的 Session 提供模型可见定位与验收范围。 */
 function webSurfacePrompt(webUrl: string): string {
   const updateContract = 'The client-plugin HMR receiver is active, but client-plugin changes reload without a refresh only while '
     + '`pnpm run dev:web` is also running from this same checkout to rebuild their bundles; verify that watcher before promising automatic updates. '
@@ -134,12 +144,13 @@ export const internals: { resolveDistIndex: () => string } = { resolveDistIndex 
  */
 export function apply(ctx: Context, config: Config): void {
   const runtime = resolveLanTrust(ctx.webServer.host, config.trustedHosts)
-  // Release dependent rows only after bind-dependent trust has been sampled once.
+  // 仅在读取一次依赖 bind 的信任配置后，才释放依赖此服务的配置行。
   ctx.provide(WEB_RUNTIME_SERVICE, runtime)
   ctx.plugin(FrontendStatic, { distIndex: internals.resolveDistIndex() })
   if (config.surfaceContext) {
     ctx.inject(['systemPrompt'], (promptCtx) => {
       addHarnessSourceSection(promptCtx, SOURCE_ROOT)
+      // webSurfacePrompt 的中文逐段译文见函数定义上方；此处注册的是包含实际 URL 的原文。
       promptCtx.systemPrompt.section({
         name: 'app:web-surface',
         order: -98,

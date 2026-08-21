@@ -2,33 +2,33 @@ import type { SessionEvent } from '@deepseek-ai/dsh-session/types'
 import type { ToolEventView } from '@deepseek-ai/dsh-api-remotes/client'
 
 /* oxlint-disable typescript/no-duplicate-type-constituents, typescript/no-redundant-type-constituents --
- * The unaugmented declaration-merge maps intentionally resolve to never in the Runtime program;
- * installed business packages supply their concrete keys in consuming Client programs. */
+ * 未扩充的声明合并映射在 Runtime 程序中有意解析为 never；已安装业务包会在消费它的
+ * Client 程序中提供具体键。 */
 
-/** One raw log event plus its optional envelope-level presentation view. */
+/** 一条原始日志事件及其可选的信封级展示视图。 */
 export interface ConversationEventInput {
   readonly event: SessionEvent
   readonly view: ToolEventView | undefined
 }
 
-/** Definition-local identity and lifecycle role extracted from one event. */
+/** 从一条事件提取的 Definition 局部身份和生命周期角色。 */
 export interface ConversationMatchResult {
   readonly id: string
   readonly role: 'start' | 'update'
 }
 
-/** Merge-extensible business values published against one Turn. */
+/** 针对一个 Turn 发布、可通过声明合并扩展的业务值。 */
 export interface ConversationTurnDataMap {}
 
-/** Merge-extensible business values published against one Step. */
+/** 针对一个 Step 发布、可通过声明合并扩展的业务值。 */
 export interface ConversationStepDataMap {}
 
-/** Stable keyed reader for independently owned Location business values. */
+/** 按键稳定读取各自独立所有的 Location 业务值。 */
 export interface ConversationLocationDataStore<DataMap extends object> {
   /**
-   * Read one business value without exposing another owner's mutable State.
-   * @param key - declaration-merged business key.
-   * @returns latest immutable value, when its owning Context has published one.
+   * 读取一个业务值，不暴露其他所有者的可变 State。
+   * @param key - 通过声明合并得到的业务键。
+   * @returns 所属 Context 已发布时的最新不可变值。
    */
   get<Key extends keyof DataMap & string>(key: Key): Readonly<DataMap[Key]> | undefined
 }
@@ -60,48 +60,48 @@ type RegisteredStepData = {
   }
 }[keyof ConversationStepDataMap & string]
 
-/** One Definition-owned value attached to an Engine-owned Turn or Step. */
+/** 由 Definition 拥有、附着到引擎所拥有 Turn 或 Step 的值。 */
 export type ConversationLocationData =
   [keyof ConversationTurnDataMap | keyof ConversationStepDataMap] extends [never]
     ? ConversationLocationDataValue
     : RegisteredTurnData | RegisteredStepData
 
-/** Immutable resolved boundary for one Agent step. */
+/** 一个 Agent step 已解析的不可变范围。 */
 export interface StepLocation {
   readonly turn: number
   readonly step: number
   readonly start: SessionEvent<'step/start'> | undefined
   readonly end: SessionEvent<'step/end'> | undefined
   readonly status: 'open' | 'closed' | 'unknown'
-  /** Stable reader for Step-scoped business values. */
+  /** 稳定读取 Step scope 业务值。 */
   readonly data: ConversationLocationDataStore<ConversationStepDataMap>
 }
 
-/** Immutable resolved boundary for one Agent turn. */
+/** 一个 Agent turn 已解析的不可变范围。 */
 export interface TurnLocation {
   readonly turn: number
   readonly start: SessionEvent<'turn/start'> | undefined
   readonly end: SessionEvent<'turn/end'> | undefined
   readonly status: 'open' | 'closed' | 'unknown'
   readonly steps: readonly StepLocation[]
-  /** Stable reader for Turn-scoped business values. */
+  /** 稳定读取 Turn scope 业务值。 */
   readonly data: ConversationLocationDataStore<ConversationTurnDataMap>
 }
 
-/** Engine-owned placement of one matched event in the Session hierarchy. */
+/** 引擎负责确定一条已匹配事件在 Session 层级中的位置。 */
 export type ConversationLocation =
   | { readonly kind: 'session' }
   | { readonly kind: 'turn'; readonly turn: TurnLocation }
   | { readonly kind: 'step'; readonly turn: TurnLocation; readonly step: StepLocation }
   | { readonly kind: 'unresolved' }
 
-/** One event accepted by a Definition, with its current resolved Location. */
+/** 一条被 Definition 接受的事件及其当前已解析 Location。 */
 export interface ConversationMatch extends ConversationEventInput {
   readonly role: 'start' | 'update'
   readonly location: ConversationLocation
 }
 
-/** Target-neutral identity returned by a business Definition. */
+/** 业务 Definition 返回的 target 无关身份。 */
 export interface ConversationViewNode {
   readonly key: string
   readonly kind: string
@@ -110,18 +110,18 @@ export interface ConversationViewNode {
   readonly data: unknown
 }
 
-/** Merge-extensible immutable snapshots published by registered view targets. */
+/** 已注册视图 target 发布、可通过声明合并扩展的不可变快照。 */
 export interface ConversationViewSnapshotMap {}
 
-/** Stable reader over the latest snapshot of every registered view target. */
+/** 稳定读取每个已注册视图 target 的最新快照。 */
 export interface ConversationViewSnapshotStore {
-  /** @param target - registered view target. @returns its current snapshot. */
+  /** @param target - 已注册的视图 target。@returns 其当前快照。 */
   get<Target extends Extract<keyof ConversationViewSnapshotMap, string>>(
     target: Target,
   ): ConversationViewSnapshotMap[Target] | undefined
 }
 
-/** Final Chat render unit produced directly by a business Definition. */
+/** 由业务 Definition 直接生成的最终 Chat 渲染单元。 */
 export interface ChatConversationViewNode extends ConversationViewNode {
   readonly target: 'chat'
   readonly anchorSeq: number
@@ -129,7 +129,7 @@ export interface ChatConversationViewNode extends ConversationViewNode {
   readonly visibility: 'visible' | 'hidden'
 }
 
-/** Immutable public view of an assembled business Context. */
+/** 已组装业务 Context 的不可变公开视图。 */
 export interface ConversationNodeContext<State = unknown> {
   readonly key: string
   readonly kind: string
@@ -140,7 +140,7 @@ export interface ConversationNodeContext<State = unknown> {
   readonly current: ReadonlyMap<string, ConversationViewNode | null>
 }
 
-/** Read-only predecessor returned to a Definition's start function. */
+/** 返回给 Definition start 函数的只读前驱 Context。 */
 export interface ConversationPreviousContext<State = unknown> {
   readonly key: string
   readonly kind: string
@@ -150,40 +150,39 @@ export interface ConversationPreviousContext<State = unknown> {
   readonly matches: readonly ConversationMatch[]
 }
 
-/** Strictly-backward Context lookup available while a start is evaluated. */
+/** 计算 start 时可用的严格向后 Context 查询。 */
 export interface ConversationContextReader {
   /**
-   * Find the active Context of `kind` with the greatest start seq below the
-   * current start event.
-   * @param kind - Definition kind to query.
-   * @returns the nearest predecessor, or undefined when absent in the current window.
+   * 查找 `kind` 相同、start seq 小于当前 start 事件且最大的活跃 Context。
+   * @param kind - 要查询的 Definition kind。
+   * @returns 最近前驱；当前窗口中不存在时返回 undefined。
    */
   previous<State>(kind: string): ConversationPreviousContext<State> | undefined
 }
 
-/** Requested cadence for materializing updated business State into view Nodes. */
+/** 将更新后业务 State 实例化为视图 Node 时请求的节奏。 */
 export type ConversationPublication = 'none' | 'animation-frame' | 'immediate'
 
-/** Engine-owned Location data publication phase. */
+/** 由引擎控制的 Location 数据发布阶段。 */
 export type ConversationLocationDataScope = 'step' | 'turn'
 
-/** One independently registered business Event-to-Node state machine. */
+/** 一个独立注册、把业务事件转换为 Node 的状态机。 */
 export interface ConversationNodeDefinition<State = unknown> {
   readonly kind: string
-  /** Sole view target owned by this Definition; omitted for state-only Contexts. */
+  /** 本 Definition 唯一拥有的视图 target；仅含状态的 Context 可省略。 */
   readonly target?: string
   /**
-   * Extract this Definition's stable business identity from one event.
-   * @param event - raw Session event; no Context or history access is available.
-   * @returns identity and lifecycle role, or null when unrelated.
+   * 从一条事件提取本 Definition 的稳定业务身份。
+   * @param event - 原始 Session 事件；此处不能访问 Context 或历史。
+   * @returns 身份和生命周期角色；无关事件返回 null。
    */
   match(event: SessionEvent): ConversationMatchResult | null
   /**
-   * Create State from the unique start Match.
-   * @param context - complete evidence currently collected for the Context.
-   * @param match - the start Match.
-   * @param reader - strictly-backward read-only Context lookup.
-   * @returns the State adopted by the engine.
+   * 根据唯一 start Match 创建 State。
+   * @param context - 当前为该 Context 收集到的完整证据。
+   * @param match - start Match。
+   * @param reader - 严格向后的只读 Context 查询器。
+   * @returns 引擎采用的 State。
    */
   start(
     context: ConversationNodeContext<State>,
@@ -191,64 +190,62 @@ export interface ConversationNodeDefinition<State = unknown> {
     reader: ConversationContextReader,
   ): State
   /**
-   * Apply one post-start update Match.
-   * @param context - Context with its current State.
-   * @param match - update Match in ascending log order.
-   * @returns the State adopted by the engine.
+   * 应用 start 之后的一条 update Match。
+   * @param context - 含当前 State 的 Context。
+   * @param match - 按日志升序到达的 update Match。
+   * @returns 引擎采用的 State。
    */
   update(
     context: ConversationNodeContext<State> & { readonly state: State },
     match: ConversationMatch,
   ): State
   /**
-   * Select publication cadence for one accepted Match.
-   * @param match - accepted Match.
-   * @returns requested cadence; omission defaults to immediate.
+   * 为一条已接受 Match 选择发布节奏。
+   * @param match - 已接受的 Match。
+   * @returns 请求的节奏；省略时默认为 immediate。
    */
   publication?(match: ConversationMatch): ConversationPublication
   /**
-   * Publish this Definition's read-only business value for one Location phase.
-   * The Engine evaluates every Definition first for Step and then for Turn,
-   * owns replacement/removal, and rejects another Context trying to publish
-   * the same Location key.
-   * @param context - latest complete Context.
-   * @param scope - Location hierarchy level currently being materialized.
-   * @returns current Location value, or null while unavailable.
+   * 为一个 Location 阶段发布本 Definition 的只读业务值。引擎会先按 Step、再按 Turn
+   * 计算每个 Definition，负责替换和删除，并拒绝其他 Context 发布相同 Location 键。
+   * @param context - 最新完整 Context。
+   * @param scope - 当前正在实例化的 Location 层级。
+   * @returns 当前 Location 值；暂不可用时返回 null。
    */
   buildLocationData?(
     context: ConversationNodeContext<State>,
     scope: ConversationLocationDataScope,
   ): ConversationLocationData | null
   /**
-   * Materialize one final Node for this Definition's declared view target.
-   * @param context - latest complete Context.
-   * @returns final Node, or null when this Context is not currently visible.
+   * 为本 Definition 声明的视图 target 实例化一个最终 Node。
+   * @param context - 最新完整 Context。
+   * @returns 最终 Node；当前 Context 不可见时返回 null。
    */
   buildViewNode?(context: ConversationNodeContext<State>): ConversationViewNode | null
 }
 
-/** Reference-stable Turn/Step facts published beside view Nodes. */
+/** 与视图 Node 一同发布、引用稳定的 Turn/Step 信息。 */
 export interface ConversationTimelineSnapshot {
   readonly turnOrder: readonly number[]
   readonly turns: ReadonlyMap<number, TurnLocation>
 }
 
-/** Per-Session incremental builder for one view target. */
+/** 针对一个视图 target、每个 Session 独立的增量构建器。 */
 export interface ConversationViewBuilder<Node extends ConversationViewNode = ConversationViewNode, Snapshot = unknown> {
   readonly empty: Snapshot
   /**
-   * Replace the low-frequency complete materialized Node set.
-   * @param input - complete Nodes and current timeline.
-   * @returns next view snapshot.
+   * 替换低频更新的完整已实例化 Node 集合。
+   * @param input - 完整 Nodes 和当前时间线。
+   * @returns 下一份视图快照。
    */
   replace(input: {
     readonly nodes: readonly Node[]
     readonly timeline: ConversationTimelineSnapshot
   }): Snapshot
   /**
-   * Apply only Nodes whose materialized values changed in this transaction.
-   * @param input - changed Nodes and current timeline.
-   * @returns next view snapshot.
+   * 只应用本次事务中实例化值发生变化的 Nodes。
+   * @param input - 已变化 Nodes 和当前时间线。
+   * @returns 下一份视图快照。
    */
   apply(input: {
     readonly upserts: readonly Node[]
@@ -256,18 +253,18 @@ export interface ConversationViewBuilder<Node extends ConversationViewNode = Con
   }): Snapshot
 }
 
-/** Registry contribution that creates one isolated view builder per Session. */
+/** 为每个 Session 创建独立视图构建器的注册表贡献项。 */
 export interface ConversationViewDefinition<Node extends ConversationViewNode = ConversationViewNode, Snapshot = unknown> {
   readonly target: string
-  /** @returns a new Session-owned incremental builder. */
+  /** @returns 新建、归 Session 所有的增量构建器。 */
   create(): ConversationViewBuilder<Node, Snapshot>
 }
 
 /**
- * Build a stable collision-free key for one Definition-local business identity.
- * @param kind - Definition kind.
- * @param id - Definition-local business identity.
- * @returns engine-owned Context key.
+ * 为一个 Definition 局部业务身份构建稳定且无冲突的键。
+ * @param kind - Definition kind。
+ * @param id - Definition 局部业务身份。
+ * @returns 引擎拥有的 Context 键。
  */
 export function conversationContextKey(kind: string, id: string): string {
   return `${kind.length}:${kind}${id}`

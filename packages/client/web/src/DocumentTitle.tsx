@@ -1,16 +1,15 @@
 import { useEffect, useRef } from 'react'
 
-/** Props for the shell-owned browser title projection. */
+/** shell 所有的浏览器标题投影属性。 */
 export interface DocumentTitleProps {
-  /** Durable title of the selected session, or undefined for the product title. */
+  /** 已选会话的持久标题；undefined 表示使用产品标题。 */
   title?: string
 }
 
 /**
- * Project the selected durable session title into the browser title and
- * restore the shell's original product title when unmounted.
- * @param props - selected session title projection.
- * @returns no rendered content.
+ * 将已选会话的持久标题投影到浏览器标题，并在卸载时恢复 shell 原始产品标题。
+ * @param props - 已选会话的标题投影。
+ * @returns 不渲染任何内容。
  */
 export function DocumentTitle({ title }: DocumentTitleProps): null {
   const original = useRef(document.title)

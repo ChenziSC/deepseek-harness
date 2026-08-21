@@ -153,6 +153,10 @@ export function apply(ctx: Context, config: Config = {}): void {
     const raw = rawContentText(result.content)
     return raw === undefined ? undefined : textResult(raw, maxResultBytes)
   }
+  // 下方英文会作为持久终端 Tool 的 system prompt 指引发送给模型。中文译文：仅在任务
+  // 需要持久终端状态或交互式 stdin 时使用 terminal Session；有界的一次性操作优先使用
+  // shell/read/write/edit。记录每个终端 Session id，并关闭不再需要的 Session。
+  // inferred_idle 或 timeout 不代表前台命令已经退出。运行时原文保持不变。
   ctx.systemPrompt.section({
     name: 'tool:pty',
     order: 106,
