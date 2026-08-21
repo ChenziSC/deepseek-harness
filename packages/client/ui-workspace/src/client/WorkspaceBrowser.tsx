@@ -103,7 +103,7 @@ function compareSessionRecency(a: SessionId, b: SessionId, byId: SessionListStat
   return a < b ? -1 : 1
 }
 
-/** Reconcile one editable order account and apply its activity-promotion policy. */
+/** 对一个可编辑排序账户做状态对账，并应用“最近活动上浮”策略。 */
 function nextSessionOrderAccount({
   sessionIds, previousOrder, previousUpdatedAt, list, orderBy, sortByRecency,
 }: {
@@ -218,7 +218,7 @@ type SessionTreeProps = Pick<
   'useSessions' | 'startSession' | 'open' | 'forkSession'
   | 'insertWorkspaceBefore' | 'insertSessionBefore' | 't'
 > & {
-  /** Host account home for POSIX hover-path abbreviation. */
+  /** Host 账户主目录，用于缩写悬浮卡片中的 POSIX 路径。 */
   home?: string | undefined
   workspaces: readonly WorkspaceView[]
   /** Explicit persisted zero-or-five-session state by Workspace group. */
@@ -847,11 +847,10 @@ export function WorkspaceBrowser({
     searchInput.current?.focus({ preventScroll: true })
   }, [wide, searchExpanded, searchOnExpand])
 
-  // Outside-click dismissal stays off while the rail gesture is in flight
-  // (searchOnExpand): the rail click flips the shell wide and mounts this
-  // listener during its own dispatch, then keeps bubbling to document with
-  // the now-unmounted rail button as its target — outside searchRoot, so the
-  // listener would dismiss the search that click just opened.
+  // 窄栏点击操作仍在传播（searchOnExpand）时，不启用“点击外部关闭”：这次点击先把
+  // 外壳切成展开态，并在自身 dispatch 过程中挂载本监听器，随后继续冒泡到 document；
+  // 此时事件目标仍是已经卸载、位于 searchRoot 外的窄栏按钮，若监听器立即生效，
+  // 就会关闭刚刚由同一次点击打开的搜索框。
   useEffect(() => {
     if (!wide || !searchExpanded || searchOnExpand) return
     const onClick = (event: MouseEvent): void => {

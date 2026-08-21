@@ -1,4 +1,4 @@
-/** Attachment error and limit copy owned by the conversation input flow. */
+/** 由会话输入流程拥有的附件错误和限制文案。 */
 
 import type { ImageAttachmentLimits } from '@deepseek-ai/dsh-attachment'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'

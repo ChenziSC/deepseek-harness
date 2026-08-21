@@ -226,14 +226,13 @@ export class InputTriggerController {
   }
 
   /**
-   * Serialize one reference occurrence to its model form via the owning
-   * source's codec (prompt serialization: registry → explicit
-   * call → await). Owner missing or codec-less rejects — the submit attempt
-   * blocks instead of silently downgrading to the clipboard text.
-   * @param source - owning source name.
-   * @param ref - owner-scoped reference id.
-   * @param signal - the submit attempt's abort signal.
-   * @returns the model representation (e.g. `<skill>name</skill>`).
+   * 通过所属来源的编解码器，把一个引用实例序列化为模型表示。提示词序列化路径为：
+   * 注册表 → 显式调用 → 等待结果。找不到拥有者或编解码器时拒绝，阻止本次提交，
+   * 而不会静默降级成剪贴板文本。
+   * @param source - 所属来源名称。
+   * @param ref - 来源作用域内的引用 ID。
+   * @param signal - 本次提交尝试的取消信号。
+   * @returns 模型表示，如 `<skill>name</skill>`。
    */
   serializeReference(source: string, ref: string, signal: AbortSignal): Promise<string> {
     const owner = this.deps.roster.all().find(s => s.name === source)
@@ -244,15 +243,13 @@ export class InputTriggerController {
   }
 
   /**
-   * Enter last adjudication: polls sources' matchEnter in registration
-   * order, first non-undefined wins. The outcome returns to the caller (the
-   * input machine applies it inside the same submit attempt — no event).
-   * @param line - trimmed draft; the leading char selects the trigger roster.
-   * @param signal - attempt-scoped abort from the input machine.
-   * @param envelope - non-text submission state accompanying the draft.
-   * @returns the winning outcome or undefined (default sink). Rejects when a
-   * polled source's warmup fails or the winning source refuses the envelope —
-   * the caller must not silently downgrade.
+   * 回车前的最终裁决：按注册顺序轮询来源的 matchEnter，取第一个非 undefined
+   * 结果。结果直接返回调用方，由输入状态机在同一次提交尝试内应用，不经过事件。
+   * @param line - 去除空白后的草稿；开头字符决定要检查的触发来源集合。
+   * @param signal - 输入状态机提供的本次尝试取消信号。
+   * @param envelope - 随草稿提交的非文本状态。
+   * @returns 获胜结果，或 undefined（进入默认出口）。被轮询来源预热失败，或获胜
+   * 来源拒绝提交信封时会抛错；调用方不得静默降级。
    */
   async adjudicate(line: string, signal: AbortSignal, envelope: SubmitEnvelope): Promise<PickOutcome> {
     const projection = this.project()
@@ -268,8 +265,8 @@ export class InputTriggerController {
   }
 
   /**
-   * Drop the menu group of a disposed source (root registry change notification).
-   * @param source - the source whose registration was disposed.
+   * 移除已销毁来源的菜单分组（来自根注册表的变更通知）。
+   * @param source - 注册已被销毁的来源。
    */
   sourceRemoved(source: InputTriggerSource): void {
     const state = this.menu.getSnapshot()

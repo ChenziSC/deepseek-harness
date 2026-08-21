@@ -370,9 +370,8 @@ function dynamicToken(name: string): ThemeTokenInspection {
 }
 
 /**
- * Required services: settings transport plus slots/locale for the Appearance
- * row. `remote` carries the forwarded settings invalidation that
- * `ctx.settingsScope.bind(spec)` subscribes to on this context.
+ * 所需服务：设置传输，以及“外观”行需要的 slots/locale。`remote` 在当前上下文
+ * 承载转发后的设置失效事件，`ctx.settingsScope.bind(spec)` 会订阅该事件。
  */
 export const inject = ['slots', 'locale', 'connection', 'remote', 'settingsScope']
 

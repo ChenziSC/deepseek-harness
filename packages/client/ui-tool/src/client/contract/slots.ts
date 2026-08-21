@@ -1,3 +1,6 @@
+// 中文学习导读：工具 UI 先按 Wire Tool 名称进入 keyed Slot；已注册工具使用专属视图，
+// 未注册工具回落到通用行。owner 只传冻结的运行中/已结算调用切片、路径上下文和操作，
+// 因而视图是已知 Turn 状态的纯函数。下方英文 JSDoc 需要供 client catalog 生成。
 /** Tool UI slot declarations and their composed component props. */
 import type { HostDescriptionSource } from '@deepseek-ai/dsh-client-connection/client'
 import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'

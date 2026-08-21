@@ -89,7 +89,7 @@ export type DirectoryPickingHooks = PropsHooks<DirectoryPickingInjected['hooks']
  */
 export type WorkspaceBrowserInjected = {
   hooks: DirectoryPickingInjected['hooks'] & {
-    /** Current generation's Host description, bound by the slot renderer. */
+    /** 当前连接代次的 Host 描述，由 Slot 渲染器绑定。 */
     hostDescription: HostDescriptionSource
   }
   /**

@@ -75,11 +75,9 @@ declare module '@deepseek-ai/cordis' {
   }
   interface Events {
     /**
-     * The active locale switched. Dictionary registrations do NOT emit this
-     * event (listeners may re-register slots in response, and boot registers
-     * one namespace per package); continuous render refresh rides the
-     * LocaleFace revision instead.
-     * @param snapshot - Current immutable locale snapshot.
+     * 活动 locale 已切换。注册词典不会发出本事件，因为 listener 可能据此重新注册 Slot，
+     * 而启动时每个包都会注册一个 namespace；连续渲染刷新改由 LocaleFace revision 驱动。
+     * @param snapshot - 当前不可变 locale 快照。
      * @mode emit
      */
     'locale/change'(snapshot: LocaleSnapshot): void
@@ -87,13 +85,10 @@ declare module '@deepseek-ai/cordis' {
 }
 
 /**
- * English is both the locale the UI opens in when the browser names no shipped
- * language (and for non-browser runs), and the dictionary consulted after the
- * active locale misses a key. One constant serves both because the shipped
- * `zh`/`en` dictionaries carry identical key sets, so neither direction can
- * leave a key unresolved; the residual case points at English rather than
- * zh because a browser naming neither shipped language is the reader least
- * likely to read Chinese.
+ * 浏览器未指定已随附语言时（以及非浏览器运行时），UI 以英语启动；活动 locale 缺少某个键时
+ * 也查询英语词典。两项职责共用一个常量，因为随附的 `zh`/`en` 词典具有相同键集合，双向
+ * 回退都不会遗留未解析键。最后仍回退到英语而非中文，是因为浏览器未声明任一随附语言时，
+ * 读者最不可能理解中文。
  */
 export const FALLBACK_LOCALE: LocaleId = 'en'
 
@@ -110,36 +105,29 @@ const LOCALES: readonly LocaleDefinition[] = Object.freeze([
 ])
 
 /**
- * `<html lang>` tag per shipped locale. The locale id is the app's own
- * vocabulary (primary subtag); the document attribute wants a BCP 47 tag,
- * which assistive technology and browser features (pronunciation rules,
- * translation offers, font fallback, spell check) read to pick their own
- * behavior. `zh` alone leaves the script ambiguous, so the shipped Chinese
- * copy names the variant it actually is.
+ * 每个随附 locale 对应的 `<html lang>` tag。Locale id 是 App 自有词汇（primary subtag），
+ * 文档属性则需要 BCP 47 tag；辅助技术和浏览器功能会读取它来选择发音规则、翻译建议、字体
+ * fallback 与拼写检查行为。仅写 `zh` 无法确定书写系统，因此随附中文文案明确标注实际变体。
  */
 const DOCUMENT_LANGUAGE: Record<LocaleId, string> = { zh: 'zh-CN', en: 'en' }
 
 /**
- * Point `<html lang>` at the active locale. Called on every locale change,
- * so the attribute tracks the UI instead of standing at whatever the served
- * markup happened to declare.
- * @param active - the active locale id.
+ * 让 `<html lang>` 指向活动 locale。每次 locale 变化时调用，使该属性跟随 UI，而不是停留
+ * 在 Server 返回的 markup 初始声明值。
+ * @param active - 活动 locale id。
  */
 function syncDocumentLanguage(active: LocaleId): void {
-  // Non-browser runs (node boots of the client tree) have no document.
+  // 非浏览器运行（在 Node 中启动客户端 tree）没有 document。
   if (typeof document === 'undefined') return
   document.documentElement.lang = DOCUMENT_LANGUAGE[active]
 }
 
 /**
- * Dictionary registry plus locale preference. Lookup chain per key: the
- * entry's namespace in the active locale -> that namespace's en fallback ->
- * the shared common namespace (active, then en) -> the key itself (missing
- * text stays visible, fail loud in the UI rather than blank). Reads go
- * through {@link getLocale}; writes only through {@link setLocale};
- * continuous sync through the `locale/change` event, or through the
- * LocaleFace getSnapshot/subscribe pair the render machinery consumes
- * (installed via `ctx.slots.installLocale`).
+ * 词典注册表与 locale 偏好设置。每个键的查找链为：活动 locale 中条目所属 namespace →
+ * 该 namespace 的英语 fallback → 共享 common namespace（先活动 locale，再英语）→ 键本身。
+ * 缺失文本保持可见，让 UI 明确失败而不是显示空白。读取经 {@link getLocale}，写入只经
+ * {@link setLocale}；持续同步经 `locale/change` 事件，或渲染机制消费的 LocaleFace
+ * getSnapshot/subscribe 对（由 `ctx.slots.installLocale` 安装）。
  */
 export class LocaleRuntime {
   private dicts = new Map<string, Map<string, LocaleDict>>()
@@ -148,14 +136,13 @@ export class LocaleRuntime {
   private listeners = new Set<() => void>()
   private readonly ctx: Context
   private readonly host: SettingsScope<LocaleSettings> | undefined
-  /** Browser-derived locale standing wherever no explicit Host selection does. */
+  /** 没有显式 Host 选择时使用的浏览器派生 locale。 */
   private readonly provisional: LocaleId
 
   /**
-   * @param ctx - owning context (change events are emitted on it; the scope
-   * listener is released through ctx.effect on dispose).
-   * @param host - durable preference scope owned by the providing plugin;
-   * absent compositions (standalone dictionary registries) stay process-local.
+   * @param ctx - 所有者 Context；变化事件在此发出，释放时通过 ctx.effect 移除 scope listener。
+   * @param host - 提供方插件拥有的持久化偏好 scope；缺省该组合时（独立词典注册表）只保留
+   * 进程内状态。
    */
   constructor(ctx: Context, host?: SettingsScope<LocaleSettings>) {
     this.ctx = ctx
@@ -198,16 +185,13 @@ export class LocaleRuntime {
   }
 
   /**
-   * Switch the active locale — the only user preference write entry.
+   * 切换活动 locale；这是唯一的用户偏好写入入口。
    *
-   * The durable write happens even when the id already matches the active
-   * locale, because the active value may be a provisional browser-derived or
-   * fallback resolution that nothing has stored yet. Picking the language
-   * already on screen is still an explicit choice, and it must survive a
-   * different browser sharing the same DSH home. Only the render notification
-   * is conditional: republishing an unchanged locale would churn every
-   * subscriber for nothing.
-   * @param id - a registered locale id; unknown ids throw.
+   * 即使 id 已与活动 locale 一致，也要执行持久化写入，因为活动值可能只是浏览器派生或
+   * fallback 得到的临时选择，尚未被保存。再次选择屏幕上已有的语言仍是显式决定，必须能在
+   * 共享同一 DSH Home 的其他浏览器中延续。只有渲染通知是条件性的：重新发布未变化的
+   * locale 只会无意义地触发所有订阅方。
+   * @param id - 已注册的 locale id；未知 id 会抛错。
    */
   setLocale(id: string): void {
     const match = this.snapshot.locales.find(l => l.id === id)
@@ -395,8 +379,8 @@ export function apply(ctx: ClientContext): void {
   locale.register(COMMON_NS, { zh, en })
   locale.register(SETTINGS_NS, { zh: settingsZh, en: settingsEn })
   ctx.provide('locale', locale)
-  // The service IS the LocaleFace (bind + getSnapshot/subscribe): install it
-  // so the render machinery can synthesize the `t` standard seat.
+  // 本服务就是 LocaleFace（bind + getSnapshot/subscribe）；安装后，渲染机制才能合成标准
+  // `t` seat。
   ctx.slots.installLocale(locale)
 
   const store = createLanguageRowStore()
@@ -410,14 +394,13 @@ export function apply(ctx: ClientContext): void {
     )
   }
   ctx.on('locale/change', sync)
-  // The served markup declares one language; the resolved locale may differ
-  // (browser detection, or a stored preference adopted after activation), so
-  // state it once at activation rather than waiting for the first change.
+  // Server 返回的 markup 只声明一种语言，解析后的 locale 可能不同，例如浏览器探测结果，
+  // 或激活后采用的已保存偏好。因此在激活时立即设置一次，不等待首次变化。
   syncDocumentLanguage(locale.getLocale().active)
   const injected = (actions: BoundActions<typeof store>): LanguageRowInjected => {
     bound = actions
-    // Re-sync from the getter so no event is lost between registration and
-    // first render (the store's revision guard drops stale duplicates).
+    // 从 getter 重新同步，避免注册与首次渲染之间丢失事件；store 的 revision guard 会丢弃
+    // 陈旧重复项。
     sync(locale.getLocale())
     return {
       setLocale: (id) => { locale.setLocale(id) },

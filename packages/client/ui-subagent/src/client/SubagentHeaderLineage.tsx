@@ -19,14 +19,14 @@ import css from './SubagentHeaderLineage.module.css'
 type CatalogEntry = SubagentCatalogSnapshot['entries'][number]
 type Catalogs = SessionListState['subagentsByParent']
 
-/** Business actions supplied by the slot registration. */
+/** 由 Slot 注册提供的业务操作。 */
 export interface SubagentCatalogInjected {
   openChild: (address: SubagentAddress) => void
   refresh: (parentSessionId: SessionId) => void
   setCatalogOpen: (parentSessionId: SessionId, open: boolean) => void
 }
 
-/** Full props for the session-header lineage renderer. */
+/** Session 标题栏谱系渲染器的完整 props。 */
 export type SubagentHeaderLineageProps =
   PropsRuntime<'conversation.session.header.lineage'> & SubagentCatalogInjected & PropsLocale<typeof NS>
 
@@ -434,9 +434,9 @@ function CatalogRows({
 }
 
 interface CatalogDropdownSharedProps extends SubagentCatalogInjected {
-  /** Session whose direct catalog roots the tree. */
+  /** 以哪个 Session 的直接子目录作为树根。 */
   rootSessionId: SessionId
-  /** Whether an ordinary title needs a breadcrumb separator before its count. */
+  /** 普通标题与后方数量之间是否需要面包屑分隔符。 */
   separator?: boolean
   useSessions: SubagentHeaderLineageProps['useSessions']
   t: TranslateNS<typeof NS>
@@ -444,27 +444,27 @@ interface CatalogDropdownSharedProps extends SubagentCatalogInjected {
 
 type CatalogDropdownProps = CatalogDropdownSharedProps & (
   | {
-    /** Descendant-count control. */
+    /** 后代数量控件。 */
     variant: 'count'
     currentSessionId?: never
     displayTitle?: never
     openTitle?: never
   }
   | {
-    /** Current-title sibling switcher. */
+    /** 当前标题对应的同级切换器。 */
     variant: 'switcher'
-    /** Selected descendant highlighted in the catalog. */
+    /** 在目录中高亮的已选后代。 */
     currentSessionId: SessionId
-    /** Visible title included in the switcher's hover target. */
+    /** 纳入切换器悬停区域的可见标题。 */
     displayTitle: string
-    /** Optional ancestor navigation when the combined title is clicked. */
+    /** 点击组合标题时可选的祖先导航操作。 */
     openTitle?: () => void
   }
 )
 
 const MENU_VIEWPORT_MARGIN = 16
 
-/** Place a portaled catalog below its trigger without crossing the viewport edge. */
+/** 把 Portal 目录放在触发器下方，并限制在视口边缘内。 */
 function catalogMenuPosition(trigger: HTMLButtonElement): CSSProperties {
   const rect = trigger.getBoundingClientRect()
   const width = Math.min(336, window.innerWidth - MENU_VIEWPORT_MARGIN * 2)
@@ -477,7 +477,7 @@ function catalogMenuPosition(trigger: HTMLButtonElement): CSSProperties {
   }
 }
 
-/** One trigger-plus-tree dropdown over the catalog rooted at `rootSessionId`. */
+/** 由一个触发器和一棵树组成的下拉目录，目录根为 `rootSessionId`。 */
 function CatalogDropdown({
   rootSessionId, currentSessionId, displayTitle, openTitle, variant, separator = false,
   useSessions, openChild, refresh, setCatalogOpen, t,
@@ -510,13 +510,13 @@ function CatalogDropdown({
     () => indexSubagentDescendants(summaries).get(rootSessionId) ?? NO_DESCENDANTS,
     [rootSessionId, summaries],
   )
-  // The catalog can arrive before the session-list baseline; never undercount
-  // the already-visible direct rows during that short bootstrap window.
+  // 目录可能先于 Session 列表基线到达；在这段短暂启动窗口中，
+  // 已经可见的直接子项不能被少计。
   const descendantCount = Math.max(healthy.length, descendants.count)
   const totalCountKey = descendantCount === 1 ? 'count.total.one' : 'count.total.other'
   const runningCountKey = descendants.runningCount === 1 ? 'count.running.one' : 'count.running.other'
-  // Session summaries can announce membership before the descriptor-backed catalog catches up.
-  // Keep that entry point visible through disabled loading rows; only catalog rows are navigable.
+  // Session 摘要可能先于描述符目录声明成员关系。此时通过禁用的加载行保留入口；
+  // 只有目录中已经落地的行可以导航。
   const summaryBackedLoading = (descendants.count > 0 || variant === 'switcher')
     && (catalog === undefined || (catalog.state === 'ready' && catalog.entries.length === 0))
   const presentedCatalog: SubagentCatalogSnapshot | undefined = summaryBackedLoading
@@ -673,10 +673,9 @@ function CatalogDropdown({
     observedCatalogs.current.clear()
   }, [])
 
-  // Visibility needs evidence of children (entries, summary-known descendants,
-  // or a failed load worth retrying). A bare loading catalog is not evidence:
-  // selecting any session schedules a refresh whose loading snapshot would
-  // otherwise flash the action in and out on childless sessions.
+  // 显示入口必须有子项证据：目录项、摘要已知的后代，或值得重试的加载失败。
+  // 单纯处于 loading 的目录不算证据，因为选择任意 Session 都会触发刷新；
+  // 若把该快照当成证据，无子项 Session 的入口会短暂闪现。
   const visible = presentedCatalog !== undefined
     && (variant === 'switcher'
       || presentedCatalog.state === 'error'
@@ -805,9 +804,9 @@ function CatalogDropdown({
 }
 
 /**
- * Render one breadcrumb title together with its subagent navigation.
- * @param props - Breadcrumb title, session standard props, and catalog actions.
- * @returns An ordinary-title descendant count, or a title-and-chevron sibling switcher.
+ * 渲染一段面包屑标题及其子智能体导航。
+ * @param props - 面包屑标题、Session 标准 props 与目录操作。
+ * @returns 普通标题后的后代数量，或由标题和箭头组成的同级切换器。
  */
 export function SubagentHeaderLineage({
   lineageSessionId, displayTitle, openTitle,

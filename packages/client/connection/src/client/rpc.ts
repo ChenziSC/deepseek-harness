@@ -1,4 +1,4 @@
-/** Browser caller for generic Connection unary RPC channels. */
+/** 通用 Connection unary RPC channel 的浏览器调用方。 */
 
 import {
   RpcId,
@@ -12,13 +12,13 @@ const INTERNAL_BASE = 'http://dsh.internal'
 const CHANNEL_PATTERN = /^\/[A-Za-z0-9._~-]+$/
 const ENDPOINT_SEGMENT_PATTERN = /^[A-Za-z0-9_$.-]+$/
 
-/** Transport this caller posts through; same signature as the global `fetch`. */
+/** 本调用方用于 POST 的 Transport；签名与全局 `fetch` 相同。 */
 export type RpcFetch = (input: URL, init: RequestInit) => Promise<Response>
 
 /**
- * Create the browser-backed generic RPC caller.
- * @param doFetch - transport override; defaults to the page's global fetch.
- * @returns caller that owns request correlation and response-envelope validation.
+ * 创建由浏览器支撑的通用 RPC 调用方。
+ * @param doFetch - Transport 覆盖；默认使用页面全局 fetch。
+ * @returns 负责请求关联与响应 envelope 校验的调用方。
  */
 export function createWebConnectionRpc(doFetch?: RpcFetch): ClientConnectionRpc {
   const send: RpcFetch = doFetch ?? ((input, init) => globalThis.fetch(input, init))

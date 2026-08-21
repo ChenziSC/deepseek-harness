@@ -12,7 +12,7 @@ import css from './ToolDetails.module.css'
 /**
  * Render the selected Tool call's structured output when its presentation
  * intent is known, otherwise preserve the flattened result text.
- * @param props - selected call slice, workspace root, host home, and locale seat.
+ * @param props - 已选调用切片、Workspace 根目录、Host 主目录与 locale 位置。
  * @returns the details output body.
  */
 export function ToolDetails({

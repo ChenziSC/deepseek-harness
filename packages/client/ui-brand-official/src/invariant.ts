@@ -1,5 +1,5 @@
 /**
- * Package-owned invariant companion for `@deepseek-ai/dsh-client-ui-brand-official`.
+ * `@deepseek-ai/dsh-client-ui-brand-official` 包拥有的 invariant companion。
  * @module @deepseek-ai/dsh-client-ui-brand-official/invariant
  */
 
@@ -9,21 +9,21 @@ import type { InvariantInstaller } from '@deepseek-ai/dsh-invariants'
 
 const PACKAGE_NAME = '@deepseek-ai/dsh-client-ui-brand-official'
 
-/** Cordis companion plugin name. */
+/** Cordis companion 插件名。 */
 export const name = 'client-ui-brand-official-invariant'
-/** Service required before the companion can reserve package ownership. */
+/** Companion 声明包所有权前所需的服务。 */
 export const inject = ['invariants']
 
 /**
- * No runtime invariant: the package retains no mutable state, and its three
- * slot occupants install and leave through one transactional effect.
+ * 无运行时 invariant：本包不保留可变状态，三个 Slot 占位组件通过同一个事务 effect 安装
+ * 与离开。
  */
 const install: InvariantInstaller = () => {}
 
 /**
- * Register this package's invariant companion.
- * @param ctx - Cordis context carrying the invariant service.
- * @returns the installed registration's disposer after setup succeeds.
+ * 注册本包的 invariant companion。
+ * @param ctx - 携带 invariant 服务的 Cordis Context。
+ * @returns 设置成功后已安装注册的 disposer。
  */
 export const apply = (ctx: Context): Promise<() => void> =>
   Promise.resolve(ctx.invariants.register(PACKAGE_NAME, install))

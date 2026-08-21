@@ -53,7 +53,7 @@ export class WorkspaceRuntime implements IWorkspaces {
   readonly list: SnapshotStore<WorkspaceListState>
   /** Workspace baseline and frame owner. */
   private readonly manager: WorkspaceManager
-  /** In-flight blank-session connects keyed by workspace (reuse or create). */
+  /** 按 Workspace 索引、正在进行的空白 Session 连接操作（复用或创建）。 */
   private readonly connecting = new Map<WorkspaceId, Promise<SessionId>>()
   /** Guards the runtime-owned one-shot initial-selection subscription. */
   private initialSelectionStarted = false
@@ -75,18 +75,14 @@ export class WorkspaceRuntime implements IWorkspaces {
   }
 
   /**
-   * Resolve the session a New Session flow lands in once this Workspace is
-   * chosen: explicitly adopt the workspace's existing blank session when one
-   * is in the list mirror, else create a fresh one on the host
-   * (`session.create` births or resumes the full Session+Agent — the client
-   * holds no intermediate state). The adoption tells optional default owners
-   * that this exact session passed the reuse checks.
-   * caller owns navigation: take the returned id to `sessions.open`.
-   * Resolution guarantee (both arms): the returned id is already in the list
-   * store and `sessions.binding(id)` resolves synchronously — draft hand-off
-   * may write the new scope's machine before opening.
-   * @param workspaceId - chosen Workspace (must be in the workspace list).
-   * @returns the reused or newly created session id.
+   * 选择 Workspace 后，解析 New Session 流程最终进入的 Session：若列表 Mirror 中存在该
+   * Workspace 的空白 Session，则显式采用；否则在 Host 创建新 Session。`session.create`
+   * 会创建或恢复完整 Session+Agent，客户端不保存中间状态。采用操作会通知可选默认值
+   * 所有者：该 Session 已通过复用检查。导航归调用方所有，应把返回 id 交给
+   * `sessions.open`。两条分支都保证返回 id 已经进入列表 store，且
+   * `sessions.binding(id)` 可同步解析，因此草稿交接能在打开前写入新 scope 的状态机。
+   * @param workspaceId - 已选择的 Workspace；必须存在于 Workspace 列表。
+   * @returns 复用或新建的 Session id。
    */
   async connectWorkspace(workspaceId: WorkspaceId): Promise<SessionId> {
     const workspace = this.list.getSnapshot().items.find(item => item.workspaceId === workspaceId)

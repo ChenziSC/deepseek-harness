@@ -101,50 +101,47 @@ export function collectReferenceTargets(
 }
 
 /**
- * File-mention affordance for inline code: the owner resolves an authored
- * token to the file it names, using its own vocabulary of real files — the
- * renderer never guesses at what looks like a path.
+ * 行内代码的文件提及能力：拥有者使用自身真实文件词表，把作者写下的词元解析为
+ * 所指文件；渲染器绝不猜测看起来像路径的内容。
  */
 export interface MarkdownFileMentions {
   /**
-   * Resolve one inline-code token.
-   * @param value - The authored token, exactly as written.
-   * @returns The opener with its accessible label and full-path title, or
-   * undefined when the token names no known file — it then stays inert code.
+   * 解析一个行内代码词元。
+   * @param value - 作者原样写下的词元。
+   * @returns 带无障碍标签和完整路径标题的打开器；词元不指向已知文件时为
+   * undefined，此时保持为不可交互代码。
    */
   resolve(value: string): { open: () => void; label: string; title: string } | undefined
 }
 
 /**
- * One render pass's state: immutable options and targets plus the footnote
- * numbering accumulated in document order while references render.
+ * 一次渲染 pass 的状态：不可变选项和目标，以及引用渲染时按文档顺序累积的脚注编号。
  */
 export interface MarkdownRenderContext {
-  /** Streaming arm: fences render plain and TeX stays literal. */
+  /** 流式分支：围栏按纯文本渲染，TeX 保持字面形式。 */
   readonly streaming: boolean
-  /** Localized fence copy-button labels. */
+  /** 本地化的围栏复制按钮标签。 */
   readonly codeLabels: MarkdownCodeLabels | undefined
-  /** Inside a blockquote's children: tables there always fill the quote's width. */
+  /** 是否位于 blockquote 子级内；其中表格始终填满引用宽度。 */
   readonly inBlockquote?: boolean
-  /** Inline-code file mentions; absent wherever no opener vocabulary exists. */
+  /** 行内代码文件提及；没有打开器词表时缺失。 */
   readonly fileMentions: MarkdownFileMentions | undefined
-  /** Inside an anchor's children: interactive mentions must not nest there. */
+  /** 是否位于 anchor 子级内；其中不得嵌套可交互提及。 */
   readonly inLink?: boolean
-  /** Reference targets visible to this pass. */
+  /** 本次 pass 可见的引用目标。 */
   readonly targets: ReferenceTargets
-  /** Footnote identifiers in first-reference order; a footnote's number is its 1-based index here. */
+  /** 按首次引用顺序排列的脚注标识；脚注编号是其从 1 开始的索引。 */
   readonly footnoteOrder: string[]
-  /** References rendered per identifier; drives the section's back-reference count. */
+  /** 每个标识已渲染的引用数，用于决定章节反向引用数量。 */
   readonly footnoteCounts: Map<string, number>
 }
 
 /**
- * Render top-level blocks. Nodes that render nothing (definitions, unmapped
- * types) are dropped rather than kept as null placeholders, matching the
- * replaced pipeline's child lists so separator newlines land identically.
- * @param blocks - Blocks with their stream-stable render keys.
- * @param context - The pass state; footnote numbering mutates in document order.
- * @returns One React node per rendered block.
+ * 渲染顶层块。不产生内容的节点（定义、未映射类型）会被丢弃，而不是保留 null
+ * 占位，以匹配被替换流水线的子列表，使分隔换行位置完全一致。
+ * @param blocks - 带流式稳定渲染键的块。
+ * @param context - 本次 pass 状态；脚注编号按文档顺序变更。
+ * @returns 每个已渲染块对应一个 React 节点。
  */
 export function renderBlocks(
   blocks: readonly PositionedBlock[],
@@ -156,13 +153,11 @@ export function renderBlocks(
 }
 
 /**
- * Interleave the newline text nodes the replaced pipeline emitted between
- * block-level children. They are invisible between elements but coalesce
- * into adjacent literal raw-HTML text, where the DOM parity fixtures pin
- * them.
- * @param elements - Rendered block children with empty renders already dropped.
- * @param edges - Also emit the leading and trailing newline (hast's loose wrap).
- * @returns The interleaved children.
+ * 在块级子项间交错插入被替换流水线曾生成的换行文本节点。它们在元素之间不可见，
+ * 但会与相邻字面 raw-HTML 文本合并；DOM 等价 fixture 固定了这一行为。
+ * @param elements - 已丢弃空渲染结果的块级子项。
+ * @param edges - 是否同时生成首尾换行，即 hast 的宽松包装。
+ * @returns 交错后的子项。
  */
 export function wrapBlockChildren(elements: readonly ReactNode[], edges: boolean): ReactNode[] {
   const wrapped: ReactNode[] = []
@@ -175,13 +170,12 @@ export function wrapBlockChildren(elements: readonly ReactNode[], edges: boolean
 }
 
 /**
- * A block child rendered for a parent that must tell paragraphs apart from
- * other blocks (list items unwrap them when tight; footnote bodies receive
- * their back-references inside the trailing paragraph).
+ * 为必须区分段落与其他块的父级渲染的块子项。紧凑列表项会解包段落；脚注正文则把
+ * 反向引用放进末尾段落。
  */
 type BlockEntry = { paragraph: ReactNode[] } | { element: ReactNode }
 
-/** Render container children into {@link BlockEntry} values, dropping empty renders. */
+/** 把容器子项渲染为 {@link BlockEntry} 值，并丢弃空渲染结果。 */
 function renderBlockEntries(
   blocks: readonly Md.RootContent[],
   context: MarkdownRenderContext,
@@ -225,7 +219,7 @@ function renderNode(node: Md.RootContent, key: Key, context: MarkdownRenderConte
     case 'thematicBreak':
       return <hr key={key} />
     case 'break':
-      // The replaced pipeline emitted a newline text node after each <br>.
+      // 被替换流水线会在每个 <br> 后生成一个换行文本节点。
       return <Fragment key={key}><br />{'\n'}</Fragment>
     case 'strong':
       return <strong key={key}>{renderChildren(node.children, context)}</strong>
@@ -234,18 +228,15 @@ function renderNode(node: Md.RootContent, key: Key, context: MarkdownRenderConte
     case 'delete':
       return <del key={key}>{renderChildren(node.children, context)}</del>
     case 'inlineCode': {
-      // Parity with mdast-util-to-hast: inline code renders line endings as spaces.
+      // 与 mdast-util-to-hast 保持等价：行内代码把换行渲染为空格。
       const value = node.value.replace(/\r?\n|\r/g, ' ')
-      // An inline-code token that is entirely an absolute HTTP(S) URL keeps
-      // its code chrome and gains the same safe external anchor as a link;
-      // commands, partial URLs, and other schemes stay inert. The value is
-      // authored text, not a parsed destination, so no normalizeUri: port,
-      // path, and query render unchanged.
+      // 完全由绝对 HTTP(S) URL 构成的行内代码词元会保留代码外观，并获得与链接相同
+      // 的安全外部 anchor；命令、部分 URL 和其他协议保持不可交互。该值是作者文本，
+      // 不是已解析目标，因此不执行 normalizeUri，端口、路径和查询均原样渲染。
       const href = inlineCodeHttpUrl(value)
       if (href !== undefined) return <code key={key}>{renderSafeLink(href, [value], 'link')}</code>
-      // A token the owner's file-mention vocabulary recognizes opens that
-      // file; the resolver, not this renderer, decides what names a file.
-      // Inside an anchor the token stays inert — a button cannot nest there.
+      // 拥有者文件提及词表识别出的词元会打开对应文件；由解析器而非本渲染器决定
+      // 什么名称表示文件。在 anchor 内词元保持不可交互，因为其中不能嵌套按钮。
       const mention = context.inLink === true ? undefined : context.fileMentions?.resolve(value)
       if (mention !== undefined) {
         return (
@@ -265,7 +256,7 @@ function renderNode(node: Md.RootContent, key: Key, context: MarkdownRenderConte
       return <code key={key}>{value}</code>
     }
     case 'html':
-      // No HTML parser enters the pipeline: raw HTML stays literal text.
+      // 流水线不接入 HTML 解析器：raw HTML 保持字面文本。
       return node.value
     case 'code':
       return renderCode(node, key, context)
@@ -276,7 +267,7 @@ function renderNode(node: Md.RootContent, key: Key, context: MarkdownRenderConte
     case 'list':
       return renderList(node, key, context)
     case 'listItem':
-      // Reachable only in hand-built trees: the grammar emits items inside lists.
+      // 仅手工构造的树能到达；语法会把 item 放在 list 内。
       return renderListItem(node, listItemLoose(node), key, context)
     case 'table':
       return renderTable(node, key, context)
@@ -292,13 +283,11 @@ function renderNode(node: Md.RootContent, key: Key, context: MarkdownRenderConte
       return renderFootnoteReference(node, key, context)
     case 'definition':
     case 'footnoteDefinition':
-      // Targets render elsewhere: definitions resolve references in place;
-      // footnote bodies render in the trailing section.
+      // 目标在其他位置渲染：定义就地解析引用，脚注正文渲染在末尾章节。
       return null
     default:
-      // Documented default for the merge-extensible union: node types without
-      // a mapping (tableRow/tableCell outside a table, frontmatter, future
-      // grammar contributions) render nothing.
+      // merge-extensible 联合的明确默认分支：没有映射的节点类型（表格外的
+      // tableRow/tableCell、frontmatter、未来语法贡献）不渲染任何内容。
       return null
   }
 }
@@ -306,27 +295,26 @@ function renderNode(node: Md.RootContent, key: Key, context: MarkdownRenderConte
 function renderCode(node: Md.Code, key: Key, context: MarkdownRenderContext): ReactNode {
   const language = node.lang ?? undefined
   if (node.value === '') {
-    // Parity: the replaced pipeline kept the stock <pre> for an empty fence.
+    // 保持等价：被替换流水线为空围栏保留原生 <pre>。
     return (
       <pre key={key}>
         <code className={language === undefined ? undefined : `language-${language}`} />
       </pre>
     )
   }
-  // The replaced pipeline recovered the grammar id from the hast class with
-  // /language-([\w-]+)/, which truncates at the first non-word character.
+  // 被替换流水线通过 /language-([\w-]+)/ 从 hast class 恢复语法 ID，遇到首个
+  // 非单词字符时截断。
   const lang = language === undefined ? undefined : /^[\w-]+/.exec(language)?.[0]
   if (!context.streaming && lang === 'math') {
-    // ```math fences render as display TeX once settled (rehype-katex parity);
-    // its text extraction saw the code block's trailing newline.
+    // ```math 围栏结算后渲染为 display TeX，与 rehype-katex 等价；其文本提取会
+    // 看到代码块尾随换行。
     return <Fragment key={key}>{renderTexToReact(`${node.value}\n`, true)}</Fragment>
   }
   return (
     <CodeBlock
       key={key}
-      // The replaced hast pipeline appended one synthetic newline that
-      // CodeBlock's display trim removes; feeding the bare value would make
-      // that trim eat a REAL trailing blank line inside the fence instead.
+      // 被替换 hast 流水线会追加一个合成换行，由 CodeBlock 的展示裁剪移除；若传入
+      // 裸值，裁剪反而会吃掉围栏内部真实的尾随空行。
       code={`${node.value}\n`}
       lang={context.streaming ? undefined : lang}
       copyLabel={context.codeLabels?.copyLabel}
@@ -335,7 +323,7 @@ function renderCode(node: Md.Code, key: Key, context: MarkdownRenderContext): Re
   )
 }
 
-/** A list is loose when it or any of its items is spread; every item then keeps its paragraphs. */
+/** 列表自身或任一条目 spread 时为宽松列表；此时每个条目都保留段落。 */
 function listLoose(list: Md.List): boolean {
   return (list.spread ?? false) || list.children.some(listItemLoose)
 }
@@ -375,10 +363,8 @@ function renderListItem(
       entries.unshift({ paragraph: [checkbox] })
     }
   }
-  // Newline placement and tight-paragraph unwrapping mirror
-  // mdast-util-to-hast's list-item handler: a newline before every child
-  // except a tight leading paragraph, and after a trailing non-paragraph
-  // (or any trailing child when loose).
+  // 换行位置和紧凑段落解包与 mdast-util-to-hast 的 list-item 处理器一致：除紧凑
+  // 首段外，每个子项前都有换行；末项非段落时在其后换行，宽松列表则所有末项后换行。
   const parts: ReactNode[] = []
   for (const [index, entry] of entries.entries()) {
     const isParagraph = 'paragraph' in entry
@@ -400,17 +386,14 @@ function renderTable(node: Md.Table, key: Key, context: MarkdownRenderContext): 
   const align = node.align ?? null
   const [headRow, ...bodyRows] = node.children
   const columns = align === null ? headRow?.children.length ?? 0 : align.length
-  // Four or more columns read as a comparison matrix: the block keeps the
-  // table at natural width and exposes the stable `md-table-wide` hook so a
-  // hosting layout (the chat transcript) can widen it past the message
-  // column. Narrower tables — and any table inside a blockquote — fill the
-  // column and wrap instead (deepsuite chat TableWrapper parity).
+  // 四列及以上按对比矩阵阅读：块保持表格自然宽度，并暴露稳定 `md-table-wide` hook，
+  // 让承载布局（聊天转录）可把它拓宽到消息列之外。更窄的表格以及 blockquote 内
+  // 任意表格则填满列并换行，与 deepsuite chat TableWrapper 等价。
   const wide = columns >= 4 && context.inBlockquote !== true
   return (
-    // Wide tables rest with overflow-x hidden (the hover-revealed bar in
-    // MarkdownText.module.css), which drops Chromium's implicit scroller
-    // focusability — the explicit tabindex keeps them keyboard-reachable,
-    // and :focus-visible restores scrolling.
+    // 宽表格静止时使用 overflow-x hidden，滚动条由 MarkdownText.module.css 在悬停时
+    // 显示；这会取消 Chromium 对滚动容器的隐式可聚焦性。显式 tabindex 保持键盘
+    // 可达，:focus-visible 则恢复滚动。
     <div
       key={key}
       className={clsx(css.tableScroll, wide ? 'md-table-wide' : css.tableFill)}
@@ -435,8 +418,8 @@ function renderTableRow(
   key: Key,
   context: MarkdownRenderContext,
 ): ReactNode {
-  // With column alignment present, every row renders exactly one cell per
-  // column, padding or truncating the row (mdast-util-to-hast parity).
+  // 存在列对齐信息时，每行严格按每列渲染一个单元格，并补齐或截断行，保持与
+  // mdast-util-to-hast 等价。
   const length = align === null ? row.children.length : align.length
   const cells: ReactNode[] = []
   for (let index = 0; index < length; index++) {
@@ -444,8 +427,8 @@ function renderTableRow(
     const alignValue = align?.[index]
     cells.push(createElement(
       cellTag,
-      // hast-util-to-jsx-runtime's default tableCellAlignToStyle turned the
-      // deprecated align attribute into an inline style; keep that DOM.
+      // hast-util-to-jsx-runtime 默认 tableCellAlignToStyle 会把已弃用 align 属性
+      // 转为内联样式；这里保持相同 DOM。
       { key: index, style: alignValue == null ? undefined : { textAlign: alignValue } },
       ...(cell === undefined ? [] : renderChildren(cell.children, context)),
     ))
@@ -453,7 +436,7 @@ function renderTableRow(
   return <tr key={key}>{cells}</tr>
 }
 
-/** Anchor over an already-authored href: allowlisted or unwrapped, external links get the safe attributes. */
+/** 为作者已写下的 href 创建 anchor：允许列表内才包装；外部链接带安全属性。 */
 function renderSafeLink(href: string, children: ReactNode[], key: Key): ReactNode {
   const safeHref = sanitizeUrl(href)
   if (safeHref === '') return <Fragment key={key}>{children}</Fragment>

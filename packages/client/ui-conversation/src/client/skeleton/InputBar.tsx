@@ -1,10 +1,8 @@
-/** The default composer body: the 'conversation.composer.bar' slot entry.
- * Machine state arrives through the standard provide channel
- * (useInput + inputActions); the keyboard/DOM command face and stop arrive
- * through this entry's own inject, whose hooks compartment binds
- * useNotices/useLexicon; layout-phase inputs (variant, placeholder,
- * region-slot content) ride the owner props. Session facts
- * (running/removed/promptError) are self-selected via useSession. */
+/** 默认编辑器主体，即 'conversation.composer.bar' Slot 条目。状态机状态通过标准
+ * provide 通道到达（useInput + inputActions）；键盘/DOM 命令接口和 stop 通过本
+ * 条目自身的 inject 到达，其中 hooks 分区绑定 useNotices/useLexicon；布局阶段
+ * 输入（variant、placeholder、区域 Slot 内容）由拥有者 props 携带。会话事实
+ * （running/removed/promptError）则通过 useSession 自行选择。 */
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent, MouseEvent, ReactNode } from 'react'
@@ -12,14 +10,13 @@ import clsx from 'clsx'
 import {
   IconPlusOutline16, IconWarningOutline16, Toast, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-// Type-only: the `plan` projection key merge (the TodoDock posture — the
-// composer reads a host-computed value; the domain owns the key).
+// 仅类型：合并 `plan` 投影键。与 TodoDock 一样，编辑器读取 Host 计算的值，
+// 该领域拥有键定义。
 import type {} from '@deepseek-ai/dsh-plan-mode/client'
-// Type-only: the `goal` projection key merge (hint disambiguation).
+// 仅类型：合并 `goal` 投影键，用于区分提示。
 import type {} from '@deepseek-ai/dsh-goal/client'
-// The `imageLimits` projection key merge (intake pre-check) arrives with the
-// wire types: apiproxy's sessions contract declares it, and client-runtime's
-// api-remotes import already places it in every client program.
+// `imageLimits` 投影键合并用于接收前预检，并随线协议类型到达：apiproxy 的
+// sessions 约定声明它，client-runtime 的 api-remotes 导入已把它放进每个客户端程序。
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ComposerBarProps } from '../contract/slots.ts'
 import { deriveDecorations } from '../input/decorations.ts'
@@ -32,10 +29,10 @@ import { PermissionSelect } from './PermissionSelect.tsx'
 import { isSafariBrowser, repairSafariTextareaLayout } from './safari.ts'
 import css from './InputBar.module.css'
 
-/** Decoration product of the no-session state (no machine, empty draft). */
+/** 无会话状态下的装饰结果：没有状态机，草稿为空。 */
 const INERT_DECORATIONS: DraftDecorations = { token: null, chips: [], textRefs: [], hint: null }
 
-/** The selection and edit family a `beforeinput` recorded, with the draft length it applied to. */
+/** `beforeinput` 记录的选区和编辑类别，以及它所作用草稿的长度。 */
 interface PendingEdit {
   readonly start: number
   readonly end: number
@@ -44,22 +41,19 @@ interface PendingEdit {
 }
 
 /**
- * Resolve one edit's range from the record taken before it applied.
- * A selection the edit replaces is the range outright. A caret delete replaces
- * nothing and reports the bare caret, so the removed span is whatever the draft
- * lost, on the side `inputType` names — measured, because one caret gesture can
- * remove a multi-unit grapheme, a word, or a line.
- * @param pending - record taken at `beforeinput`, null when none was seen.
- * @param prevLength - length of the draft the edit applied to.
- * @param nextLength - length of the resulting draft.
- * @returns the exact range, or undefined when the record cannot describe this
- * edit and the machine's diff scan has to recover it.
+ * 根据编辑应用前取得的记录解析其区间。编辑替换选区时，选区本身就是区间。
+ * 光标删除没有替换内容，只报告裸光标，因此被删除区间是草稿在 `inputType`
+ * 指定一侧实际减少的部分；必须测量，因为一次光标操作可能删除多码元字素、
+ * 一个单词或一整行。
+ * @param pending - `beforeinput` 时取得的记录；未观察到时为 null。
+ * @param prevLength - 编辑作用前的草稿长度。
+ * @param nextLength - 结果草稿长度。
+ * @returns 精确区间；记录无法描述本次编辑时返回 undefined，由状态机 diff 扫描恢复。
  */
 function editRangeOf(pending: PendingEdit | null, prevLength: number, nextLength: number): EditRange | undefined {
   if (pending === null || pending.draftLength !== prevLength) return undefined
   const { start, end, inputType } = pending
-  // A DOM selection cannot invert; the check keeps that a precondition of the
-  // math below rather than an assumption about the element.
+  // DOM 选区不可能反转；此检查把它明确作为下方计算的前置条件，而不是对元素的假设。
   if (start > end || end > prevLength) return undefined
   const insertedLength = nextLength - prevLength + (end - start)
   if (insertedLength >= 0) return { start, end, insertedLength }
@@ -92,13 +86,13 @@ export function InputBar({
   const running = useSession(s => s.running) ?? false
   const subagent = useSession(s => s.subagent) ?? null
   const removed = useSession(s => s.removed) ?? false
-  // Plan mode swaps the textarea placeholder (the projection is the folded
-  // host value; owner-prop placeholders — hero, session-unavailable — win).
+  // Plan 模式会替换 textarea 占位文案；该投影是 Host 折叠后的值，但拥有者 props
+  // 提供的占位文案（hero、session-unavailable）优先。
   const planActive = useProjection('plan', plan => plan !== undefined && (plan.pending ? !plan.active : plan.active))
-  // Absent (undefined: no frame yet) and cleared (null) both mean no goal.
+  // 缺失（undefined，尚无 frame）和已清除（null）都表示没有目标。
   const hasGoal = useProjection('goal', goal => goal != null)
-  // Session-maybe: the machine faces are absent together while no session is
-  // current; the bar renders the same DOM inert instead of a parallel tree.
+  // session-maybe：没有当前会话时，状态机接口会一起缺失；输入栏把同一 DOM 渲染为
+  // 不可交互，而不是另建一棵平行树。
   const live = input !== undefined && keyboard !== undefined && inputActions !== undefined
   const draft = input?.draft ?? ''
   const attachments = useMemo(
@@ -106,9 +100,8 @@ export function InputBar({
     [draftImages, input?.imageIds],
   )
   const empty = draft.trim() === '' && attachments.length === 0
-  // Transient error banner (machine notices, image-intake rejections, and
-  // prompt failures): the seq keys the Toast so an identical repeated message
-  // restarts the hold-then-fade cycle instead of reusing the faded one.
+  // 临时错误横幅，包括状态机提示、图片接收拒绝和 prompt 失败。seq 作为 Toast 键，
+  // 让完全相同的重复消息重新开始停留再淡出周期，而不是复用已经淡出的实例。
   const [toast, setToast] = useState<{ seq: number; text: string } | null>(null)
   const toastSeq = useRef(0)
   const showToast = useCallback((text: string) => {
@@ -116,16 +109,12 @@ export function InputBar({
     setToast({ seq: toastSeq.current, text })
   }, [])
   const dismissToast = useCallback(() => { setToast(null) }, [])
-  // The deployment's image-intake limits (absent while no attachment service
-  // is composed — the pre-check below then defers entirely to the host).
+  // 部署的图片接收限制；未组合附件服务时缺失，下方预检就完全交给 Host。
   const imageLimits = useProjection('imageLimits')
-  // Prompt failures are ordinary failures (no create/attach transaction exists
-  // anymore): the toast announces promptError, the draft stays in the machine,
-  // and the user resubmits. A remount over a session whose machine still holds
-  // an unresolved promptError deliberately re-announces it once — the failure
-  // is still pending, and a transient banner is its only surface. Attachment
-  // rejections show product copy keyed by the wire reason; other codes are
-  // developer-facing and keep the raw message plus code.
+  // prompt 失败是普通失败，不再存在 create/attach 事务：Toast 宣告 promptError，
+  // 草稿保留在状态机中，由用户重新提交。若重新挂载的会话状态机仍持有未解决的
+  // promptError，会有意再次宣告一次；失败仍待处理，临时横幅是唯一展示面。
+  // 附件拒绝按线协议 reason 显示产品文案；其他代码面向开发者，保留原始消息和代码。
   useEffect(() => {
     if (promptError === null) return
     showToast(promptError.error.code === 'attachment-error'
@@ -141,8 +130,8 @@ export function InputBar({
   const mirrorRef = useRef<HTMLDivElement | null>(null)
   const safari = useMemo(() => isSafariBrowser(navigator), [])
   const safariNativeShrinkRef = useRef(false)
-  // IME guard: composition Enter picks a candidate, it must not send. The ref outlives renders;
-  // clearing is deferred one tick because Safari delivers the closing keydown AFTER compositionend.
+  // IME 保护：组合输入期间的回车用于选择候选项，不能发送。ref 跨渲染存活；Safari
+  // 会在 compositionend 之后才派发收尾 keydown，因此延迟一个 tick 清除。
   const composingRef = useRef(false)
   const onCompositionStart = (): void => {
     composingRef.current = true
@@ -153,30 +142,26 @@ export function InputBar({
     }, 10)
   }
 
-  // The Access seat's data: the host-computed permissions projection
-  // (undefined = capability absent → the chip renders nothing).
+  // Access 座位的数据：Host 计算的权限投影；undefined 表示能力不存在，胶囊不渲染。
   const permissions = useProjection('permissions')
 
-  // A continuable child without its live parent cannot accept human input,
-  // but its independent Stop below stays available while it runs.
+  // 可继续的子会话若没有仍存活的父会话，就不能接受人工输入；但运行期间，下方独立
+  // Stop 仍保持可用。
   const continuable = subagent?.address.mode === 'continuable'
   const parentOffline = continuable && !subagent.parentAvailable
-  // Running input stays free; locked = session removed, the
-  // inert no-workspace state, the machine faces absent (no session), or a
-  // parent-offline continuable child. An owner block also disables input;
-  // adjudicating and submitting render read-only so the draft stays visible.
+  // 运行中的输入保持可用。locked 表示会话已移除、无工作区的不可交互状态、状态机
+  // 接口缺失（无会话），或可继续子会话的父会话离线。拥有者 block 也会禁用输入；
+  // adjudicating 和 submitting 渲染为只读，以保持草稿可见。
   const disabled = removed || inert || !live || blocked !== undefined || parentOffline
   const locked = disabled
-  // The model seat is the ONE control a block leaves live: every block this
-  // contract has is cleared by choosing a model, so locking it too would leave
-  // the composer asking for the only thing it prevents. The other reasons to
-  // be disabled do lock it — there is no session to choose a model for.
+  // model 座位是 block 唯一保留可用的控件：此约定中的每种 block 都通过选择模型
+  // 清除；若连它也锁定，编辑器就会要求用户完成自己禁止的唯一操作。其他禁用原因
+  // 仍会锁定它，因为此时没有可供选择模型的会话。
   const modelSeatLocked = removed || inert || !live
   const machineBusy = input?.phase === 'adjudicating' || input?.phase === 'submitting'
-  // The no-workspace textarea remains the resident DOM node but acts as the
-  // existing picker trigger. Message controls stay locked until a Session
-  // exists; the trigger itself is read-only rather than disabled so pointer
-  // and keyboard users can reach the recovery action.
+  // 无工作区时 textarea 仍是常驻 DOM 节点，但充当现有选择器的触发入口。消息控件
+  // 在 Session 存在前保持锁定；触发器本身只读而非 disabled，使鼠标和键盘用户
+  // 都能到达恢复操作。
   const workspaceTrigger = inert && !removed && onRequestWorkspace !== undefined
   const textareaDisabled = removed || (locked && !workspaceTrigger)
   const canSteerQueue = !locked && !machineBusy && !commandMenuOpen && empty && running && subagent === null
@@ -189,40 +174,33 @@ export function InputBar({
     }
   }, [attachments, input?.imageIds, inputActions])
 
-  // A native Safari edit that shortens the draft may leave the previous
-  // soft-wrap layout behind after the mirror shrinks. The native-change signal
-  // keeps ordinary typing and programmatic draft updates from reading layout;
-  // the helper then repairs only measured overflow before paint while
-  // preserving native editing state. See
+  // Safari 原生编辑缩短草稿后，镜像收缩时可能残留旧的软换行布局。native-change
+  // 信号避免普通输入和程序化草稿更新读取布局；辅助函数只在绘制前修复测得的溢出，
+  // 同时保留原生编辑状态。参见
   // .agents/notes/implemented/bug-fix/2026-08-13-safari-textarea-soft-wrap-reflow.md.
   useLayoutEffect(() => {
     const nativeShrink = safariNativeShrinkRef.current
     safariNativeShrinkRef.current = false
     if (safari && nativeShrink) repairSafariTextareaLayout(inputRef.current)
   }, [draft, safari])
-  // Scroll the draft scrollport the minimum that brings `caret` into view — the
-  // browser's own behavior for typing, performed for the paths where it does
-  // not act.
+  // 以最小幅度滚动草稿滚动区，使 `caret` 进入视口；这是浏览器处理原生输入时的
+  // 行为，此处为浏览器不会自动处理的路径补上。
   //
-  // The mirror is the caret's ruler: it renders the same draft at the same
-  // metrics and the same wrap width in the same stack (that is what makes it
-  // the height authority), so a Range collapsed at the caret's index reports
-  // where the caret is without a caret API.
+  // 镜像是光标的标尺：它在同一堆叠中以相同度量和换行宽度渲染同一草稿，因此成为
+  // 高度权威。在光标索引处折叠的 Range 无需专用光标 API 就能报告光标位置。
   const revealCaret = (caret: number): void => {
     const scrollEl = scrollRef.current
     const mirrorEl = mirrorRef.current
     const text = mirrorEl?.firstChild
     if (scrollEl === null || mirrorEl === null || !(text instanceof Text)) return
-    // A box that cannot scroll has nothing to reveal: the draft fits, so every
-    // caret is already in view and the assignment below would clamp to itself.
+    // 无法滚动的框没有需要揭示的内容：草稿已完全容纳，每个光标都在视口内，
+    // 下方赋值最终也只会限位到当前值。
     if (scrollEl.scrollHeight <= scrollEl.clientHeight) return
     const at = Math.min(caret, text.data.length)
-    // A caret straight after a newline sits on a line with nothing on it to
-    // measure — the shape a trailing-newline draft ends in — and the engines
-    // disagree there: chromium returns NO client rects at all (an all-zero box,
-    // which would scroll the wrong way), firefox reports the line above, WebKit
-    // the right one. Measure the newline itself instead, which is the line the
-    // caret just left, and step one line down; that they all agree on.
+    // 紧跟换行符的光标位于无内容可测量的空行，也就是尾随换行草稿的结尾形态；
+    // 各引擎对此不一致：Chromium 完全不返回 client rect（全零框会向错误方向滚动），
+    // Firefox 报告上一行，WebKit 才报告正确行。改为测量换行符本身，即光标刚离开的
+    // 行，再向下移动一行；各引擎对这种计算结果一致。
     const afterNewline = at > 0 && text.data[at - 1] === '\n'
     const range = document.createRange()
     range.setStart(text, afterNewline ? at - 1 : at)
@@ -235,25 +213,21 @@ export function InputBar({
     else if (rect.top + line < box.top) scrollEl.scrollTop -= box.top - rect.top - line
   }
 
-  // Reveal the focus end of the current selection. Today's entry paths leave a
-  // collapsed selection, but honoring direction keeps a future range-preserving
-  // path from revealing its anchor instead of its focus.
+  // 揭示当前选区的焦点端。现有入口都留下折叠选区，但尊重方向可以防止未来保留
+  // 区间的路径错误揭示锚点而非焦点。
   const revealSelectionFocus = (el: HTMLTextAreaElement): void => {
-    // selectionStart/End are number|null in lib.dom; the type-aware lint program narrows them.
+    // lib.dom 中 selectionStart/End 为 number|null；类型感知 lint 程序会收窄它们。
     const caret = el.selectionDirection === 'backward' ? el.selectionStart : el.selectionEnd
     // oxlint-disable-next-line typescript/no-unnecessary-condition
     revealCaret(caret ?? el.value.length)
   }
 
-  // Unlock (mount / session switch) returns focus to the box, and owns the
-  // reveal that comes with it. `preventScroll` because this focus is ours, not
-  // a gesture: the textarea is as tall as the draft, so the browser's reveal
-  // would walk up to the conversation scrollport and move the transcript under
-  // a user who only switched session. That leaves the caret to us — the DOM is
-  // reused across sessions, so switching to a longer draft keeps the previous
-  // offset while the value swap puts the caret at the new draft's end, which is
-  // off screen (measured on all three engines: offset 0 with the caret 940px
-  // down). Suppress the walk, then reveal in our own box.
+  // 解锁（挂载/切换会话）会把焦点还给输入框，并负责随之而来的揭示。使用
+  // `preventScroll`，因为此次聚焦由程序发起而非用户手势：textarea 与草稿等高，
+  // 浏览器的揭示会一路滚到会话滚动区，让只切换会话的用户看到转录内容移动。
+  // 光标揭示因此由我们处理；DOM 在会话间复用，切到更长草稿时仍保留旧偏移，
+  // 值替换却把光标放到新草稿末尾，落在屏幕外（三个引擎实测均为偏移 0、光标向下
+  // 940px）。先阻止外层滚动，再只在输入框内揭示。
   useEffect(() => {
     const el = inputRef.current
     if (locked || el === null) return
@@ -261,25 +235,20 @@ export function InputBar({
     revealSelectionFocus(el)
   }, [locked, sessionId])
 
-  // A persisted draft arrives AFTER the unlock effect: ConversationSession
-  // adopts it in its own mount effect, and a parent's mount effect runs after
-  // its children's. Reveal when the draft becomes non-empty so a restored long
-  // draft does not stay at its head with the caret at its end. This effect does
-  // not focus: send-clear, failed-send restore, and first-character transitions
-  // must not steal focus from another control the user moved to.
+  // 持久化草稿在解锁 effect 之后到达：ConversationSession 在自身挂载 effect 中
+  // 接纳它，而父组件挂载 effect 晚于子组件。草稿变为非空时执行揭示，避免恢复的
+  // 长草稿停在开头而光标位于末尾。此 effect 不聚焦：发送后清除、失败发送恢复和
+  // 首字符变化都不得从用户已转向的其他控件抢走焦点。
   useEffect(() => {
     const el = inputRef.current
     if (locked || draft === '' || el === null) return
     revealSelectionFocus(el)
   }, [draft !== ''])
 
-  // Caret restore after an edit the composer performs itself. The machine owns
-  // the draft and the undo log, so paste and cut suppress the native edit and
-  // write the value through the machine — and a
-  // programmatic selection change reveals nothing: measured in chromium and
-  // WebKit, pasting a long block leaves the view where it was while the caret
-  // sits at the end of the draft. Native typing gets its reveal from the
-  // browser; these two have to ask for it, so they share one restore.
+  // 编辑器自行执行编辑后恢复光标。状态机拥有草稿和撤销日志，因此粘贴与剪切会
+  // 阻止原生编辑并通过状态机写值；程序化选区变化不会揭示任何内容。Chromium 和
+  // WebKit 实测粘贴长文本后视图保持原处，而光标已位于草稿末尾。原生输入由浏览器
+  // 负责揭示，这两条路径必须主动请求，因此共享同一恢复逻辑。
   const restoreCaret = (el: HTMLTextAreaElement, caret: number): void => {
     requestAnimationFrame(() => {
       el.setSelectionRange(caret, caret)
@@ -287,12 +256,10 @@ export function InputBar({
     })
   }
 
-  // Wheel chaining on the draft scrollport, one lifetime (it is never
-  // unmounted — the inert state renders the same element disabled). While the
-  // capped box can still move in this direction, keep the native scroll; only
-  // at its own edge forward the delta to the active conversation scrollport, so
-  // a short draft never traps the gesture and a long draft stays scrollable.
-  // Hero mounts have no host and keep native wheel scrolling.
+  // 在草稿滚动区进行滚轮链式传递，生命周期只有一份；元素永不卸载，不可交互状态
+  // 仍渲染同一元素但禁用。限制高度的框在当前方向仍可移动时保留原生滚动；只有
+  // 到达自身边缘才把增量转给当前会话滚动区，使短草稿不吞掉手势、长草稿仍可滚动。
+  // Hero 挂载没有宿主，保留原生滚轮行为。
   useEffect(() => {
     const el = scrollRef.current
     if (el === null) return
@@ -309,7 +276,7 @@ export function InputBar({
     return () => { el.removeEventListener('wheel', onWheel) }
   }, [])
 
-  // selectionStart/End are number|null in lib.dom; the type-aware lint program narrows them.
+  // lib.dom 中 selectionStart/End 为 number|null；类型感知 lint 程序会收窄它们。
   /* oxlint-disable typescript/no-unnecessary-condition */
   const selectionOf = (el: HTMLTextAreaElement) => ({
     start: el.selectionStart ?? 0,
@@ -317,23 +284,19 @@ export function InputBar({
   })
   /* oxlint-enable typescript/no-unnecessary-condition */
 
-  // The machine's occurrence math needs the edit's real range, and a controlled
-  // textarea's change event carries only the resulting string. `beforeinput`
-  // fires while the element still holds the pre-edit selection, which is
-  // exactly the range about to be replaced; a textarea exposes it no other way
-  // (`getTargetRanges()` is empty for form controls). Recovering the range by
-  // diffing the two drafts instead is ambiguous whenever the typed text repeats
-  // what it lands against — typing the trigger char before a reference reads as
-  // landing inside that reference, which drops it. One lifetime, like the wheel
-  // listener above: the textarea is never unmounted.
+  // 状态机的实例区间计算需要真实编辑范围，但受控 textarea 的 change 事件只携带
+  // 结果字符串。`beforeinput` 触发时元素仍保存编辑前选区，它正是即将被替换的区间；
+  // textarea 没有其他方式暴露它（表单控件的 `getTargetRanges()` 为空）。若改用两个
+  // 草稿 diff 恢复区间，输入文本与落点内容重复时会产生歧义：在引用前输入触发字符
+  // 会被误判为落在引用内部，导致引用被删除。它与上方滚轮监听器一样只有一份生命周期，
+  // 因为 textarea 永不卸载。
   const pendingEditRef = useRef<PendingEdit | null>(null)
   useEffect(() => {
     const el = inputRef.current
     if (el === null) return
     const onBeforeInput = (e: InputEvent): void => {
-      // Only the families whose reported selection describes the edit. A
-      // history replay reports wherever the caret happens to sit, which would
-      // survive every check in editRangeOf while naming the wrong span.
+      // 只记录其报告选区确实描述编辑的事件类别。历史回放报告的是光标碰巧所在位置，
+      // 它会通过 editRangeOf 的所有检查，却指向错误区间。
       if (!e.inputType.startsWith('insert') && !e.inputType.startsWith('delete')) {
         pendingEditRef.current = null
         return
@@ -353,13 +316,12 @@ export function InputBar({
       }
       return
     }
-    // Absent machine without a Workspace recovery action stays disabled; the
-    // guard narrows the faces for the paths below.
+    // 状态机缺失且没有 Workspace 恢复操作时保持禁用；此保护同时为下方路径收窄接口。
     if (input === undefined || keyboard === undefined || inputActions === undefined) return
-    // Shift+Enter is the native newline UNCONDITIONALLY — decided before the
-    // IME guard so a composition-closing Shift+Enter still breaks the line.
+    // Shift+Enter 无条件表示原生换行，并在 IME 保护前决定，使关闭组合输入的
+    // Shift+Enter 仍能换行。
     if (e.key === 'Enter' && e.shiftKey) return
-    // keyCode 229 is the legacy IME-composition signal engines emit without isComposing.
+    // keyCode 229 是引擎未提供 isComposing 时发出的旧式 IME 组合输入信号。
     // oxlint-disable-next-line typescript/no-deprecated
     const composing = composingRef.current || e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229
     if (!composing && !machineBusy && !locked
@@ -385,15 +347,15 @@ export function InputBar({
       return
     }
     if (e.key === 'Escape') {
-      // Escape layering: an open overlay closes; claimed without an overlay
-      // does NOT release (backspacing the token is the only exit gesture).
+      // Escape 分层：有打开的浮层时关闭浮层；claimed 但没有浮层时不释放，
+      // 回退删除词元是唯一退出手势。
       keyboard.dismissPopup()
       if (keyboard.arbitrate('escape', composing) === 'consumed') e.preventDefault()
       return
     }
     if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z' || e.key === 'y')) {
-      // The machine owns the undo/redo log (chip transactions have semantics
-      // the browser stack cannot represent); never let the native stack run.
+      // 状态机拥有撤销/重做日志，因为胶囊事务包含浏览器原生栈无法表示的语义；
+      // 永远不要让原生栈执行。
       e.preventDefault()
       if (machineBusy || locked) return
       const redo = e.key === 'y' || e.shiftKey
@@ -408,8 +370,8 @@ export function InputBar({
     }
     if (e.key !== 'Enter') return
     if (composing) return
-    // Menu-open Enter picks the highlight through arbitration; a no-highlight
-    // menu passes down to the machine's own adjudication.
+    // 菜单打开时，回车通过裁决选择高亮项；没有高亮项的菜单把回车继续交给状态机
+    // 自身裁决。
     const arbitrated = keyboard.arbitrate('enter', composing)
     if (arbitrated !== 'pass') {
       e.preventDefault()
@@ -419,11 +381,9 @@ export function InputBar({
     if (e.repeat) return // held-down Enter must not machine-gun sends
     if (locked || machineBusy) return
     const accelerated = e.ctrlKey || e.metaKey
-    // Empty-draft accelerated Enter acts on the queue instead of the (empty)
-    // draft: the machine rejects empty drafts, so the gesture steers every
-    // still-pending queued message into the running turn (the dock's per-row
-    // steer button applied to the whole queue). Steering needs the same
-    // window as the per-row button: a running ordinary session.
+    // 空草稿加速回车作用于队列而不是空草稿：状态机拒绝空草稿，因此该手势把所有
+    // 仍待处理的排队消息引导进运行中的轮次，等价于把停靠栏逐行 steer 按钮应用到
+    // 整个队列。它与逐行按钮需要相同窗口：一个正在运行的普通会话。
     if (accelerated && canSteerQueue) {
       keyboard.steerQueue()
       return
@@ -443,7 +403,7 @@ export function InputBar({
     pendingEditRef.current = null
     safariNativeShrinkRef.current = safari && next.length < draft.length
     keyboard.setDraft(next, editRangeOf(pending, draft.length, next.length))
-    // selectionStart is number|null in lib.dom; the type-aware lint program narrows it.
+    // lib.dom 中 selectionStart 为 number|null；类型感知 lint 程序会收窄它。
     // oxlint-disable-next-line typescript/no-unnecessary-condition
     keyboard.track(next, e.target.selectionStart ?? next.length)
   }
@@ -458,7 +418,7 @@ export function InputBar({
     e.preventDefault()
     const copyStart = touched.reduce((value, o) => Math.min(value, o.offset), start)
     const copyEnd = touched.reduce((value, o) => Math.max(value, o.offset + o.length), end)
-    // Expand structured ranges to their owner clipboard projections.
+    // 把结构化区间展开为其拥有者定义的剪贴板投影。
     let text = ''
     let cursor = copyStart
     for (const o of touched) {
@@ -492,28 +452,25 @@ export function InputBar({
     e.preventDefault()
     const el = e.currentTarget
     const sel = selectionOf(el)
-    // Sync components stay empty at this layer: hot-snapshot matching needs
-    // the Slash roster, which lives behind keyboard.track — the paste attempt
-    // opens in the machine and the controller upgrades tokens as matches
-    // land (paste-upgrade). The DOM layer only starts the transaction.
+    // 本层的同步组件保持为空：热快照匹配需要 Slash 来源表，它位于 keyboard.track
+    // 之后。粘贴尝试在状态机中开启，匹配到达时由控制器把词元升级为引用
+    //（paste-upgrade）；DOM 层只负责开始事务。
     keyboard.pasteBegin(text, sel)
     const caret = sel.start + text.length
     restoreCaret(el, caret)
     keyboard.track(keyboard.snapshot.draft, caret)
   }
 
-  // Intake pre-check (DeepSeek Chat semantics): an addition that would break
-  // a projected limit is refused as a whole batch, announced immediately, and
-  // never enters the rail — no more submit-time failure rolling the rail
-  // back. The host enforces the same limits at submit for callers that bypass
-  // this composer.
+  // 接收前预检（DeepSeek Chat 语义）：新增内容若会突破投影限制，则整批拒绝、立即
+  // 提示，并且从不进入附件栏，不再等到提交失败后回滚附件栏。对于绕过本编辑器的
+  // 调用方，Host 会在提交时执行相同限制。
   const intakeImages = useCallback((files: readonly File[]): void => {
     if (addImages === undefined || files.length === 0) return
     const rejected = ((): string | null => {
       if (imageLimits !== undefined) {
-        // Format precedes limits (DeepSeek Chat's filter order): a batch with
-        // a non-image must announce the format problem, not a count or size
-        // it could never pass anyway — addImages rejects it authoritatively.
+        // 格式检查先于限制检查，遵循 DeepSeek Chat 的过滤顺序：批次中若有非图片，
+        // 应提示格式问题，而不是它无论如何也无法通过的数量或大小限制；addImages
+        // 会权威地拒绝它。
         if (files.some(file => !(imageLimits.mediaTypes as readonly string[]).includes(file.type))) {
           return addImages(files)
         }
@@ -537,16 +494,15 @@ export function InputBar({
   const canAcceptDrop = !locked && !machineBusy && addImages !== undefined
 
   const onSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>): void => {
-    // Any caret/selection gesture ends a live paste attempt (the machine
-    // cannot observe DOM selection). Cheap no-op when none is live.
+    // 任意光标/选区手势都会结束实时粘贴尝试，因为状态机无法观测 DOM 选区；
+    // 没有活动尝试时是低成本无操作。
     if (keyboard !== undefined && keyboard.snapshot.paste !== undefined) keyboard.invalidatePaste()
     void e
   }
 
-  // Button presses steal focus from the textarea; suppress at mousedown so
-  // typing continues seamlessly. `preventScroll` for the same reason as the
-  // unlock effect, and with no reveal of its own: the caret has not moved, and
-  // the next keystroke gets the browser's native one.
+  // 按按钮会从 textarea 抢走焦点，因此在 mousedown 时阻止，使输入无缝继续。
+  // `preventScroll` 与解锁 effect 原因相同，且不自行揭示：光标没有移动，下一次
+  // 按键会获得浏览器原生揭示。
   const keepFocus = (e: MouseEvent<HTMLButtonElement>): void => {
     e.preventDefault()
     inputRef.current?.focus({ preventScroll: true })
@@ -557,9 +513,8 @@ export function InputBar({
     if (el !== null) toggleCommandMenu?.(selectionOf(el))
   }
 
-  // Ordinary sessions retain their primary Send/Stop toggle. A continuable
-  // child keeps Send as the primary action and exposes Stop independently so
-  // pointer users can queue follow-ups while its current turn is running.
+  // 普通会话保留主 Send/Stop 切换。可继续子会话以 Send 为主操作，同时独立暴露
+  // Stop，使鼠标用户能在当前轮次运行时继续排队后续消息。
   const primaryStops = running && subagent === null
   const interruptible = running && continuable
   const primaryLabel = primaryStops ? t('input.stop') : t('input.send')
@@ -573,23 +528,20 @@ export function InputBar({
     if (!empty && !disabled && !machineBusy) inputActions.submit()
   }
 
-  // The Access seat: the projection-fed permission chip (renders nothing
-  // while the permissions key is absent — permission-less host or Draft —
-  // or while the command face is absent with the session).
+  // Access 座位：由投影提供数据的权限胶囊。permissions 键缺失（Host 无权限能力
+  // 或 Draft）或命令接口随会话一起缺失时，不渲染任何内容。
   const accessSelect: ReactNode = command === undefined
     ? null
     : <PermissionSelect key={sessionId} value={permissions} locked={locked} command={command} t={t} />
 
-  // Mirror-layer decorations: a visible backdrop with transparent textarea
-  // text. Claim tokens and references retain the draft's own glyph metrics,
-  // so their decoration cannot drift from wrapping, selection, or the caret.
+  // 镜像层装饰：可见背景层叠加透明 textarea 文本。认领词元和引用保留草稿自身
+  // 字形度量，因此装饰不会与换行、选区或光标发生偏移。
   const deco = input === undefined ? INERT_DECORATIONS : deriveDecorations(input, lexicon)
   const backdrop: ReactNode[] = []
   {
-    // Segment boundaries: the token range end, every structured-reference
-    // offset, and every text-ref range — merged in draft order (the sources never
-    // overlap: structured references own their ranges, text-refs own plain tokens, the
-    // claim token only leads).
+    // 分段边界包括词元区间末尾、每个结构化引用偏移和每个文本引用区间，并按草稿
+    // 顺序合并。来源永不重叠：结构化引用拥有自己的区间，文本引用拥有普通词元，
+    // 认领词元只位于开头。
     let cursor = 0
     const pushPlain = (upTo: number): void => {
       if (upTo > cursor) backdrop.push(draft.slice(cursor, upTo))
@@ -638,13 +590,10 @@ export function InputBar({
         )
         cursor = chip.offset + chip.length
       } else {
-        // Plain-range highlight: the glyphs stay the
-        // textarea's (advance untouched); the mark paints the chip look.
-        // The key is the draft-order ordinal: a fresh scan derives these
-        // ranges every render, so none of them carries identity past its
-        // position, and a draft-offset key would unmount the mark and its
-        // icon for every character typed ahead of it. Structured references
-        // key by occurrenceId, the identity their occurrence table owns.
+        // 普通区间高亮：字形仍属于 textarea，字宽不变；mark 只绘制胶囊外观。
+        // 键使用草稿顺序序号：每次渲染都会重新扫描派生这些区间，因此它们没有超出
+        // 位置的身份。若用草稿偏移作键，在前方每输入一个字符都会卸载 mark 和图标。
+        // 结构化引用则以 occurrenceId 为键，这是实例表拥有的身份。
         const text = draft.slice(b.ref.start, b.ref.end)
         backdrop.push(
           <mark key={`ref-${b.ordinal}`} className={css.textRef} data-decoration="text-ref">
@@ -666,11 +615,11 @@ export function InputBar({
     }
     pushPlain(draft.length)
     if (deco.hint !== null) {
-      // Claim tokens have the `/name ` format (trailing space); trim to the bare name.
+      // 认领词元格式为 `/name `，带尾随空格；这里裁剪为裸名称。
       const commandName = input?.claim?.token.slice(1).trim() ?? ''
       const hintKey = `hint.${commandName === 'goal' && hasGoal ? 'goal.active' : commandName}`
-      // Dynamic lookup by claimed command name: unknown commands miss the
-      // dictionary and keep the machine's own hint, so the call is wide.
+      // 按已认领命令名动态查找：未知命令不会命中字典，并保留状态机自身提示，
+      // 因此这里使用宽类型调用。
       const translated = (t as Translate)(hintKey)
       const displayHint = translated !== hintKey ? translated : deco.hint
       backdrop.push(<span key="hint" className={css.hint} data-decoration="hint">{displayHint}</span>)
@@ -693,11 +642,9 @@ export function InputBar({
           {notice.text}
         </div>
       )}
-      {/* Trigger clicks land on the card, not the textarea: the toolbar row's
-          disabled controls swallow clicks otherwise (the CSS state disarms
-          their pointer events), so the WHOLE capsule is the pick target.
-          pointerdown stops here so the Menu's outside-close cannot race the
-          click's reopen (close-then-open flickers the chip's open echo). */}
+      {/* 触发点击落在卡片而非 textarea：工具栏中 disabled 控件会吞掉点击（CSS 状态
+          会禁用其指针事件），因此整个胶囊都是选择目标。在这里停止 pointerdown，
+          避免 Menu 的外部关闭与 click 重新打开竞态；先关后开会让胶囊打开反馈闪烁。 */}
       <div
         ref={cardRef}
         className={clsx(css.card, workspaceTrigger && css.cardWorkspaceTrigger)}
@@ -717,13 +664,12 @@ export function InputBar({
             size: imageSizeText(imageLimits.maxImageBytes),
           },
         })}
-        {/* One scrollport, two text layers. The hidden mirror renders draft+'\n' and stretches the
-            stack to the draft's FULL height (counting rows by '\n' cannot see soft wraps); the
-            absolutely-positioned backdrop and textarea ride that height, and .scroll — capped at 14
-            lines in CSS — is the only thing that scrolls. The caret belongs to the textarea and the
-            glyphs to the backdrop, so they can only stay together by moving together: one scroll
-            offset the browser applies to both layers at once, never a JS mirror between two boxes,
-            which a compositor-driven gesture outruns and leaves the words trailing the caret. */}
+        {/* 一个滚动区、两个文本层。隐藏镜像渲染 draft+'\n'，把堆叠撑到草稿完整高度；
+            只按 '\n' 计行无法看到软换行。绝对定位的背景层和 textarea 共用该高度，
+            CSS 限制为 14 行的 .scroll 是唯一滚动元素。光标属于 textarea，字形属于
+            背景层，两者只有同步移动才能保持一致：浏览器用一个滚动偏移同时作用于
+            两层，而不是用 JS 在两个框之间同步；后者会被合成器驱动的手势超越，
+            导致文字落后于光标。 */}
         <div ref={scrollRef} className={css.scroll} data-input-scroll>
           <div className={css.grow}>
             <div
@@ -748,9 +694,8 @@ export function InputBar({
                 ? t('placeholder.parentOffline')
                 : disabled
                   ? t('placeholder.unavailable')
-                  // The steer hint deliberately outranks the plan placeholder:
-                  // while it shows, the whole-queue gesture is genuinely available
-                  // (the gate never consults plan mode), so the actionable hint wins.
+                  // steer 提示有意高于 plan 占位文案：它显示时，整队列手势确实可用，
+                  // 因为门禁从不检查 plan 模式，所以可执行提示优先。
                   : canSteerQueue
                     ? t('placeholder.steerQueue')
                     : planActive ? t('placeholder.plan') : t('placeholder.default'))}

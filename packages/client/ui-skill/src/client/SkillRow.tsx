@@ -161,7 +161,7 @@ export function SkillRow({ block, inspect, t }: SkillRowProps) {
           {inspect !== undefined ? (
             <button type="button" className={css.inspectButton} onClick={inspect}>
               <IconInspectOutline12 />
-              Inspect
+              {t('row.inspect')}
             </button>
           ) : null}
         </div>

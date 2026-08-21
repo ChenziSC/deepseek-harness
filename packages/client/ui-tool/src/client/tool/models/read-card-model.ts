@@ -53,12 +53,12 @@ export type ReadCardModel = Pick<ReadBlockProps, 'label' | 'lines' | 'totalLines
  *
  * The label is the read view's `title` when the tool supplied one (the
  * presentation contract's replacement-title rule), otherwise the file path
- * shortened the same way the row summary is: workspace-relative first, then
- * POSIX `~` for a leftover host-home path.
+ * 路径；其缩写规则与行摘要相同：先转成 Workspace 相对路径，剩余的 Host 主目录
+ * 路径再用 POSIX `~` 表示。
  * @param block - RunningToolCall or ToolResultNode off the snapshot caches.
  * @param sessionCwd - the session workspace root; a workspace-rooted absolute
  *   path label displays relative to it. Absent leaves the path as authored.
- * @param home - host account home; a leftover POSIX home path displays as `~`.
+ * @param home - Host 账户主目录；剩余的 POSIX 主目录路径显示为 `~`。
  * @returns the read-card props, or null for the generic path.
  */
 export function readCardModel(block: ToolCallBlock, sessionCwd?: string, home?: string): ReadCardModel | null {

@@ -1,15 +1,15 @@
 /**
- * Outside-pointer dismissal for trigger-owned popovers (jobs list, Cordis
- * panel): while the surface is open, a pointerdown outside the root closes it.
+ * 触发器所拥有浮层（任务列表、Cordis 面板）的外部指针关闭逻辑：界面打开时，
+ * 根元素外发生 pointerdown 即关闭。
  */
 import { useEffect } from 'react'
 import type { RefObject } from 'react'
 
 /**
- * Close an open popover when a pointerdown lands outside its root element.
- * @param root - element containing both the trigger and the open surface.
- * @param open - whether the surface is showing; false detaches the listener.
- * @param setOpen - state setter invoked with false on an outside pointerdown.
+ * pointerdown 落在根元素外时关闭已打开浮层。
+ * @param root - 同时包含触发器和打开界面的元素。
+ * @param open - 界面是否显示；false 时移除监听器。
+ * @param setOpen - 外部 pointerdown 时以 false 调用的状态设置函数。
  */
 export function useDismissOnOutsidePointer(
   root: RefObject<HTMLElement | null>,

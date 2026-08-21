@@ -1,73 +1,68 @@
 /**
- * Draft decoration pure core (references render from occurrence ranges; the
- * claim token renders as a mirror-layer
- * highlight, the claim hint as ghost text). Zero React — the skeleton renders
- * the instructions; tests drive this directly.
+ * 草稿装饰的纯核心：引用根据实例区间渲染；认领词元在镜像层高亮，认领提示显示为
+ * 幽灵文本。不依赖 React；骨架层负责渲染这些指令，测试可直接驱动此模块。
  */
 import type { InputState } from './contract.ts'
 
-/** The claim-token highlight range (always draft-leading while the watch holds). */
+/** 认领词元的高亮区间；前缀监视成立时始终位于草稿开头。 */
 export interface TokenRange {
   readonly start: number
   readonly end: number
 }
 
-/** One structured inline-reference render instruction. */
+/** 一条结构化行内引用渲染指令。 */
 export interface ChipRender {
-  /** Stable render key (same-labeled chips stay independent). */
+  /** 稳定渲染键；同标签胶囊仍彼此独立。 */
   readonly occurrenceId: number
-  /** Display-text offset in the draft. */
+  /** 展示文本在草稿中的偏移量。 */
   readonly offset: number
-  /** Display-text length in the draft. */
+  /** 展示文本在草稿中的长度。 */
   readonly length: number
-  /** Exact inline text whose native glyph metrics determine layout. */
+  /** 精确的行内文本；布局由其原生字形度量决定。 */
   readonly text: string
   readonly label: string
-  /** Optional domain glyph beside the label. */
+  /** 标签旁的可选领域图标。 */
   readonly appearance?: 'session' | 'file' | 'folder'
-  /** Owner-resolution failure styling bit. */
+  /** 拥有者解析失败的样式位。 */
   readonly invalid: boolean
 }
 
 /**
- * One plain-text reference range (the plain-text-reference decision;
- * see .agents/notes/implemented/architecture/2026-07-25-web-input-machine-and-slash-pipeline.md):
- * a `/name` or `@name` token
- * whose name is on the trigger's lexicon. Pure derivation — editing the text
- * out of match shape simply drops the range next scan.
+ * 一个纯文本引用区间（决策见
+ * .agents/notes/implemented/architecture/2026-07-25-web-input-machine-and-slash-pipeline.md）：
+ * 名称存在于触发器词典中的 `/name` 或 `@name` 词元。它是纯派生结果；把文本
+ * 编辑到不再匹配后，下一次扫描会直接移除该区间。
  */
 export interface TextRefRange {
   readonly start: number
   readonly end: number
   readonly trigger: '/' | '@'
-  /** Optional icon domain for syntax-recognizable plain references. */
+  /** 语法可识别纯文本引用的可选图标领域。 */
   readonly appearance?: 'folder'
 }
 
-/** Decoration product: claim token range + chip instructions + text-ref ranges + the ghost hint. */
+/** 装饰结果：认领词元区间、胶囊指令、文本引用区间和幽灵提示。 */
 export interface DraftDecorations {
-  /** Claim token range while claimed/submitting and the prefix watch holds; null otherwise. */
+  /** claimed/submitting 且前缀监视成立时的认领词元区间，否则为 null。 */
   readonly token: TokenRange | null
-  /** Chip render instructions in draft order (occurrence table is offset-sorted). */
+  /** 按草稿顺序排列的胶囊渲染指令；实例表已按偏移量排序。 */
   readonly chips: readonly ChipRender[]
-  /** Scan-derived lexicon tokens and syntax-recognizable folder ranges. */
+  /** 扫描派生的词典词元和语法可识别文件夹区间。 */
   readonly textRefs: readonly TextRefRange[]
-  /** Ghost hint shown while the claim's args are blank; null otherwise. */
+  /** 认领参数为空时显示的幽灵提示，否则为 null。 */
   readonly hint: string | null
 }
 
-/** Token matcher: a trigger char at line start or after whitespace, then a word-ish name (never crosses \n). */
+/** 词元匹配器：行首或空白后的触发字符，再接近似单词的名称，绝不跨越换行。 */
 const TEXT_REF_RE = /(^|\s)([/@])([\w-]+)/g
 const FOLDER_REF_RE = /(^|\s)(@(?:"[^"\n]*\/|[^\s"]+\/))/g
 
 /**
- * Scan the draft for plain-text reference tokens against the hot lexicons.
- * Word-boundary discipline: the trigger must sit at the draft
- * start or after whitespace ('x/name' never matches); the name must be an
- * exact lexicon member.
- * @param draft - draft text.
- * @param lexicon - per-trigger name lists (a missing trigger scans nothing).
- * @returns matched ranges in draft order.
+ * 使用热词典扫描草稿中的纯文本引用词元。词边界规则：触发字符必须位于草稿开头
+ * 或空白之后（'x/name' 永不匹配），名称必须是词典中的精确成员。
+ * @param draft - 草稿文本。
+ * @param lexicon - 每个触发字符对应的名称列表；缺少触发字符时不扫描。
+ * @returns 按草稿顺序排列的匹配区间。
  */
 export function scanTextRefs(
   draft: string, lexicon: ReadonlyMap<'/' | '@', readonly string[]>,
@@ -99,14 +94,14 @@ export function scanTextRefs(
   return out.sort((left, right) => left.start - right.start)
 }
 
-/** The empty lexicon (default: zero text-ref decorations, old call sites unchanged). */
+/** 空词典；默认不产生文本引用装饰，并保持旧调用点行为不变。 */
 const EMPTY_LEXICON: ReadonlyMap<'/' | '@', readonly string[]> = new Map()
 
 /**
- * Derive the mirror-layer decorations from the input state.
- * @param state - published input state.
- * @param lexicon - optional per-trigger reference lexicons (plain-text-reference scan).
- * @returns token range, chip instructions, text-ref ranges, and the ghost hint.
+ * 从输入状态派生镜像层装饰。
+ * @param state - 已发布的输入状态。
+ * @param lexicon - 可选的每触发字符引用词典，用于纯文本引用扫描。
+ * @returns 词元区间、胶囊指令、文本引用区间和幽灵提示。
  */
 export function deriveDecorations(
   state: InputState, lexicon: ReadonlyMap<'/' | '@', readonly string[]> = EMPTY_LEXICON,

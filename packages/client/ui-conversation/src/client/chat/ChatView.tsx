@@ -1,17 +1,14 @@
-// ChatView: the default conversation view — one stable keyed parent list over
-// final business Nodes, plus paging, pending steering and bottom-follow.
-// Each row dispatches through 'conversation.chat.node'; ui-tool owns the
-// tool-call renderer and its recursive root/subcall composition. A Host
-// open-path refusal from the injected opener is an in-page dialog here.
+// ChatView：默认会话视图，在最终业务 Node 上维护一个稳定 keyed 父列表，并处理分页、
+// 待处理 steering 和跟随底部。每行通过 'conversation.chat.node' 分发；ui-tool 拥有
+// 工具调用渲染器及其根调用/子调用递归组合。注入打开器收到 Host 路径打开拒绝时，
+// 在这里显示页内对话框。
 //
-// Scroll: when nested under `[data-conversation-scroll]` (active conversation
-// column), that host is the scrollport and this view is flow content; when
-// mounted alone (unit tests), `.scroll` owns overflow. Bottom-follow and
-// prepend anchoring always target the resolved scrollport.
+// 滚动：嵌套在 `[data-conversation-scroll]`（活动会话列）下时，该宿主是滚动区，
+// 本视图只是流内容；单独挂载（单元测试）时由 `.scroll` 拥有 overflow。跟随底部和
+// 前插锚定始终作用于解析出的滚动区。
 //
-// Render economics: order changes only when rows enter, leave or move. Each
-// ChatNodeSeat subscribes to one Node key, so Assistant deltas and Tool
-// lifecycle updates replace only their own row without remounting it.
+// 渲染开销：只有行进入、离开或移动时 order 才变化。每个 ChatNodeSeat 只订阅一个
+// Node 键，因此助手增量和工具生命周期更新只替换自身行，不重新挂载。
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ConversationTimelineSnapshot } from '@deepseek-ai/dsh-client-runtime/client'
@@ -96,13 +93,13 @@ function scrollPosition(list: HTMLElement, scrollport: HTMLElement): ChatScrollP
   }
 }
 
-/** Host/OS refusal text for the file-open dialog; empty throws keep a locale fallback. */
+/** 文件打开对话框显示的 Host/操作系统拒绝原因；异常消息为空时保留本地化兜底文案。 */
 function openFailureMessage(error: unknown, fallback: string): string {
   const message = error instanceof Error ? error.message : String(error)
   return message === '' ? fallback : message
 }
 
-/** ProducedFiles opens the session workspace as `.`. */
+/** ProducedFiles 用 `.` 表示打开 Session 的 Workspace。 */
 function isFolderOpenPath(path: string): boolean {
   return path === '.'
 }
@@ -141,7 +138,7 @@ function TurnStatus({ startTime, t }: {
   const showClock = elapsedMs >= 15_000
   return (
     <div className={css.turnStatus} role="status" aria-live="polite">
-      Deep diving...
+      {t('chat.deepDiving')}
       {showClock && (
         <span className={css.turnStatusClock} aria-hidden>
           {formatRunDuration(elapsedMs, t)}
@@ -173,8 +170,8 @@ export function ChatView({
   const selectedCallId = useStore(s => s.selection?.callId)
   const [fileOpenError, setFileOpenError] = useState<{ path: string; message: string } | null>(null)
   const [fileOpenBusy, setFileOpenBusy] = useState(false)
-  // Close/retry must ignore a settlement that started before the latest
-  // gesture; otherwise a cancelled in-flight refusal reopens the dialog.
+  // 关闭或重试后必须忽略最近一次操作之前启动的异步结果；否则已取消请求稍后返回的
+  // 拒绝结果会再次打开对话框。
   const fileOpenRequest = useRef(0)
 
   const requestOpenFile = useCallback((path: string) => {
@@ -491,7 +488,7 @@ export function ChatView({
   )
 }
 
-/** In-page Host open-path refusal: the wire reason plus a retry of the same path. */
+/** 页内展示 Host 拒绝打开路径的结果：Wire 原因及针对同一路径的重试操作。 */
 function FileOpenErrorDialog({
   path, message, busy, onClose, onRetry, t,
 }: {

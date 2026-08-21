@@ -139,8 +139,8 @@ export class ConversationController extends Service implements IConversation {
    * @param text - serialized prompt text.
    * @param imageIds - ordered draft-local attachment ids.
    * @param mode - queue or steer delivery selected by composer policy.
-   * @param signal - optional cancellation for the complete Host admission.
-   * @returns the Host admission outcome; local attachment preparation failures reject.
+   * @param signal - 可选的取消信号，覆盖完整的 Host 接纳过程。
+   * @returns Host 接纳结果；本地附件准备失败时 Promise 会拒绝。
    */
   async sendSession(
     session: SessionFace,
@@ -177,9 +177,9 @@ export class ConversationController extends Service implements IConversation {
   }
 
   /**
-   * Resolve ordered input-state ids to runtime-owned draft images.
-   * @param ids - draft attachment ids.
-   * @returns descriptors that remain live, in requested order.
+   * 把有序输入状态 ID 解析为运行时拥有的草稿图片。
+   * @param ids - 草稿附件 ID。
+   * @returns 按请求顺序排列、仍存活的 descriptor。
    */
   draftImages(ids: readonly DraftAttachmentId[]): readonly ComposerAttachment[] {
     const attachments: ComposerAttachment[] = []
@@ -191,11 +191,10 @@ export class ConversationController extends Service implements IConversation {
   }
 
   /**
-   * Serialize ordered draft images to command-submit wire payloads without
-   * sending or releasing them (the composer releases only after the command
-   * settles successfully).
-   * @param imageIds - ordered draft-local attachment ids.
-   * @returns base64 payloads in id order.
+   * 把有序草稿图片序列化为命令提交线协议载荷，但不发送或释放；只有命令成功结算后，
+   * 编辑器才会释放它们。
+   * @param imageIds - 有序的草稿本地附件 ID。
+   * @returns 按 ID 顺序排列的 Base64 载荷。
    */
   async serializeDraftImages(imageIds: readonly DraftAttachmentId[]): Promise<readonly SubmitImageAttachment[]> {
     const attachments = this.draftImages(imageIds)
@@ -206,8 +205,8 @@ export class ConversationController extends Service implements IConversation {
   }
 
   /**
-   * Release one browser-owned draft image and preview URL.
-   * @param id - draft attachment id.
+   * 释放一张浏览器所拥有草稿图片及其预览 URL。
+   * @param id - 草稿附件 ID。
    */
   releaseDraftImage(id: DraftAttachmentId): void {
     const attachment = this.draftAttachments.get(id)
@@ -325,19 +324,19 @@ export class ConversationController extends Service implements IConversation {
   }
 
   private requireSessions(): ISessions {
-    // Strict ctx.get, not the injection proxy: the scope-addressed pattern
-    // reads the service off whatever context the tracker rebound.
+    // 使用严格 ctx.get 而非注入代理：作用域寻址模式从 tracker 重新绑定后的任意
+    // 上下文读取服务。
     const sessions = this.ctx.get('sessions')
     if (sessions === undefined) throw new Error('conversation: sessions service unavailable')
     return sessions
   }
 
-  /** Convert browser files to canonical base64 prompt parts. */
+  /** 把浏览器文件转换为规范 Base64 prompt part。 */
   private serializeImages(images: readonly File[]): Promise<Parameters<SessionFace['prompt']>[0]> {
     return Promise.all(images.map(async file => ({ type: 'image' as const, ...await this.encodeImage(file) })))
   }
 
-  /** Canonical base64 wire form of one browser image file. */
+  /** 一个浏览器图片文件的规范 Base64 线协议形式。 */
   private async encodeImage(file: File): Promise<SubmitImageAttachment> {
     return {
       mediaType: imageMediaType(file.type),

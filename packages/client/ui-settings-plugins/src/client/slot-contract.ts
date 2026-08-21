@@ -1,3 +1,6 @@
+// 中文学习导读：设置页不理解每个插件的配置含义，只按 settings namespace 分发卡片；
+// 插件在 Host 注册 namespace，在浏览器用同一个 key 注册卡片，二者即可在运行时配对。
+// 下方英文 JSDoc 会直接生成 client catalog，因此保留为英文契约。
 /**
  * The `settings.plugin.item` slot type — one plugin's card inside the
  * configurable-plugins tab, keyed by the settings namespace the card edits.

@@ -1,14 +1,14 @@
-/** Registers the conversation components, shared store, and service callbacks. */
+/** 注册 Conversation 组件、共享 store 与服务回调。 */
 import type { Context } from '@deepseek-ai/cordis'
 import { resolveSlotLabel, type BoundActions } from '@deepseek-ai/dsh-client-ui-slots'
 import {
   resolveWorkspacePath, type ISessions, type SessionId,
 } from '@deepseek-ai/dsh-client-runtime/client'
-// Type-only: the ctx.settingsScope Context merge. Cross-plugin collaboration
-// goes through the service, never a value import (client bundle purity gate).
+// 仅导入类型：带入 ctx.settingsScope 的 Context 合并。跨插件协作只经由服务，绝不导入值
+//（客户端 Bundle 纯度门禁）。
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
-// Type-only: pulls the locale plugin's Context merge (ctx.locale).
+// 仅导入类型：带入 locale 插件的 Context 合并（ctx.locale）。
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { ViewTab } from './contract/views.ts'
 import type {
@@ -42,25 +42,24 @@ import { CONVERSATION_SETTINGS_NAMESPACE, type ConversationSettings } from '../s
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** The conversation skeleton, chat flow, commands, details, and docks copy. */
+    /** Conversation 骨架、Chat 流、命令、详情与 dock 的文案。 */
     conversation: ConversationKey
   }
 }
 
-/** Services required by the conversation plugin. */
+/** Conversation 插件依赖的服务。 */
 export const inject = [
   'slots', 'layout', 'sessions', 'workspaces', 'locale', 'connection', 'remote', 'settingsScope',
   'conversationEvents', 'conversationViews',
 ]
 
-// Static no-session sources for the composer-bar hooks compartment: module
-// constants so the render side's per-source hook cache (observableHook) keeps
-// one identity across every no-session render.
+// Composer bar hooks 隔间在无 Session 时使用的静态数据源。使用模块常量，可让渲染侧的
+// 逐数据源 hook 缓存（observableHook）在每次无 Session 渲染中保持同一 identity。
 const ABSENT_NOTICES = {
   getSnapshot: (): InputNotice | null => null,
   subscribe: () => () => {},
 }
-/** No session, therefore nothing to block; same one-identity rule as above. */
+/** 没有 Session，也就没有需要阻止的提交；遵循上方相同的单一 identity 规则。 */
 const ABSENT_BLOCK = {
   getSnapshot: (): ComposerBlock | undefined => undefined,
   subscribe: () => () => {},
@@ -88,7 +87,7 @@ const CHAT_NODE_INJECT: ChatNodeTurnDataInjected = {
   },
 }
 
-/** Resolve the session-scoped conversation face (scope-addressed send/cancel), failing loud. */
+/** 解析 Session-scoped Conversation 接口（按 scope 寻址的发送/取消）；失败时明确报错。 */
 function scopedConversation(sessions: ISessions, id: SessionId): IConversation {
   const scoped = sessions.scope(id)
   if (scoped === undefined) throw new Error(`ui-conversation: session "${id}" resolved no scope`)
@@ -97,20 +96,20 @@ function scopedConversation(sessions: ISessions, id: SessionId): IConversation {
   return conversation
 }
 
-/** Resolve package-internal attachment operations from the public service registration. */
+/** 从公开服务注册解析包内附件操作。 */
 function concreteConversation(ctx: Context): ConversationController {
   const conversation = ctx.get('conversation') as ConversationController | undefined
   if (conversation === undefined) throw new Error('ui-conversation: conversation service unavailable')
   return conversation
 }
 
-/** Chain routing: claim the composer while an approval wait is pending (pure — owner props only). */
+/** Chain 路由：存在待处理 Approval 时接管 Composer；此选择器是纯函数，只读取 owner props。 */
 function selectApproval({ interactions }: ComposerChainProps): ApprovalWait | null {
   return interactions.find((i): i is ApprovalWait => i.kind === 'approval') ?? null
 }
 
-/** Mounts the conversation plugin.
- * @param ctx - Client root context.
+/** 挂载 Conversation 插件。
+ * @param ctx - 客户端根 Context。
  */
 export function apply(ctx: Context): void {
   const sessions = ctx.sessions
@@ -123,12 +122,11 @@ export function apply(ctx: Context): void {
 
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-conversation: dictionaries')
 
-  // Registration-time text (the view tab label) reads through the bound
-  // translate as a thunk, so it follows the active locale without
-  // re-registration; components read the standard `t` seat instead.
+  // 注册时文案（View tab 标签）以 thunk 形式通过已绑定 translate 读取，因此切换活动 locale
+  // 时无需重新注册；组件则改为读取标准 `t` seat。
   const t = ctx.locale.bind(NS)
 
-  // Apply-time construction keeps store identity bound to this fiber.
+  // 在 apply 阶段构造，使 store identity 始终绑定到当前 fiber。
   const chatStore = createChatStore()
   const submissionPolicy = new ComposerSubmissionPolicy(
     ctx.settingsScope.bind<ConversationSettings>({ namespace: CONVERSATION_SETTINGS_NAMESPACE }),
@@ -145,9 +143,8 @@ export function apply(ctx: Context): void {
     }),
   }, EnterBehaviorRow))
 
-  // Chat semantic reader positions by session, surviving view switches and
-  // width reflow when the tab ring remounts the view. Deliberately not
-  // persisted: a fresh page load keeps the open-jump-to-bottom default.
+  // Chat 语义读取位置按 Session 保存，因此 tab ring 重新挂载 View 时，可跨 View 切换与宽度
+  // reflow 保留。这里有意不持久化：重新加载页面仍采用打开后跳到底部的默认行为。
   const chatScrollPositions = new Map<SessionId, ChatScrollPosition>()
 
   const viewTabs = (): ViewTab[] => {
@@ -165,20 +162,17 @@ export function apply(ctx: Context): void {
     version: () => slots.getVersion('conversation.view'),
   }
 
-  // The per-session input machine registry (SessionInputResolver face; published as
-  // ctx.conversation.input by the service below sharing this one instance).
+  // 逐 Session 输入状态机注册表（SessionInputResolver 接口）；下方服务共享同一实例，并以
+  // ctx.conversation.input 发布。
   const inputHub = new InputHub(ctx, t)
 
-  // The composer-block registry: a plugin that knows a session cannot send —
-  // ui-model-selection, when no adapter serves the session's route — raises a block
-  // here, and the bar reads its own session's store. It cannot flow the other
-  // way: this package must not import the plugins that would know.
+  // Composer block 注册表：知道某 Session 无法发送的插件会在此建立 block，例如没有
+  // Adapter 服务该 Session 路由时的 ui-model-selection；Bar 只读取自身 Session 的 store。
+  // 依赖不能反向流动：本包不得导入那些掌握阻止原因的插件。
   const composerBlocks = new ComposerBlockRegistry()
 
-  // The input machine feeds every session-scope slot
-  // component through the standard provide channel — the 'input' hook plus
-  // the two public actions. Materialization is the shell creation trigger
-  // (per-session lazy; scope disposer tears down).
+  // 输入状态机通过标准 provide 通道向每个 session-scope Slot 组件提供 `input` hook 和两个
+  // 公开 action。组件实例化会触发 Shell 创建：逐 Session 延迟创建，并由 scope disposer 拆除。
   ctx.effect(() => sessions.provide({
     hooks: ['input'],
     props: ['inputActions'],
@@ -191,8 +185,8 @@ export function apply(ctx: Context): void {
     },
   }), 'ui-conversation: input standard-kit provider')
 
-  // Resident current-session-optional shell. It owns the stable Hero/composer
-  // frame while strict session slots fill only their session-bound regions.
+  // 常驻且允许当前 Session 缺省的 Shell。它拥有稳定的 Hero/Composer 框架，严格 Session
+  // Slot 只填充各自绑定到 Session 的区域。
   slots.register({
     name: 'conversation',
     locale: NS,
@@ -234,9 +228,8 @@ export function apply(ctx: Context): void {
     }),
   }, ConversationRoot)
 
-  // The strict session body fills the resident scrollport without owning it;
-  // the Hero/composer path therefore stays fixed while the first blank
-  // session appears after a Workspace pick.
+  // 严格 Session body 填充常驻 scrollport，但不拥有它。因此选择 Workspace 后首个空白
+  // Session 出现时，Hero/Composer 路径仍保持固定。
   slots.register({
     name: 'conversation.session',
     children: {
@@ -253,8 +246,8 @@ export function apply(ctx: Context): void {
     },
   }, ConversationSession)
 
-  // Header chrome sits above the resident scrollport but shares the same
-  // per-session chat store (active view) as its body and view entries.
+  // Header chrome 位于常驻 scrollport 上方，但与 body 和 View 条目共享同一个逐 Session
+  // Chat store（包括活动 View）。
   slots.register({
     name: 'conversation.session.header',
     locale: NS,
@@ -270,19 +263,16 @@ export function apply(ctx: Context): void {
     }),
   }, ConversationSessionHeader)
 
-  // The default composer body: its own single slot inside the composer
-  // chain's fallback. Public machine surface arrives via the
-  // provide channel above; the keyboard command face and the stop/retry
-  // verbs ride this inject (package-internal — hub and bar are one plugin).
-  // Session-maybe: with no current session the machine faces are absent and
-  // the hooks compartment binds static empty sources (module constants, so
-  // observableHook caching and hook order stay stable across transitions).
+  // 默认 Composer body：位于 Composer chain fallback 内的独立 single Slot。公开状态机接口
+  // 经由上方 provide 通道到达；键盘命令接口与 stop/retry 动作通过本 inject 传入（仅包内，
+  // Hub 与 Bar 属于同一插件）。session-maybe 表示没有当前 Session 时不提供状态机接口，
+  // hooks 隔间改为绑定静态空数据源；它们是模块常量，因此 observableHook 缓存与 hook 顺序
+  // 在状态切换前后保持稳定。
   slots.register({
     name: 'conversation.composer.bar',
     locale: NS,
-    // The two named control seats in the bar's tool row (plan beside the
-    // access control, model right); empty until their owning plugins
-    // register.
+    // Bar 工具行中的两个命名控制 seat：Plan 位于访问控制旁，Model 位于右侧。在各自所有者
+    // 插件注册前保持为空。
     children: {
       'conversation.input.attachments': { kind: 'single', scope: 'session-maybe' },
       'conversation.input.plan': { kind: 'single', scope: 'session' },
@@ -317,8 +307,8 @@ export function apply(ctx: Context): void {
             return null
           } catch (error: unknown) {
             if (error instanceof UnsupportedImageMediaTypeError) {
-              // Positive copy: the supported list is fixed in imageMediaType,
-              // and naming it beats echoing the rejected MIME type back.
+              // 使用正向文案：支持列表固定在 imageMediaType 中，列出支持类型比回显被拒绝的
+              // MIME type 更清晰。
               return t('image.unsupportedType')
             }
             return error instanceof Error ? error.message : String(error)
@@ -346,7 +336,7 @@ export function apply(ctx: Context): void {
           },
         stop: () => {
           scopedConversation(sessions, sessionId).cancel().catch(() => {
-            // Stop failure surfaces via snapshot.promptError; nothing to restore.
+            // Stop 失败通过 snapshot.promptError 展示，无需恢复其他状态。
           })
         },
         command: async (line) => {
@@ -364,19 +354,15 @@ export function apply(ctx: Context): void {
     },
   }, InputBar)
 
-  // The approval takeover: a selector-routed entry of the chain this package
-  // just declared (the ui-user-questions registration pattern; the entry lives here
-  // because approval answering is core conversation UX, not an optional tool).
-  // Zero business face — data and verbs both ride the matched carrier.
-  // priority 1: question takeovers (default 0) win when both kinds are
-  // pending — a question is a conversation the model is waiting on, while an
-  // approval only blocks one tool call; answering the question first cannot
-  // strand the approval (it re-elects the moment the question resolves).
+  // Approval 接管：本包刚声明的 chain 中由 selector 路由的条目，采用 ui-user-questions 的
+  // 注册模式。条目放在这里，是因为回答 Approval 属于 Conversation 核心 UX，而非可选 Tool。
+  // 不需要业务接口，数据与动作都由匹配 carrier 携带。priority 为 1：Question 接管默认是 0，
+  // 两类交互同时待处理时由 Question 获胜，因为 Question 是模型正在等待的对话，而 Approval
+  // 只阻塞一次 Tool 调用。先回答 Question 不会遗留 Approval；Question 解决后会立即重新选举。
   slots.register({ name: 'conversation.composer', select: selectApproval, priority: 1, locale: NS }, ApprovalPanel)
 
-  // The chat view: first entry of the ring this package just declared.
-  // ChatView owns only the stable ordered Node list. Business renderers are
-  // independently keyed behind its one Node seat.
+  // Chat View：本包刚声明的 View ring 中第一个条目。ChatView 只拥有稳定有序的 Node 列表；
+  // 业务 Renderer 在唯一 Node seat 后方按 key 独立注册。
   slots.register({
     name: 'conversation.view',
     id: 'chat',
@@ -403,8 +389,8 @@ export function apply(ctx: Context): void {
         },
         loadOlder: () => { void scoped.loadOlder() },
         loadImage: attachment => conversation.resolveImage(sessionId, attachment),
-        // Unregistered 'trajectory' id is safe: the tab ring falls back to
-        // the first view, and the untouched inspect target stays inert.
+        // 未注册的 `trajectory` id 也是安全的：tab ring 会回退到第一个 View，未消费的
+        // inspect target 则保持静默。
         inspectCall: (callId) => {
           actions.setInspect({ callId })
           actions.setView('trajectory')
@@ -420,27 +406,25 @@ export function apply(ctx: Context): void {
           sessions.fork({ sessionId, atSeq: seq, increaseTitle: true })
             .then((childId) => { sessions.open(childId) })
             .catch(() => {
-              // Fork or child-rename failure keeps the source view untouched.
+              // Fork 或子 Session 重命名失败时，源 View 保持不变。
             })
         },
       }
     },
   }, ChatView)
 
-  // Session stats stick with the composer (composer.dock = stats-line family).
+  // Session 统计信息跟随 Composer（composer.dock 属于 stats-line family）。
   slots.register({ name: 'conversation.composer.dock', id: 'stats', order: 0, locale: NS }, StatsLine)
 
-  // Class-plugin mount (packages/AGENTS.md service form): the service
-  // registers itself as `conversation` and lives on its own child fiber.
-  // Presentation registrants depend directly on their slot declarations;
-  // this service remains only where conversation actions are required.
+  // Class 插件挂载（packages/AGENTS.md 的服务形式）：服务以 `conversation` 注册自身，并位于
+  // 独立子 fiber。展示注册方直接依赖各自 Slot 声明；只有需要 Conversation action 的位置
+  // 才保留对本服务的依赖。
   ctx.plugin(ConversationController, { input: inputHub, blocks: composerBlocks })
 
-  // The plan strip rides the input dock above the queue rows (same posture).
+  // Plan 条带挂载在 Queue 行上方的 Input dock 中，二者采用相同布局方式。
   ctx.plugin(todoDockEntry)
 
-  // The read-only queue dock entry rides the same
-  // registration path into the input dock declared above.
+  // 只读 Queue dock 条目通过相同注册路径进入上方声明的 Input dock。
   ctx.plugin(queueDockEntry)
 
   slots.register({

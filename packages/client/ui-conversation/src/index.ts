@@ -1,4 +1,4 @@
-/** Host registration for browser conversation preferences. */
+/** 浏览器 Conversation 偏好设置的 Host 注册入口。 */
 
 import type { Context } from '@deepseek-ai/cordis'
 import { settingsNamespace } from '@deepseek-ai/dsh-settings'
@@ -10,8 +10,8 @@ export {
 } from './submission-settings.ts'
 
 /**
- * Register the durable conversation section when a settings provider exists.
- * @param ctx - Host context whose optional settings service owns the section.
+ * 存在 Settings Provider 时注册持久化 Conversation section。
+ * @param ctx - Host Context；其可选 Settings 服务拥有该 section。
  */
 export function apply(ctx: Context): void {
   ctx.inject(['settings'], (settingsCtx) => {

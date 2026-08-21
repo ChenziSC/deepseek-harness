@@ -228,10 +228,8 @@
         toolName: subagent_fork
         backgroundMode: continuable
 
-    # Production dsh does not install these optional providers. Install the
-    # matching Bundle in this Profile and restart the Host, then copy this
-    # preset and remove `disabled` from the matching tool row. Host availability
-    # alone grants no tool.
+    # 生产版 dsh 不安装这些可选 Provider。请先在本 Profile 中安装对应 Bundle 并重启
+    # Host，再复制此 preset，并从对应 Tool 行移除 `disabled`。仅 Host 可用并不会授予 Tool。
     - id: tool-subagent-codex
       name: '@deepseek-ai/dsh-tool-subagent'
       disabled: true

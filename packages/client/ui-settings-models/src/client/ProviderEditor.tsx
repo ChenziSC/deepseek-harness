@@ -59,7 +59,7 @@ export interface ProviderEditorProps {
   declared?: boolean
   /** The owning namespace view (schema, layers, secrets). */
   namespace: SettingsNamespaceView
-  /** Settings-owned synchronous schema and immutable path operations. */
+  /** 由设置模块负责的同步 Schema 与不可变路径操作。 */
   schema: SettingsSchemaOperations
   /** Path from the section root to this provider's profile. */
   settingsPath: readonly string[]

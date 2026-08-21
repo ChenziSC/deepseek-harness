@@ -142,6 +142,14 @@ const homeAndGuide = pairedPages([
 
 const develop = pairedPages([
   {
+    source: 'docs/source-learning-path.md',
+    route: 'develop/source-learning-path.md',
+    label: { root: '源码学习路径', en: 'Source learning path' },
+    sidebar: { root: 'zh-develop', en: 'en-develop' },
+    section: { root: '源码导读', en: 'Source tour' },
+    order: 1,
+  },
+  {
     source: 'docs/user/develop/basic/index.md',
     route: 'develop/basic/index.md',
     label: { root: '第一个 Harness 插件', en: 'Your first Harness plugin' },
@@ -439,7 +447,7 @@ export interface DocsSection {
 const sections: Record<DocsLocale, readonly DocsSection[]> = {
   root: [
     { label: '入门' }, { label: 'SDK' },
-    { label: '基础' }, { label: '框架能力' }, { label: '实战' }, { label: 'Cordis 框架教程' },
+    { label: '源码导读' }, { label: '基础' }, { label: '框架能力' }, { label: '实战' }, { label: 'Cordis 框架教程' },
     { label: '概念' }, { label: '生成参考' }, { label: 'Cordis API' }, { label: '开发手册' },
     { label: '总览' },
     { label: '内核与作用域', collapsed: true },
@@ -451,7 +459,7 @@ const sections: Record<DocsLocale, readonly DocsSection[]> = {
   ],
   en: [
     { label: 'Guide' }, { label: 'SDK' },
-    { label: 'Basics' }, { label: 'Framework' }, { label: 'Practice' }, { label: 'Cordis framework tutorial' },
+    { label: 'Source tour' }, { label: 'Basics' }, { label: 'Framework' }, { label: 'Practice' }, { label: 'Cordis framework tutorial' },
     { label: 'Concepts' }, { label: 'Generated reference' }, { label: 'Cordis Core API' }, { label: 'Cookbook' },
     { label: 'Overview' },
     { label: 'Core and scopes', collapsed: true },

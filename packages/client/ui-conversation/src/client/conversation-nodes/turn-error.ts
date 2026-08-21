@@ -7,7 +7,7 @@ import { chatNode } from './common.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-conversation/client' {
   interface ChatNodeDataMap {
-    /** Terminal turn failure recorded on the turn's end reason. */
+    /** 记录在轮次结束原因中的终止失败。 */
     'turn-error': TurnErrorNode
   }
 }
@@ -48,9 +48,8 @@ function fallbackState(context: ConversationNodeContext<TurnErrorState>): TurnEr
 }
 
 /**
- * Terminal turn failure Definition. Retries run inside the failing turn, so the
- * turn's `llm/retry` history never suppresses this terminal row; the model-retry
- * node renders that history separately.
+ * 终止轮次失败 Definition。重试发生在失败轮次内部，因此该轮次的 `llm/retry`
+ * 历史绝不会抑制此终止行；model-retry 节点会单独渲染该历史。
  */
 export const turnErrorDefinition: ConversationNodeDefinition<TurnErrorState> = {
   kind: 'turn-error',

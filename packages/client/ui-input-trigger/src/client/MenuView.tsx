@@ -78,9 +78,8 @@ export function MenuView({ menu, onPick, onDismiss, t }: MenuViewProps) {
           ? null
           : (
             <Fragment key={group.source}>
-              {/* Source names key the dictionary open-endedly: the lookup chain
-                  returns an unknown key verbatim, so an unregistered source
-                  shows its raw name — hence the cast past the typed key union. */}
+              {/* 来源名称以开放方式作为字典键：查找链会原样返回未知键，因此未注册
+                  来源会显示其原始名称；这里才需要绕过带类型的键联合。 */}
               {group.showGroupTitle === false || group.items.some(item => item.section !== undefined)
                 ? null
                 : <div className={css.groupTitle} role="presentation" data-source={group.source}>{t(group.source as MenuKey)}</div>}
@@ -99,9 +98,9 @@ export function MenuView({ menu, onPick, onDismiss, t }: MenuViewProps) {
                         role="option"
                         aria-selected={active}
                         className={clsx(css.item, active && css.active)}
-                        // mousedown, not click: the textarea keeps focus (combobox
-                        // pattern) — preventing default stops the focus steal, and the
-                        // pick runs before any blur-driven teardown.
+                        // 使用 mousedown 而不是 click，让 textarea 保持焦点（组合框模式）。
+                        // 阻止默认行为可避免按钮抢走焦点，选择也会在任何由 blur 触发的
+                        // 清理之前执行。
                         onMouseDown={(ev) => {
                           ev.preventDefault()
                           onPick(group.source, index)

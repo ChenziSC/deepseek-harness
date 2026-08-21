@@ -1,17 +1,14 @@
 /**
- * InputMachine: the pure per-session input state machine.
- * Events in, effects out; zero React / DOM / cordis / ambient
- * clock. Package-private — the SessionInput shell is the only caller and the
- * sole executor of the returned effects.
+ * InputMachine：每会话的纯输入状态机。事件进入、effect 输出；不依赖 React、
+ * DOM、Cordis 或环境时钟。它只在包内可见，SessionInput 外壳是唯一调用者，
+ * 也独自负责执行返回的 effect。
  *
- * Draft truth: the draft string holds each reference's complete inline display
- * text; the occurrence table carries identity, range, and the owner's cached projections. Every
- * draft mutation is one transaction — draft edit, occurrence reconciliation,
- * and undo-log push are atomic inside dispatch() — and bumps draftRev, which
- * is what lets span CAS reduce to a revision-equality check: equal rev ⟹
- * identical draft ⟹ identical span content. Callers observe mutation success
- * as a draftRev advance (begin-command / insert-ref / consume-token /
- * paste-upgrade all answer their bail events this way).
+ * 草稿事实来源：草稿字符串保存每个引用的完整行内展示文本；实例表携带身份、区间
+ * 和拥有者投影缓存。每次草稿变更都是一个事务——草稿编辑、实例协调和撤销日志
+ * 入栈在 dispatch() 内原子完成——并推进 draftRev。由此区间 CAS 可简化为修订号
+ * 相等检查：修订号相等意味着草稿相同，进而区间内容相同。调用方以 draftRev
+ * 是否推进判断变更成功；begin-command、insert-ref、consume-token 和 paste-upgrade
+ * 都用这种方式回答 bail 事件。
  */
 import type { CommandClaim, ReferenceInsert, TokenSpan } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import type { InputSubmitMode } from '../contract/composer-submission.ts'
@@ -20,38 +17,35 @@ import type {
   InputState, Occurrence, PasteAttemptState, PasteComponent, SubmitAttempt,
 } from './contract.ts'
 
-/** Legacy fixed-width object replacement character rejected from pasted text. */
+/** 粘贴文本中要拒绝的旧式固定宽度对象替换字符。 */
 export const PLACEHOLDER = '￼'
 
 const REFERENCE_PLACEHOLDER_RE = /[\uE100-\uE11D\uFFFC]/gu
 
 /**
- * Build the inline draft text whose leading marker is decorated as the
- * reference icon in the backdrop.
- * @param reference - reference insertion with its cached display projection.
- * @returns display text with one marker glyph followed by the complete label.
+ * 构造行内草稿文本，其开头标记会在背景层装饰为引用图标。
+ * @param reference - 带有展示投影缓存的引用插入。
+ * @returns 一个标记字形后跟完整标签的展示文本。
  */
 export function referenceDraftText(reference: Pick<ReferenceInsert, 'label'>): string {
   return `@${reference.label}`
 }
 
-/** The machine never writes the queue; the wiring layer overlays the queue store's projection. */
+/** 状态机从不写队列；接线层会叠加队列存储的投影。 */
 const EMPTY_QUEUE: InputState['queue'] = []
 
-/** Undo ring depth (bounded self-managed transaction log). */
+/** 撤销环深度，即自管理事务日志的上限。 */
 const LOG_LIMIT = 100
 
-/** Exhaustiveness backstop for the closed InputEvent / guard unions. */
+/** 为封闭的 InputEvent/保护条件联合提供穷尽性兜底。 */
 function unreachable(value: never): never {
   throw new Error(`unreachable input event: ${JSON.stringify(value)}`)
 }
 
 /**
- * Strip the claim token off a draft to yield submit args. Leading whitespace
- * (incl. newlines — leading-trigger trim) is tolerated; a bare `/name`
- * missing the token's trailing separator yields empty args. Exactly one
- * separator char is consumed; the remainder — newlines included — stays
- * verbatim (`/goal x\ny` → `x\ny`).
+ * 从草稿移除认领词元，得到提交参数。允许开头空白，包括因开头触发而保留的换行；
+ * 缺少词元尾部分隔符的裸 `/name` 产生空参数。只消费一个分隔字符，其余内容
+ * 包括换行均原样保留（`/goal x\ny` → `x\ny`）。
  */
 function argsAfter(draft: string, token: string): string {
   const s = draft.trimStart()
@@ -65,8 +59,8 @@ function argsAfter(draft: string, token: string): string {
 }
 
 /**
- * Prefix/suffix common-scan recovering the edit range between two drafts
- * (used when the wiring layer cannot supply one from the DOM event).
+ * 通过公共前后缀扫描恢复两个草稿之间的编辑区间；接线层无法从 DOM 事件提供
+ * 区间时使用。
  */
 function diffEdit(prev: string, next: string): EditRange {
   let p = 0
@@ -79,11 +73,10 @@ function diffEdit(prev: string, next: string): EditRange {
 }
 
 /**
- * Expand the draft's reference ranges into their occurrences' clipboard text
- * for persistence and clipboard projection. Table order is offset order, so
- * one linear walk pairs ranges with entries.
- * @param state - published input state.
- * @returns the plain-text projection of the draft.
+ * 把草稿中的引用区间展开为对应实例的剪贴板文本，用于持久化和剪贴板投影。
+ * 表已按偏移量排序，因此一次线性遍历即可配对区间与条目。
+ * @param state - 已发布的输入状态。
+ * @returns 草稿的纯文本投影。
  */
 export function projectClipboard(state: Pick<InputState, 'draft' | 'occurrences'>): string {
   const { draft, occurrences } = state
@@ -97,21 +90,20 @@ export function projectClipboard(state: Pick<InputState, 'draft' | 'occurrences'
   return out + draft.slice(cursor)
 }
 
-/** One undo unit: snapshots taken before the transaction applied. */
+/** 一个撤销单元：事务应用前取得的快照。 */
 interface Transaction {
   readonly draftBefore: string
   readonly occurrencesBefore: readonly Occurrence[]
-  /** Pre-edit selection when the triggering event carried one (shell caret restore on undo). */
+  /** 触发事件携带选区时记录的编辑前选区，供外壳撤销时恢复光标。 */
   readonly selectionBefore?: EditSelection
 }
 
 /**
- * Pure input machine, one instance per session (per-session isolation is by
- * construction). The machine constructs one AbortController per SubmitAttempt
- * at enter time and aborts it itself on release; the shell never aborts, it
- * only observes attempt.signal on its adjudicate/submit promises. Stale
- * attempts (any adjudicated / adjudication-failed / submit-settled whose seq
- * is not the in-flight one) are dropped: same state, zero effects.
+ * 纯输入状态机，每个会话一个实例，因此从构造上实现会话隔离。状态机在回车时为
+ * 每个 SubmitAttempt 创建一个 AbortController，并在 release 时自行取消；外壳
+ * 从不发起取消，只在裁决/提交 Promise 上观察 attempt.signal。过期尝试——即任意
+ * seq 与当前在途尝试不一致的 adjudicated、adjudication-failed 或 submit-settled——
+ * 会被丢弃：状态不变，也不产生 effect。
  */
 export class InputMachine {
   private draft = ''
@@ -127,7 +119,7 @@ export class InputMachine {
   } | undefined
   private log: Transaction[] = []
   private redoStack: Transaction[] = []
-  /** Open single-char typing run: the next contiguous char within the window coalesces. */
+  /** 已打开的单字符输入段：时间窗口内下一个连续字符会合并进来。 */
   private typingRun: { readonly end: number; readonly at: number } | undefined
   private paste: PasteAttemptState | undefined
   private pasteSeq = 0
@@ -139,7 +131,7 @@ export class InputMachine {
     this.now = options.now ?? (() => 0)
   }
 
-  /** Read-only snapshot of the machine state (queue always empty at this tier). */
+  /** 状态机状态的只读快照；这一层的 queue 始终为空。 */
   get state(): InputState {
     const c = this.claim
     return {
@@ -163,9 +155,9 @@ export class InputMachine {
   }
 
   /**
-   * Feed one event through the machine.
-   * @param ev - Input event; the single write path for all input state.
-   * @returns Effects for the shell to execute in order; empty on no-ops, locks, and dropped stale events.
+   * 把一个事件送入状态机。
+   * @param ev - 输入事件，也是所有输入状态的唯一写入路径。
+   * @returns 供外壳按顺序执行的 effect；无操作、锁定或丢弃过期事件时为空。
    */
   dispatch(ev: InputEvent): readonly InputEffect[] {
     switch (ev.type) {
@@ -192,15 +184,15 @@ export class InputMachine {
     }
   }
 
-  // ---- transaction plumbing ----
+  // ---- 事务基础设施 ----
 
-  /** Adopt a new draft: bump the revision (the span-CAS invalidation point). */
+  /** 接纳新草稿并推进修订号，这也是区间 CAS 的失效点。 */
   private adopt(draft: string): void {
     this.draft = draft
     this.draftRev += 1
   }
 
-  /** Push one undo unit (before-state), trim the ring, and cut the redo chain. */
+  /** 压入一个变更前撤销单元，裁剪撤销环，并切断重做链。 */
   private pushTxn(selectionBefore?: EditSelection): void {
     this.log.push({
       draftBefore: this.draft,
@@ -212,10 +204,8 @@ export class InputMachine {
   }
 
   /**
-   * Reconcile the occurrence table with one edit (old-draft coordinates):
-   * entries past the range shift by the length delta; an edit that intersects
-   * a reference range removes its structured occurrence and leaves the edited
-   * characters as ordinary draft text.
+   * 使用一次编辑协调实例表，区间采用旧草稿坐标：区间后的条目按长度差移动；
+   * 与引用区间相交的编辑会移除其结构化实例，并把编辑后的字符保留为普通草稿文本。
    */
   private reconcile(range: EditRange): void {
     const delta = range.insertedLength - (range.end - range.start)
@@ -227,7 +217,7 @@ export class InputMachine {
     this.occurrences = kept
   }
 
-  /** Claimed integrity watch: any mutation that breaks the token prefix releases the claim. */
+  /** claimed 完整性监视：任何破坏词元前缀的变更都会释放认领。 */
   private watchClaim(): void {
     if (this.phase === 'claimed' && this.claim !== undefined && !this.draft.startsWith(this.claim.token)) {
       this.phase = 'plain'
@@ -235,7 +225,7 @@ export class InputMachine {
     }
   }
 
-  /** Mint one occurrence at a draft offset. */
+  /** 在草稿偏移处签发一个引用实例。 */
   private mint(reference: ReferenceInsert, offset: number, length: number): Occurrence {
     this.occurrenceSeq += 1
     return {
@@ -250,19 +240,18 @@ export class InputMachine {
     }
   }
 
-  /** Splice minted entries into the offset-sorted table. */
+  /** 把新签发条目插入按偏移量排序的表。 */
   private withMinted(minted: readonly Occurrence[]): void {
     if (minted.length === 0) return
     this.occurrences = [...this.occurrences, ...minted].sort((a, b) => a.offset - b.offset)
   }
 
-  // ---- draft transactions ----
+  // ---- 草稿事务 ----
 
   private onDraftChanged(draft: string, editRange?: EditRange): InputEffect[] {
     if (draft === this.draft) return []
     const range = editRange ?? diffEdit(this.draft, draft)
-    // Single-char typing coalesces into the open run while contiguous and
-    // inside the merge window; anything else opens its own transaction.
+    // 连续且仍在合并窗口内的单字符输入并入已打开输入段；其他编辑各自开启事务。
     const typing = range.start === range.end && range.insertedLength === 1
     const at = this.now()
     const run = this.typingRun
@@ -276,7 +265,7 @@ export class InputMachine {
     return []
   }
 
-  /** Span CAS: revision equality (content identity follows) plus bounds sanity. */
+  /** 区间 CAS：检查修订号相等（从而内容相同），并验证边界合理。 */
   private casOk(span: TokenSpan): boolean {
     return span.draftRev === this.draftRev
       && span.start >= 0 && span.start <= span.end && span.end <= this.draft.length
@@ -284,8 +273,8 @@ export class InputMachine {
 
   private onBeginCommand(claim: CommandClaim, span: TokenSpan): InputEffect[] {
     if (this.phase !== 'plain' && this.phase !== 'claimed') return []
-    // Leading-trigger contract: only whitespace may precede the span; the
-    // whitespace prefix is dropped so the claimed watch (startsWith) holds.
+    // 开头触发约定：区间前只能有空白；丢弃空白前缀，使 claimed 的 startsWith
+    // 监视能够成立。
     if (!this.casOk(span) || this.draft.slice(0, span.start).trim() !== '') return []
     this.pushTxn()
     this.typingRun = undefined
@@ -306,10 +295,9 @@ export class InputMachine {
   }
 
   /**
-   * Shared reference-insertion transaction: replace [span) with one inline
-   * occurrence (insert-ref and paste-upgrade both land here). A separating
-   * space follows the reference unless one is already next.
-   * @returns the inserted length (display text plus optional gap).
+   * 共享引用插入事务：用一个行内实例替换 `[span)`；insert-ref 和 paste-upgrade
+   * 都进入这里。若后面尚无空格，就在引用后补一个分隔空格。
+   * @returns 插入长度，即展示文本加可选间隔。
    */
   private replaceSpanWithChip(reference: ReferenceInsert, span: TokenSpan): number {
     this.pushTxn()
@@ -326,9 +314,8 @@ export class InputMachine {
   }
 
   /**
-   * Guarded token deletion after business success (popup settle / menu-pick
-   * execute). No effect signals success: the caller reads the draftRev
-   * advance off the published state (same currency as the other bail verbs).
+   * 业务成功后受保护地删除词元（弹窗结算/菜单选择执行）。没有专门 effect 表示
+   * 成功；调用方从已发布状态读取 draftRev 是否推进，与其他 bail 操作使用同一数据。
    */
   private onConsumeToken(guard: ConsumeTokenGuard): InputEffect[] {
     if (this.phase !== 'plain' && this.phase !== 'claimed') return []
@@ -359,9 +346,8 @@ export class InputMachine {
   }
 
   /**
-   * Owner-resolution style bits: exactly the listed occurrences render
-   * invalid. Not a transaction — the draft, revision, and undo log are
-   * untouched (invalidation never deletes or rewrites chips).
+   * 拥有者解析样式位：只有列出的实例渲染为无效。这不是事务，草稿、修订号和撤销
+   * 日志都不变；失效处理从不删除或重写胶囊。
    */
   private onSetInvalid(invalidIds: readonly number[]): InputEffect[] {
     const ids = new Set(invalidIds)
@@ -375,7 +361,7 @@ export class InputMachine {
     return []
   }
 
-  // ---- undo / redo ----
+  // ---- 撤销/重做 ----
 
   private onUndo(): InputEffect[] {
     const entry = this.log.pop()
@@ -392,7 +378,7 @@ export class InputMachine {
   private onRedo(): InputEffect[] {
     const entry = this.redoStack.pop()
     if (entry === undefined) return []
-    // Manual log push: pushTxn would cut the redo chain being walked.
+    // 手动压入日志：pushTxn 会切断当前正在遍历的重做链。
     this.log.push({ draftBefore: this.draft, occurrencesBefore: this.occurrences })
     if (this.log.length > LOG_LIMIT) this.log.shift()
     this.occurrences = entry.occurrencesBefore
@@ -403,13 +389,12 @@ export class InputMachine {
     return []
   }
 
-  // ---- paste plane ----
+  // ---- 粘贴平面 ----
 
   /**
-   * Paste as one transaction: the text (reference-placeholder-sanitized) replaces the
-   * selection; hot-snapshot sync matches componentize inside the SAME
-   * transaction (one undo returns to pre-paste); a match attempt opens for
-   * the async remainder while the phase still accepts reference mutations.
+   * 把粘贴作为一个事务：清理引用占位符后的文本替换选区；热快照同步匹配项在同一
+   * 事务内组件化，因此一次撤销回到粘贴前；若当前阶段仍接受引用变更，则为异步
+   * 剩余部分开启匹配尝试。
    */
   private onPasteBegin(
     rawText: string, selection: EditSelection,
@@ -420,8 +405,8 @@ export class InputMachine {
     const text = rawText.replace(REFERENCE_PLACEHOLDER_RE, '')
     this.pushTxn(selection)
     this.typingRun = undefined
-    // Componentize: replace each matched token range (paste-text coordinates,
-    // disjoint by contract) with inline display text while assembling the insert.
+    // 组件化：组装插入文本时，用行内展示文本替换每个匹配词元区间。区间采用
+    // 粘贴文本坐标，并按约定互不相交。
     const sorted = [...components].sort((a, b) => a.start - b.start)
     const minted: Occurrence[] = []
     let inserted = ''
@@ -452,9 +437,8 @@ export class InputMachine {
   }
 
   /**
-   * Async match landed: upgrade one pasted token to a chip as an INDEPENDENT
-   * transaction (undo #1 → the token text, undo #2 → pre-paste). The attempt
-   * stays current — later tokens re-CAS against the advanced draftRev.
+   * 异步匹配完成：以独立事务把一个粘贴词元升级为胶囊；撤销一次回词元文本，
+   * 再撤销回粘贴前。尝试仍保持有效，后续词元针对已推进的 draftRev 重新 CAS。
    */
   private onPasteUpgrade(attemptId: number, span: TokenSpan, reference: ReferenceInsert): InputEffect[] {
     const attempt = this.paste
@@ -469,9 +453,9 @@ export class InputMachine {
     return []
   }
 
-  // ---- submit plane ----
+  // ---- 提交平面 ----
 
-  /** Mint the next SubmitAttempt and take the in-flight slot. */
+  /** 签发下一个 SubmitAttempt，并占用在途槽位。 */
   private beginAttempt(mode: InputSubmitMode): SubmitAttempt {
     const controller = new AbortController()
     this.seq += 1
@@ -514,8 +498,8 @@ export class InputMachine {
         args: argsAfter(attempt.draftSnapshot, outcome.claim.token),
       }]
     }
-    // 'handled' (source dealt internally), {insert} (no enter-time span
-    // semantics), or a miss: all land plain; only the miss flows to the sink.
+    // 'handled'（来源内部处理）、{insert}（没有回车时区间语义）或未命中都会回到
+    // plain；只有未命中继续流向默认出口。
     if (outcome === undefined) {
       this.phase = 'submitting'
       return [{
@@ -534,7 +518,7 @@ export class InputMachine {
     if (this.phase !== 'adjudicating' || this.inflight?.attempt.seq !== attempt.seq) return []
     this.inflight = undefined
     this.phase = 'plain'
-    // Draft retained: warmup failure never silently downgrades to a prompt.
+    // 保留草稿：预热失败绝不静默降级为普通提示词发送。
     return [{ type: 'notice', level: 'error', text: message }]
   }
 
@@ -546,14 +530,13 @@ export class InputMachine {
       this.phase = 'plain'
       this.claim = undefined
       this.occurrences = []
-      // Text appended after the sent snapshot during the Host round-trip
-      // survives the commit; edits interleaved with committed content cannot
-      // be separated from it, so only a pure suffix is retained.
+      // Host 往返期间追加在已发送快照后的文本会在提交后保留；与已提交内容交织的
+      // 编辑无法可靠分离，因此只保留纯后缀。
       const snapshot = flight.attempt.draftSnapshot
       this.adopt(this.draft !== snapshot && this.draft.startsWith(snapshot)
         ? this.draft.slice(snapshot.length)
         : '')
-      // Committed content is gone for good: undo must not resurrect a sent draft.
+      // 已提交内容永久移除：撤销不得复活已经发送的草稿。
       this.log = []
       this.redoStack = []
       this.typingRun = undefined
@@ -563,10 +546,9 @@ export class InputMachine {
         : []
     }
     const text = ev.message ?? ev.outcome?.text
-    // Keep the same command claim only while the live draft still equals the
-    // enter-time draft; user input typed during flight wins.
-    // Claimed re-entry additionally requires the watch to hold — an
-    // enter-path snapshot may carry leading whitespace the token never had.
+    // 只有实时草稿仍等于回车时草稿时才保留原命令认领；在途期间用户新输入优先。
+    // 重新进入 claimed 还要求前缀监视成立，因为回车路径快照可能带有词元本身没有
+    // 的开头空白。
     if (this.draft === flight.attempt.draftSnapshot
       && this.claim !== undefined && this.draft.startsWith(this.claim.token)) {
       this.phase = 'claimed'
@@ -577,7 +559,7 @@ export class InputMachine {
     return text === undefined ? [] : [{ type: 'notice', level: 'error', text }]
   }
 
-  /** Cut undo state after an accepted image-only send. */
+  /** 纯图片发送被接受后切断撤销状态。 */
   private onSendCommitted(): InputEffect[] {
     if (this.phase !== 'plain') return []
     this.claim = undefined

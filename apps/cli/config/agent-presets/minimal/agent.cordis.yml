@@ -1,10 +1,8 @@
-# The `minimal` agent preset: a fixed-prompt, two-tool coding-agent composition.
+# `minimal` Agent preset：固定 Prompt、双 Tool 的编码 Agent 组合。
 #
-# The persona is the complete system prompt, so global identity, Web orientation,
-# tool guidance, and later assembly listeners cannot add prompt text. Runtime
-# context snapshots are suppressed for this preset, and the model composes only
-# the persistent shell (`bash` on POSIX, `pwsh` on win32) and
-# `str_replace_editor`. Context compaction is absent.
+# persona 是完整 system prompt，因此全局身份、Web 定位、Tool 指引和后续组装 listener
+# 都不能再添加 Prompt 文本。此 preset 不生成运行时上下文快照；模型只装配持久 shell
+#（POSIX 上为 `bash`，win32 上为 `pwsh`）和 `str_replace_editor`，且不启用上下文压缩。
 
 - id: persona
   name: '@deepseek-ai/dsh-persona'
@@ -15,11 +13,10 @@
     complete: true
     includeRuntimeContext: false
 
-# The PTY registry is an agent-owned service, so it lives in an entry-local
-# realm. The backend still consumes the host sandbox policy and subprocess
-# implementation, while the tool registers into this agent's scoped catalog.
-# Exactly one shell stack mounts per host: the bash stack gates off win32 and
-# its pwsh twin gates off POSIX, mirroring the one-shot shell rows.
+# PTY 注册表是 Agent 拥有的服务，因此位于条目局部 realm。后端仍消费 Host 的 sandbox
+# policy 与 subprocess 实现，而 Tool 注册到此 Agent 的 scoped catalog。每个 Host 恰好
+# 挂载一套 shell stack：bash stack 在 win32 上关闭，pwsh 对应项在 POSIX 上关闭，与
+# one-shot shell 行保持一致。
 - id: persistent-shell
   name: cordis:group
   group: true
@@ -71,8 +68,8 @@
           * Please avoid commands that may produce a very large amount of output.
           * Please run long lived commands in the background, e.g. 'Start-Job' or start a server with Start-Process.
 
-# The bare local filesystem shadows the host's sandboxed provider only for this
-# preset. The editor shares that realm and requires absolute paths.
+# 裸本地文件系统只在此 preset 中遮蔽 Host 的 sandboxed Provider。编辑器共享该 realm，
+# 并要求使用绝对路径。
 - id: filesystem
   name: cordis:group
   group: true

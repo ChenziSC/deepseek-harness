@@ -45,41 +45,38 @@ function isComposing(event: KeyboardEvent<HTMLTextAreaElement>): boolean {
   return event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229
 }
 
-/** The free-text answer field shared by both question shapes. */
+/** 两种问题形态共用的自由文本回答字段。 */
 interface AnswerFieldProps {
-  /** Which shape the field takes: the custom row's inline column, or the optionless question's own framed block. */
+  /** 字段形态：自定义答案行中的行内列，或无选项问题自己的带框区块。 */
   variant: 'inline' | 'block'
-  /** Current draft text. */
+  /** 当前草稿文本。 */
   value: string
-  /** Empty-field prompt. */
+  /** 字段为空时的提示文案。 */
   placeholder: string
-  /** Whether a submission in flight has frozen the field. */
+  /** 是否因正在提交而锁定字段。 */
   disabled: boolean
-  /** Whether this field takes focus on mount. */
+  /** 字段挂载时是否获取焦点。 */
   autoFocus?: boolean
-  /** Called when the field takes focus. */
+  /** 字段获取焦点时调用。 */
   onFocus?: () => void
-  /** Called with each edit of the draft. */
+  /** 每次编辑草稿时调用。 */
   onChange: (event: ChangeEvent<HTMLTextAreaElement>) => void
-  /** Called with each key press, before the browser's own handling. */
+  /** 每次按键时、浏览器默认处理前调用。 */
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
 }
 
 /**
- * Auto-growing free-text answer: a textarea, so a long answer soft-wraps and
- * Shift+Enter breaks a line, over a hidden mirror that owns the height.
+ * 自动增高的自由文本答案：实际输入使用 textarea，因此长答案可以软换行，
+ * Shift+Enter 可以插入换行；下层隐藏镜像负责决定整体高度。
  *
- * The mirror renders the draft plus a trailing newline in normal flow and so
- * sizes the grid row (counting rows by '\n' cannot see soft wraps); the
- * textarea shares that one cell and stretches to it, and `rows={1}` keeps the
- * control's own intrinsic height out of the row sizing so the mirror alone
- * decides. Past the mirror's cap the textarea scrolls itself — it is the only
- * scrollport in the stack, there being no second glyph layer to keep aligned.
- * Mirror and textarea MUST share font, line-height, padding and wrapping rules
- * or the two heights diverge.
+ * 镜像在普通文档流中渲染草稿和末尾换行，从而撑开 Grid 行；仅按 `\n` 计数无法
+ * 感知软换行。textarea 与镜像占用同一单元格并拉伸到相同高度，`rows={1}` 则避免
+ * 控件固有高度参与行尺寸计算，使高度只由镜像决定。超过镜像上限后由 textarea
+ * 自身滚动；整个叠层中只有这一个滚动区，不需要与第二层文字图形保持同步。
+ * 镜像与 textarea 必须使用相同字体、行高、内边距和换行规则，否则高度会分离。
  *
- * @param props - field shape, draft text, and the field's event handlers.
- * @returns The mirrored auto-growing field.
+ * @param props - 字段形态、草稿文本与字段事件处理器。
+ * @returns 使用镜像实现自动增高的字段。
  */
 function AnswerField(props: AnswerFieldProps) {
   return (
@@ -131,12 +128,10 @@ function QuestionFlow({ pending, t }: { pending: PendingQuestion } & Pick<Questi
   })))
   const [busy, setBusy] = useState<'answer' | 'cancel' | null>(null)
   const [error, setError] = useState<Feedback | null>(null)
-  // Collapsed to the header strip so the conversation above stays readable
-  // while the user decides; the drafts survive because the state lives here.
+  // 用户思考时可折叠为标题条，避免遮挡上方会话；状态仍保存在这里，因此草稿不会丢失。
   const [minimized, setMinimized] = useState(false)
-  // The free-form textarea autofocuses on first presentation; re-expanding a
-  // collapsed question must not steal focus from the expand toggle back into
-  // the input, so focus is granted once per question index.
+  // 自由文本框第一次出现时自动聚焦；重新展开已折叠问题时不能把焦点从展开按钮
+  // 抢回输入框，因此每个问题下标只授予一次自动焦点。
   const focusedQuestions = useRef(new Set<number>())
   // index stays in bounds (every setIndex site clamps) and drafts mirrors questions 1:1.
   // oxlint-disable-next-line typescript/no-non-null-assertion
@@ -219,9 +214,8 @@ function QuestionFlow({ pending, t }: { pending: PendingQuestion } & Pick<Questi
     submitDrafts(drafts)
   }
 
-  // Shared by the inline custom field and the optionless one: a multi-select
-  // draft retains checked labels, while a single-select custom answer replaces
-  // its selection. Enter continues the flow, Shift+Enter breaks a line.
+  // 行内自定义字段与无选项字段共用本逻辑：多选草稿保留已勾选标签，
+  // 单选问题的自定义答案会替换原选择。Enter 继续流程，Shift+Enter 插入换行。
   const draftCustom = (event: ChangeEvent<HTMLTextAreaElement>): void => {
     const value = event.target.value
     updateDraft(current => ({

@@ -15,9 +15,8 @@ export const name = 'client-ui-settings-plugins-invariant'
 export const inject = ['invariants']
 
 /**
- * No runtime invariant: this is a browser-side settings surface whose node half owns no event
- * stream or mutable runtime data; the layering and write refusals are Host contracts covered by
- * the owning plugins and the api-proxy.
+ * 没有运行时不变量：这是浏览器端设置界面，其 Node 端不拥有事件流或可变运行时数据；
+ * 分层和写入拒绝属于 Host 约定，由拥有相关行为的插件和 api-proxy 覆盖。
  */
 const install: InvariantInstaller = () => {}
 

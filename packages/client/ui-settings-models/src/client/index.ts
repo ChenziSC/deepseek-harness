@@ -70,8 +70,8 @@ export function apply(ctx: ClientContext): void {
   const connection = ctx.get('connection') as ConnectionHandle
   const schema = createSettingsSchemaOperations(ctx.settingsSchema)
   const controller = new ModelsSettingsStore(connection.api, schema, ctx.settingsScope.describe())
-  // Registration-time text (the nav label thunk) and the inject faces share
-  // one bound translate; copy freshness rides the locale revision.
+  // 注册时文本（导航标签 thunk）和 inject 接口共享一个已绑定翻译器；文案新鲜度
+  // 随 locale 修订号更新。
   const t = ctx.locale.bind(NS) as ModelsSectionInjected['t']
   const injected = (): ModelsSectionInjected => ({
     controller,
@@ -87,8 +87,8 @@ export function apply(ctx: ClientContext): void {
     schema,
     t,
   })
-  // The scope's own memory mode is what keeps a remote browser process-local,
-  // so the store needs no isLoopback branch of its own.
+  // 作用域自身的 memory 模式使远程浏览器状态保持在进程内，因此存储无需自己的
+  // isLoopback 分支。
   const welcomeController = new WelcomeNoticeStore(ctx.settingsScope.bind({
     namespace: WELCOME_NOTICE_SETTINGS_NAMESPACE,
     decode: decodeWelcomeSection,
@@ -99,11 +99,9 @@ export function apply(ctx: ClientContext): void {
     t,
   })
 
-  // Pushed invalidations converge every open surface without polling. The
-  // settingsScope injection makes ui-settings activate first, and remote
-  // dispatch preserves listener order; its listener therefore starts the
-  // mirror refresh before this store joins that refresh. The welcome notice
-  // follows its settings scope, so it needs no subscription here.
+  // 推送的失效事件无需轮询即可让所有打开界面收敛。settingsScope 注入使 ui-settings
+  // 先激活，remote 分发保持监听器顺序，因此其监听器会先开始镜像刷新，本存储再加入
+  // 该刷新。欢迎提示跟随自身 settings 作用域，此处无需订阅。
   ctx.effect(() => {
     const refreshModels = (): void => { refreshIfLoaded(controller) }
     const disposers = [

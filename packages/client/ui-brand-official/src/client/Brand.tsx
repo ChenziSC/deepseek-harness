@@ -5,17 +5,17 @@ import type { SidebarBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-side
 type OfficialBrandMarkProps = HeroBrandMarkOwnerProps & SidebarBrandMarkOwnerProps
 
 /**
- * Render the official mark with the presentation requested by its host surface.
- * @param props - Host-supplied mark presentation.
- * @returns the official whale mark.
+ * 按 Host 界面请求的展示方式渲染官方标记。
+ * @param props - Host 提供的标记展示参数。
+ * @returns 官方鲸鱼标记。
  */
 export function OfficialBrandMark({ size, className }: OfficialBrandMarkProps) {
   return <FishLogo size={size} className={className} />
 }
 
 /**
- * Render the official name artwork without its independently slotted mark.
- * @returns the official name wordmark.
+ * 渲染官方名称图稿，不包含独立 Slot 中的标记。
+ * @returns 官方名称 Wordmark。
  */
 export function OfficialBrandName() {
   return <BrandWordmark includeMark={false} />

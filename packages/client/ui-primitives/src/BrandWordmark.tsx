@@ -1,22 +1,21 @@
-// DeepSeek Harness brand wordmark (figma 356:14644, exact extract): whale +
-// "deepseek-official" letterforms + HARNESS badge plate in one svg. Native 182x24.
-// Ink rides currentColor; the badge text is knocked out in the inverted
-// label color so the plate stays legible in both themes.
+// DeepSeek Harness 品牌字标（Figma 356:14644 精确导出）：鲸鱼、“deepseek-official”
+// 字形和 HARNESS 徽章底板合并在一个 SVG 中，原生尺寸 182x24。图形使用 currentColor；
+// 徽章文字采用反转标签色镂空，使底板在两种主题下都清晰可读。
 
 import type { IconProps } from './icons/props.ts'
 
-/** Display options for the official brand wordmark. */
+/** 官方品牌字标的展示选项。 */
 export interface BrandWordmarkProps extends IconProps {
-  /** Whether to include the leading whale mark; defaults to true. */
+  /** 是否包含开头鲸鱼标记，默认为 true。 */
   includeMark?: boolean | undefined
 }
 
 /**
- * Render the full brand wordmark.
- * @param props.size - height in px (default 24; width follows the selected artwork).
- * @param props.className - extra class for layout placement.
- * @param props.includeMark - whether to include the leading whale mark.
- * @returns the wordmark svg (aria-hidden decorative brand art).
+ * 渲染完整品牌字标。
+ * @param props.size - 高度，单位 px，默认 24；宽度随所选图稿变化。
+ * @param props.className - 用于布局定位的附加 class。
+ * @param props.includeMark - 是否包含开头鲸鱼标记。
+ * @returns 字标 SVG；它是 aria-hidden 的装饰性品牌图形。
  */
 export function BrandWordmark({ size = 24, className, includeMark = true }: BrandWordmarkProps) {
   const width = includeMark ? 182 : 156

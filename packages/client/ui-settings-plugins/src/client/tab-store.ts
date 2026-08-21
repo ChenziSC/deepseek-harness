@@ -1,57 +1,49 @@
 /**
- * The configurable-plugins tab's card list.
+ * 可配置插件标签页的卡片列表。
  *
- * The tab dispatches its slot by settings namespace, so what it renders is
- * the intersection of two ledgers: the namespaces the Host serves and the
- * cards registered into `settings.plugin.item`. A served namespace no card
- * claims renders nothing — another surface owns it, or this deployment ships
- * no browser half for it — and a card whose namespace the Host does not serve
- * is never dispatched, so a plugin this deployment did not compose leaves no
- * trace and does not count toward the empty line.
+ * 标签页按 settings 命名空间分发 Slot，因此渲染的是两份台账的交集：Host 提供的
+ * 命名空间，以及注册到 `settings.plugin.item` 的卡片。已提供但没有卡片认领的
+ * 命名空间不渲染，说明它由其他界面拥有，或部署未携带其浏览器端；Host 未提供
+ * 对应命名空间的卡片则永不分发，因此部署未组合的插件不留痕迹，也不影响空状态。
  */
 
 import type { SettingsDescribeFace } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { StoredEntry } from '@deepseek-ai/dsh-client-ui-slots'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
 
-/** What the section renders. */
+/** 分区渲染的状态。 */
 export interface ConfigurablePluginsTabState {
   /**
-   * Whether the Host has answered once. The empty line waits for it: an
-   * unanswered read is not the same statement as "this deployment configures
-   * no plugin", and saying the second while the first is true would flash a
-   * wrong answer on every open.
+   * Host 是否至少回答过一次。空状态要等待该回答：读取尚未回答不等于“此部署未配置
+   * 插件”；若在前者仍成立时显示后者，每次打开都会闪现错误结论。
    */
   loaded: boolean
   /**
-   * Namespaces to dispatch, in the order their cards registered, narrowed to
-   * those the Host serves. Card registration order rather than the Host's
-   * description order: the latter follows plugin activation, which async
-   * settings injection can reorder between boots, and a settings page whose
-   * cards move between visits is worse than one whose order a registrant
-   * chose.
+   * 要分发的命名空间，按卡片注册顺序排列，并收窄为 Host 实际提供者。采用卡片注册
+   * 顺序而非 Host describe 顺序；后者跟随插件激活，异步 settings 注入可能使其在
+   * 不同启动间重排。设置页卡片每次访问都移动，比遵循注册者选择的固定顺序更糟。
    */
   namespaces: string[]
 }
 
-/** The registration-side face the tab's slot entry injects. */
+/** 标签页 Slot 条目注入的注册侧接口。 */
 export interface ConfigurablePluginsTabFace {
   hooks: {
-    /** Section snapshot bound by the renderer as usePluginConfigSection. */
+    /** 由渲染器绑定为 usePluginConfigSection 的分区快照。 */
     configurablePlugins: SnapshotStore<ConfigurablePluginsTabState>
   }
 }
 
-/** Derives the served namespaces from the shared describe mirror and pairs them with the cards that claim them. */
+/** 从共享 describe 镜像派生已提供命名空间，并与认领它们的卡片配对。 */
 export class ConfigurablePluginsTabController {
   private readonly store = createSnapshotStore<ConfigurablePluginsTabState>({ loaded: false, namespaces: [] })
   private disposed = false
   private readonly unsubscribe: () => void
 
   /**
-   * @param describeFace - the shared mirror's describe face; its refreshes
-   * (document commits, reconnects) are what keep the served set current.
-   * @param entries - reads the cards currently registered into the section's slot.
+   * @param describeFace - 共享镜像的 describe 接口；文档提交、重连时的刷新使已提供
+   * 集合保持最新。
+   * @param entries - 读取当前注册到分区 Slot 的卡片。
    */
   constructor(
     private readonly describeFace: SettingsDescribeFace,
@@ -62,21 +54,21 @@ export class ConfigurablePluginsTabController {
     this.publish()
   }
 
-  /** Republish after the slot ledger changed; a card registered late joins here. */
+  /** Slot 台账变化后重新发布；迟注册卡片在这里加入。 */
   refresh(): void {
     if (this.disposed) return
     this.publish()
   }
 
-  /** Stop publishing and stop following the mirror. */
+  /** 停止发布并停止跟随镜像。 */
   dispose(): void {
     this.disposed = true
     this.unsubscribe()
   }
 
   /**
-   * Build the face the tab's slot registration injects.
-   * @returns the tab's snapshot source.
+   * 构造标签页 Slot 注册所注入的接口。
+   * @returns 标签页快照来源。
    */
   inject(): ConfigurablePluginsTabFace {
     return { hooks: { configurablePlugins: this.store } }
@@ -90,10 +82,9 @@ export class ConfigurablePluginsTabController {
     const namespaces = this.entries().flatMap(entry =>
       entry.options.key !== undefined && served.has(entry.options.key) ? [entry.options.key] : [])
     const previous = this.store.getSnapshot()
-    // Every settings-document commit refreshes the mirror, and most commits
-    // change nothing this section shows. An observable source must keep its
-    // snapshot reference until the fact moves, or each unrelated save
-    // re-renders the whole card list (packages/client/AGENTS.md reactive rule 5).
+    // 每次 settings 文档提交都会刷新镜像，但多数提交不改变本分区展示内容。observable
+    // 来源必须在事实变化前保持快照引用，否则每次无关保存都会重渲染整份卡片列表；
+    // 见 packages/client/AGENTS.md 响应式规则 5。
     if (previous.loaded === loaded
       && previous.namespaces.length === namespaces.length
       && previous.namespaces.every((ns, index) => ns === namespaces[index])) return

@@ -1,7 +1,6 @@
 /**
- * Browser conversation plugin. `contract/` is the shared type boundary
- * between the independently implemented skeleton and chat domains; `apply.ts`
- * owns their slot assembly.
+ * 浏览器 Conversation 插件。`contract/` 是分别实现的 Skeleton 与 Chat 域之间共享的类型
+ * 边界，`apply.ts` 负责二者的 Slot 组装。
  */
 export type {} from './conversation-nodes/assistant.ts'
 export type {} from './conversation-nodes/command.ts'
@@ -36,11 +35,11 @@ export type {
   ConvViewProps, DetailsInjected, DetailsSlotProps, DetailsToolOwnerProps, EmptyWorkspaceOwnerProps, HeroBrandMarkOwnerProps,
   MessageImagesOwnerProps, MessageImagesProps, RenderMessageImages, TurnTailOwnerProps, UseChatNodeTurnData,
 } from './contract/slots.ts'
-// Export discipline: packages/client/AGENTS.md.
+// 导出规则见 packages/client/AGENTS.md。
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
-    /** The outward face only; the concrete service stays inside this plugin. */
+    /** 只暴露对外接口；具体服务保留在本插件内部。 */
     conversation: import('./service.ts').IConversation
   }
 }

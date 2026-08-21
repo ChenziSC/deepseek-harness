@@ -2,6 +2,9 @@
  * Trajectory list fold: expand assistant blocks, attach usage to Message,
  * own-duration times, in-flight partial/runningCalls, and group descriptions.
  */
+// 学习入口：这里是“会话视图快照 → 轨迹语义记录”的纯折叠层。它负责把分散的请求、
+// assistant 块、工具结果和流式状态配对，但不负责 React 交互或 locale；因此可以用同一
+// 结果同时驱动表格和时间线，也能单独测试分页、补流和时长归属。
 import type {
   AssistantBlock,
   AssistantMessageNode,

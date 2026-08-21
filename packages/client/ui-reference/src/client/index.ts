@@ -1,13 +1,12 @@
 /**
- * Unified Web `@` reference source. File and session discovery run through
- * the cancellable generated Remote namespaces in parallel with deterministic
- * ordering and labels.
+ * 统一 Web `@` Reference 数据源。文件与 Session 发现通过支持取消的已生成 Remote
+ * namespace 并发执行，并保持确定的顺序与标签。
  *
  * @module @deepseek-ai/dsh-client-ui-reference/client
  */
-// Type-only: pulls the generated Remote API and ctx.remote merge through the Client assembly boundary.
+// 仅导入类型：通过 Client 组装边界带入已生成 Remote API 与 ctx.remote 合并。
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
-// Type-only: pulls the locale plugin's Context merge (ctx.locale).
+// 仅导入类型：带入 locale 插件的 Context 合并（ctx.locale）。
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {
@@ -18,14 +17,14 @@ import type { FileReferenceCandidate } from '@deepseek-ai/dsh-file-reference/typ
 import type { SessionReferenceMentionCandidate } from '@deepseek-ai/dsh-session-reference/types'
 import { en, NS, zh, type ReferenceKey } from './locales.ts'
 
-/** Required services: the trigger registry, the Remote namespaces, and the copy. */
+/** 必需服务：Trigger 注册表、Remote namespace 与文案。 */
 export const inject = [
   'inputTriggers', 'locale', 'remote', 'remote.fileReferences', 'remote.sessionReferenceResolver',
 ]
 
 /**
- * Register the combined `@file` / `@session` source.
- * @param ctx - client root context.
+ * 注册合并后的 `@file` / `@session` 数据源。
+ * @param ctx - Client 根 Context。
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-reference: dictionaries')

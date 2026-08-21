@@ -1,25 +1,20 @@
 /**
- * Permission preset plugin, browser half — a popupSelect DECORATION hung on
- * the host `/permission` command: one flat list of presets, current value
- * marked active, a pick executes the switch. The decoration owns only the
- * bare invocation; the host command keeps its catalog row, the argued path
- * (`/permission <preset>` still switches directly), and the lifecycle
- * logging. Options and the active mark read the session's `permissions`
- * projection (the same host-computed select the composer chip renders); a
- * pick submits the `/permission <preset>` command line, so both surfaces
- * write through one path and the pushed projection frame is the one
- * confirmation. The Full access row carries the same explicit risk gate as
- * the composer chip; the shared popup shell owns the modal mechanics.
- * The General-settings row separately writes the default preset for fresh
- * sessions and eligible confirmed blank reuse through the host Settings API.
+ * 权限 preset 插件的浏览器端：在 Host `/permission` 命令上挂一个 popupSelect
+ * DECORATION，展示扁平 preset 列表、标记当前值，并在选择后执行切换。装饰只拥有
+ * 裸调用；Host 命令仍保留目录行、带参数路径（`/permission <preset>` 仍可直接切换）
+ * 和生命周期日志。选项及活动标记读取会话 `permissions` 投影，也就是编辑器胶囊
+ * 渲染的同一个 Host 计算 select；选择后提交 `/permission <preset>` 命令行，因此
+ * 两个界面共用一条写入路径，推送的投影 frame 是唯一确认。Full access 行采用与
+ * 编辑器胶囊相同的显式风险门，模态机制由共享 popup 外壳拥有。General 设置行则
+ * 通过 Host Settings API 单独写入新会话及合格已确认空白复用所用的默认 preset。
  */
 import type { ConnectionHandle } from '@deepseek-ai/dsh-api-remotes/client'
-// Type-only: pulls the locale plugin's Context merge (ctx.locale).
+// 仅类型：引入 locale 插件的 Context 合并（ctx.locale）。
 import type {} from '@deepseek-ai/dsh-client-locale/client'
-// Type-only: the settings slot types (this package registers a General row).
+// 仅类型：引入 settings Slot 类型；本包会注册一个 General 行。
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-// Type-only: pulls the ctx.remote merge and the forwarded-event key face
-// (the settings invalidation rides the allowlist) into this program.
+// 仅类型：把 ctx.remote 合并和转发事件键接口引入本程序；settings 失效事件通过
+// allowlist 转发。
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type { ClientContext, SessionFace } from '@deepseek-ai/dsh-client-runtime/client'
 import type { CommandUiContract, SelectOption } from '@deepseek-ai/dsh-client-ui-commands/client'
@@ -40,17 +35,17 @@ export type {
   PermissionDefaultOption, PermissionSettingsState,
 } from './settings-store.ts'
 
-/** Required services (cordis fiber inject). */
+/** 必需服务，通过 Cordis fiber inject。 */
 export const inject = ['commandUi', 'sessions', 'slots', 'locale', 'connection', 'remote', 'settingsScope', 'settingsSchema']
 
 const ACCESS_NS = 'permission.access'
 
-/** Read one session's current permissions projection value (undefined = capability absent). */
+/** 读取一个会话当前权限投影值；undefined 表示能力不存在。 */
 function selectOf(session: SessionFace | undefined): PermissionSelect | undefined {
   return session?.projections.faceOf('permissions').getSnapshot() as PermissionSelect | undefined
 }
 
-/** Flatten the projection select into popup rows; `custom` is display state, never a target. */
+/** 把投影 select 展平为弹窗行；`custom` 只是展示状态，绝不是选择目标。 */
 function optionsOf(value: PermissionSelect, t: (key: string) => string): SelectOption[] {
   return value.options
     .filter(option => option.value !== 'custom')
@@ -74,15 +69,14 @@ function optionsOf(value: PermissionSelect, t: (key: string) => string): SelectO
 }
 
 /**
- * Client plugin body: register the /permission popup picker over the
- * permissions projection.
- * @param ctx - client root context.
+ * 客户端插件主体：在 permissions 投影上注册 /permission 弹窗选择器。
+ * @param ctx - 客户端根上下文。
  */
 export function apply(ctx: ClientContext): void {
   const command = ctx.get('commandUi') as CommandUiContract
   const sessions = ctx.sessions
-  // This optional bundle and ui-conversation can load independently, so each
-  // owns the same safety copy under its own locale namespace.
+  // 此可选 bundle 与 ui-conversation 可独立加载，因此各自在自己的 locale 命名空间
+  // 拥有一份相同安全文案。
   /* jscpd:ignore-start */
   ctx.effect(() => {
     const disposers = [
@@ -117,8 +111,7 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register('settings.permission', { zh, en }), 'ui-permission: settings row dictionaries')
 
   const connection = ctx.get('connection') as ConnectionHandle
-  // The row follows the shared describe mirror, whose owning plugin already
-  // refreshes it on document commits and reconnects.
+  // 此行跟随共享 describe 镜像；拥有该镜像的插件已负责在文档提交和重连时刷新。
   const controller = new PermissionPresetSettingsController(
     ctx.settingsScope.describe(), connection.api, ctx.settingsSchema)
   const load = (): Promise<void> => controller.load()
@@ -141,9 +134,8 @@ export function apply(ctx: ClientContext): void {
 
   ctx.effect(() => command.decorate({
     name: 'permission',
-    // The picker exists exactly while the projection does: a permission-less
-    // host serves no key and the bare invocation falls through to the host
-    // command (which is absent too — the line simply misses).
+    // 选择器只在投影存在时存在：不提供权限能力的 Host 不发布该键，裸调用会落回
+    // Host 命令；该命令同样不存在，因此该文本行只是未命中。
     available: session => selectOf(sessionFor(session)) !== undefined,
     ui: {
       kind: 'popupSelect',

@@ -193,8 +193,8 @@ export class AgentPresetSettingsController {
   readonly store: SnapshotStore<AgentPresetSettingsState> = createSnapshotStore(INITIAL)
 
   /**
-   * @param api - the agent-preset and settings wire faces (roster and default write).
-   * @param describeFace - the shared mirror's describe face (writability source).
+   * @param api - agent-preset 与 settings 的 Wire 接口（名单读取与默认值写入）。
+   * @param describeFace - 共享镜像的 describe 接口（可写状态来源）。
    */
   constructor(
     private readonly api: IApiClient,
@@ -206,10 +206,9 @@ export class AgentPresetSettingsController {
   }
 
   /**
-   * Load the roster. An empty roster means the deployment composes no
-   * presets, which is a valid deployment rather than a failure — the row
-   * reports `unavailable` and renders nothing.
-   * @returns once the snapshot reflects the host.
+   * 加载候选表。空表表示部署未组合任何 preset，是合法部署而非失败；该行报告
+   * `unavailable` 并且不渲染。
+   * @returns 快照反映 Host 状态后完成。
    */
   async load(): Promise<void> {
     const roster = await beginRosterRead(this.api, this.store)
@@ -220,28 +219,25 @@ export class AgentPresetSettingsController {
       this.set({ status: 'unavailable', options: [], currentValue: '' })
       return
     }
-    // The roster says what may be chosen; the shared mirror says whether this
-    // browser may write the choice down. A non-loopback browser's mirror never
-    // answers, so the row stays read-only rather than offering a control
-    // whose write the Host would refuse.
+    // 候选表说明可选内容，共享镜像说明当前浏览器能否写入选择。非 loopback 浏览器
+    // 的镜像永不回答，因此该行保持只读，不提供写入必被 Host 拒绝的控件。
     await this.describeFace.ensure()
     this.set({
       status: 'ready',
       error: null,
       writable: this.describeFace.getSnapshot().view?.writable ?? false,
       options: presetOptions(presets),
-      // A roster can mark nothing default: settings can name a preset that
-      // was since deleted, and the picker still has to show something.
+      // 候选表可能没有标记任何默认项：设置可能仍指向后来已删除的 preset，
+      // 但选择器仍必须显示一个值。
       currentValue: presets.find(preset => preset.isDefault)?.id ?? first.id,
     })
   }
 
   /**
-   * Persist one preset as the default for sessions created later. Running
-   * sessions keep the composition they were created with, so this never
-   * disturbs work in progress.
-   * @param id - the preset to make default.
-   * @returns once the write settled and the roster was re-read.
+   * 把一个 preset 持久化为后续新建会话的默认值。运行中会话保留创建时的组合，
+   * 因此不会打扰进行中的工作。
+   * @param id - 要设为默认值的 preset。
+   * @returns 写入完成并重新读取候选表后完成。
    */
   async select(id: string): Promise<void> {
     const before = this.store.getSnapshot()
@@ -252,8 +248,7 @@ export class AgentPresetSettingsController {
       this.set({ status: 'ready', currentValue: before.currentValue, error: failure })
       return
     }
-    // Re-read rather than trust the patch: the host resolves the default
-    // through the same roster the row displays.
+    // 重新读取而不直接信任 patch：Host 通过该行展示的同一候选表解析默认值。
     await this.load()
   }
 }

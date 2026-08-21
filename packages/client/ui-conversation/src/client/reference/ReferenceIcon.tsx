@@ -3,10 +3,10 @@ import {
   IconBrowseOutline16, IconFolderClose16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 
-/** Reference domains with distinct composer and transcript glyphs. */
+/** 在编辑器与转录中使用不同图标的引用领域。 */
 export type ReferenceIconKind = 'session' | 'file' | 'folder'
 
-/** Props shared by inline reference glyphs. */
+/** 行内引用图标共享的 props。 */
 export interface ReferenceIconProps {
   kind: ReferenceIconKind
   size?: number
@@ -14,9 +14,9 @@ export interface ReferenceIconProps {
 }
 
 /**
- * Render the icon that identifies one inline reference domain.
- * @param props - Reference kind, optional size, and optional CSS class.
- * @returns The corresponding current-color SVG glyph.
+ * 渲染用于标识某一类行内引用的图标。
+ * @param props - 引用类型、可选尺寸和可选 CSS 类名。
+ * @returns 使用 currentColor 的对应 SVG 图形。
  */
 export function ReferenceIcon({ kind, size = 16, className }: ReferenceIconProps): ReactNode {
   switch (kind) {

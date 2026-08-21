@@ -10,12 +10,12 @@ const STANDALONE_ERROR = 'apps/web is not a standalone application: bare Vite ca
   + 'For client-plugin HMR, run `pnpm dsh web` together with `pnpm run dev:web`.'
 const DEFAULT_CLIENT_TITLE = 'DSH Local Build'
 
-/** Escape build-time text before placing it in the HTML title element. */
+/** 把构建时文本写入 HTML title 元素前进行转义。 */
 function escapeHtmlText(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-/** Project the public build title into the initial HTML document. */
+/** 把公开的构建标题投影到初始 HTML 文档。 */
 function clientDocumentTitle(): Plugin {
   const title = escapeHtmlText(process.env.DSH_CLIENT_TITLE ?? DEFAULT_CLIENT_TITLE)
   return {
@@ -145,20 +145,16 @@ export default defineConfig({
     },
   },
   resolve: {
-    // One instance per shared npm identity: a bare specifier otherwise resolves
-    // from the importer's directory, so a diverging range ships a second React
-    // and splits hook and element identity. Entries are package ids — they cover
-    // react/jsx-runtime and react-dom/client — and resolve from this package's
-    // node_modules, so react must stay a devDependency here and any watcher must
-    // run vite from this directory (scripts/dev-web.ts). Workspace packages need
-    // no entry: pnpm links each of them to a single directory.
+    // 每个共享 npm identity 只保留一个实例。否则裸 specifier 会从 importer 目录解析，版本
+    // 范围分歧会打包第二份 React，并拆分 hook 与元素 identity。条目使用 package id，可覆盖
+    // react/jsx-runtime 与 react-dom/client，并从本包的 node_modules 解析；因此 react 必须
+    // 保持为本包 devDependency，所有 watcher 都必须从本目录运行 Vite（scripts/dev-web.ts）。
+    // Workspace 包无需列入：pnpm 会把每个包链接到唯一目录。
     dedupe: ['react', 'react-dom'],
-    // Workspace packages are consumed as built lib products: each resolves
-    // through its own package.json exports from the importer's directory, and
-    // CSS still rides Vite's pipeline because the client build preset emits it
-    // beside the bundle. Plugin packages never enter this graph; they arrive as
-    // runtime bundles through the client module system. The remaining alias
-    // browserizes the vendored Cordis Loader's only Node import.
+    // Workspace 包以已构建的 lib 产物消费：每个包从 importer 目录经自身 package.json exports
+    // 解析；客户端构建 preset 会把 CSS 发射在 Bundle 旁，因此 CSS 仍经过 Vite pipeline。
+    // 插件包不会进入本图，而是通过客户端模块系统以运行时 Bundle 到达。剩余 alias 用于把
+    // vendored Cordis Loader 唯一的 Node import 浏览器化。
     alias: [
       { find: /^node:module$/, replacement: src('./src/node-module-stub.ts') },
     ],

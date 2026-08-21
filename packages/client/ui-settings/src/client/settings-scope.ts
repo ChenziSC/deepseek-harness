@@ -1,11 +1,9 @@
 /**
- * Host transport for the settings-namespace scope contract. The contract types
- * live in `dsh-client-runtime` (the common dependency of every feature that
- * owns a preference); this file owns the per-namespace derivation over the
- * shared {@link SettingsDescribeMirror} and the serialized write path, both of
- * which are Settings-surface concerns. Reads never touch the wire here: the
- * mirror is the one `settings.describe` reader, and every scope is a selector
- * over its snapshot.
+ * Settings namespace scope 约定的 Host transport。约定类型位于 `dsh-client-runtime`，
+ * 它是所有拥有偏好设置功能的共同依赖；本文件负责在共享 {@link SettingsDescribeMirror}
+ * 上派生逐 namespace 视图，以及串行写入路径，二者都属于 Settings 界面职责。读取在这里
+ * 从不接触 wire：Mirror 是唯一的 `settings.describe` reader，每个 scope 都只是其快照上的
+ * selector。
  */
 
 import { Service } from '@deepseek-ai/cordis'
@@ -17,21 +15,17 @@ import {
   createSnapshotStore, type SettingsScope, type SettingsScopeSnapshot,
   type SettingsScopeSpec, type SnapshotStore,
 } from '@deepseek-ai/dsh-client-runtime/client'
-// Type-only, and deliberately NOT `@deepseek-ai/dsh-api-remotes/client`: this
-// package is reachable from the Host build graph through its feature-package
-// callers, and api-remotes' Client face imports a Host-tsdown-generated
-// `/remote` artifact, which would deadlock the Host tsc phase. The gateway's
-// Client half declares `ctx.remote` with no generated import, and the
-// allowlist's `types` subpath is a pure-type source file, so the pair supplies
-// `$on` and its key face without dragging a build artifact in. The runtime
-// `remote` injection belongs to the providing plugin's apply, which registers
-// the mirror's invalidation subscriptions.
+// 仅导入类型，并且有意不从 `@deepseek-ai/dsh-api-remotes/client` 导入：本包会经功能包调用方
+// 进入 Host 构建图，而 api-remotes 的 Client 接口会导入由 Host tsdown 生成的 `/remote`
+// 产物，从而导致 Host tsc 阶段死锁。Gateway 的 Client half 不依赖生成导入即可声明
+// `ctx.remote`；allowlist 的 `types` 子路径是纯类型源码，因此两者组合可以提供 `$on` 及其
+// 键接口，而不把构建产物拖入。运行时 `remote` inject 属于提供方插件的 apply；该 apply
+// 负责注册 Mirror 的失效订阅。
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-api-remotes/types'
-// The forwarded event's own declaration: `$on`'s key face is
-// `Extract<keyof Events, keyof Selection>`, so the allowlist alone resolves to
-// never — the owning package's client-safe, type-only subpath supplies the
-// cordis `Events` entry (and with it the branded `SettingsNamespace`).
+// 转发事件自身的声明：`$on` 的键接口是 `Extract<keyof Events, keyof Selection>`，因此只导入
+// allowlist 会解析为 never。所有者包的 client-safe 纯类型子路径负责提供 Cordis `Events`
+// 条目，以及随之而来的 branded `SettingsNamespace`。
 import type {} from '@deepseek-ai/dsh-settings/types'
 import type { SettingsSchemaService } from './schema.ts'
 import { SettingsDescribeMirror, type SettingsDescribeFace } from './settings-mirror.ts'
@@ -39,10 +33,9 @@ import { SettingsDescribeMirror, type SettingsDescribeFace } from './settings-mi
 type SettingsFace = Pick<IApiClient, 'settings'>
 
 /**
- * One namespace's derived view over the shared describe mirror, plus that
- * namespace's serialized Host writes. Writes carry the latest known namespace
- * revision, fold their answers back into the mirror, and teardown waits for
- * the operation already crossing the wire.
+ * 单个 namespace 在共享 describe mirror 上的派生视图，以及该 namespace 的串行 Host 写入。
+ * 写入携带最新已知 namespace revision，并把响应折叠回 Mirror；拆除时会等待已经跨越 wire
+ * 的操作结束。
  */
 export class SettingsScopeController<T> implements SettingsScope<T> {
   private readonly store: SnapshotStore<SettingsScopeSnapshot<T>>
@@ -51,18 +44,17 @@ export class SettingsScopeController<T> implements SettingsScope<T> {
   private disposed = false
   private readonly unsubscribe: (() => void) | undefined
   /**
-   * Revision answered by a superseded write still ahead of the mirror: the
-   * mirror only folds the LATEST settlement in, so a queued successor takes
-   * its fence from here first.
+   * 已被取代的写入返回、但仍领先于 Mirror 的 revision。Mirror 只折叠最新一次写入结果，
+   * 因此队列中的后继写入会优先从这里取得 fence。
    */
   private pendingRevision: number | undefined
 
   /**
-   * @param api - settings wire face (writes only; reads ride the mirror).
-   * @param spec - namespace identity and optional narrowing decoder.
-   * @param mirror - the shared describe mirror this scope derives from.
-   * @param persistence - remote browsers remain process-local because settings RPCs are loopback-only.
-   * @param schema - settings-owned schema operations.
+   * @param api - Settings wire 接口；只用于写入，读取经由 Mirror。
+   * @param spec - namespace identity 与可选的窄化 decoder。
+   * @param mirror - 当前 scope 的派生来源，即共享 describe mirror。
+   * @param persistence - Settings RPC 仅允许 loopback，因此远程浏览器只能使用进程内状态。
+   * @param schema - Settings 所有的 schema 操作。
    */
   constructor(
     private readonly api: SettingsFace,
@@ -86,36 +78,34 @@ export class SettingsScopeController<T> implements SettingsScope<T> {
     }
   }
 
-  /** @returns the current sync snapshot (stable reference until the next change). */
+  /** @returns 当前同步快照；下次变化前引用保持稳定。 */
   getSnapshot(): SettingsScopeSnapshot<T> {
     return this.store.getSnapshot()
   }
 
   /**
-   * Observe snapshot replacements.
-   * @param listener - invoked after each snapshot change.
-   * @returns the disposer removing this listener.
+   * 观察快照替换。
+   * @param listener - 每次快照变化后调用。
+   * @returns 移除此 listener 的 disposer。
    */
   subscribe(listener: () => void): () => void {
     return this.store.subscribe(listener)
   }
 
   /**
-   * Queue one field write; see {@link SettingsScope.set} for the ordering,
-   * revision, and recovery contract.
-   * @param field - scalar field inside the namespace section.
-   * @param value - JSON-shaped value selected by the user.
-   * @returns settlement after the write and any latest-write recovery read.
+   * 把一次字段写入加入队列；顺序、revision 与恢复约定见 {@link SettingsScope.set}。
+   * @param field - namespace section 内的标量字段。
+   * @param value - 用户选择的 JSON 形式值。
+   * @returns 写入以及可能的最新写入恢复读取结束后的 settlement。
    */
   set(field: string, value: unknown): Promise<void> {
     return this.write({ op: 'set', path: [field], value })
   }
 
   /**
-   * Queue one field clear; see {@link SettingsScope.unset} for the ordering,
-   * revision, and recovery contract.
-   * @param field - scalar field inside the namespace section.
-   * @returns settlement after the clear and any latest-write recovery read.
+   * 把一次字段清除加入队列；顺序、revision 与恢复约定见 {@link SettingsScope.unset}。
+   * @param field - namespace section 内的标量字段。
+   * @returns 清除以及可能的最新写入恢复读取结束后的 settlement。
    */
   unset(field: string): Promise<void> {
     return this.write({ op: 'unset', path: [field] })
@@ -150,7 +140,7 @@ export class SettingsScopeController<T> implements SettingsScope<T> {
     })
   }
 
-  /** Reload Host state for the latest failed write; superseded failures leave recovery to it. */
+  /** 为最新失败写入重新加载 Host 状态；已被取代的失败把恢复交给最新写入。 */
   private async recover(generation: number): Promise<void> {
     if (this.disposed || generation !== this.writeGeneration) return
     this.pendingRevision = undefined
@@ -158,9 +148,8 @@ export class SettingsScopeController<T> implements SettingsScope<T> {
   }
 
   /**
-   * Stop queued operations, stop deriving, and wait for the current wire call
-   * to settle.
-   * @returns settlement after the controller reaches quiescence.
+   * 停止队列操作和派生，并等待当前 wire 调用结束。
+   * @returns Controller 进入静止状态后的 settlement。
    */
   async dispose(): Promise<void> {
     this.disposed = true
@@ -175,8 +164,8 @@ export class SettingsScopeController<T> implements SettingsScope<T> {
       if (this.disposed) return
       await operation()
     })
-    // The returned task carries its own settlement to the caller; the queue
-    // tail is kept fulfilled so one failed subscriber cannot strand later operations.
+    // 返回的 Task 向调用方携带自身 settlement；队列 tail 始终保持 fulfilled，使一次失败
+    // 不会搁置后续操作。
     this.tail = task.catch(() => {})
     return task
   }
@@ -208,15 +197,15 @@ export class SettingsScopeController<T> implements SettingsScope<T> {
 
   private decode(view: SettingsNamespaceView): T | undefined {
     if (this.spec.decode !== undefined) return this.spec.decode(view.value)
-    // Sections are plain objects by construction; schemastery alone would
-    // resolve null or an array through object defaults instead of refusing.
+    // Section 按构造规则必须是 plain object；若只依赖 Schemastery，null 或数组会经 object
+    // 默认值解析，而不是被拒绝。
     if (typeof view.value !== 'object' || view.value === null || Array.isArray(view.value)) return undefined
     let failure: string | undefined
     try {
       failure = this.schema.validate(this.schema.rehydrate(view.schema), view.value)
     } catch (_malformedSchemaEnvelope) {
-      // A schema envelope this client cannot rehydrate vouches for no section;
-      // the value is treated exactly like a schema-invalid one.
+      // 客户端无法重新水合的 schema envelope 无法为任何 section 提供保证，因此其值与
+      // schema 校验失败的值同样处理。
       return undefined
     }
     return failure === undefined ? view.value as T : undefined
@@ -230,20 +219,18 @@ declare module '@deepseek-ai/cordis' {
 }
 
 /**
- * The settings domain's base service. Features that own a preference reach the
- * settings transport through this service rather than a shared function: the
- * client bundle purity gate forbids cross-plugin value imports and directs
- * cross-plugin collaboration through cordis services
- * (`packages/client/tsdown.client.ts`).
+ * Settings 域基础服务。拥有偏好设置的功能通过本服务而非共享函数访问 Settings transport：
+ * 客户端 Bundle 纯度门禁禁止跨插件导入值，并要求跨插件协作经由 Cordis 服务，参见
+ * `packages/client/tsdown.client.ts`。
  */
 export class SettingsScopeBinder extends Service {
   private readonly mirror: SettingsDescribeMirror
   private readonly schema: SettingsSchemaService
 
   /**
-   * @param ctx - the providing plugin's context.
-   * @param config - the shared describe mirror every bound scope derives from,
-   * plus the settings-owned schema operations.
+   * @param ctx - 提供方插件的 Context。
+   * @param config - 所有已绑定 scope 的共享 describe mirror 派生来源，以及 Settings
+   * 所有的 schema 操作。
    */
   constructor(ctx: Context, config: { mirror: SettingsDescribeMirror; schema: SettingsSchemaService }) {
     super(ctx, 'settingsScope')
@@ -252,25 +239,22 @@ export class SettingsScopeBinder extends Service {
   }
 
   /**
-   * The shared mirror's read/fold face for cross-namespace surfaces (schema
-   * introspection, the served-namespace directory). Per-namespace consumers
-   * use {@link bind}; both derive from the same snapshot, so they can never
-   * disagree about the document.
-   * @returns the describe face over the shared mirror.
+   * 共享 Mirror 向跨 namespace 界面提供的读取/折叠接口，例如 schema introspection 和已服务
+   * namespace 目录。逐 namespace Consumer 使用 {@link bind}；二者都从同一快照派生，
+   * 因此对文档的认知不会互相冲突。
+   * @returns 共享 Mirror 上的 describe 接口。
    */
   describe(): SettingsDescribeFace {
     return this.mirror
   }
 
   /**
-   * Bind one namespace scope on the CALLER's plugin lifecycle — the service
-   * proxy binds `this.ctx` to the caller at call time, so the scope's disposer
-   * belongs to the calling fiber. The scope derives from the shared mirror
-   * (whose invalidation subscriptions live with the providing plugin), so
-   * binding adds no wire read of its own and activation never blocks on the
-   * settings transport.
-   * @param spec - domain-owned namespace contract.
-   * @returns the bound scope consumed by the domain's services and rows.
+   * 在调用方插件生命周期上绑定一个 namespace scope。服务 proxy 在调用时把 `this.ctx`
+   * 绑定到调用方，因此 scope disposer 属于调用 fiber。Scope 从共享 Mirror 派生；Mirror 的
+   * 失效订阅归提供方插件所有，所以绑定不会自行增加 wire 读取，激活也不会等待 Settings
+   * transport。
+   * @param spec - 业务域拥有的 namespace 约定。
+   * @returns 供业务域服务与 Row 消费的已绑定 scope。
    */
   bind<T>(spec: SettingsScopeSpec<T>): SettingsScope<T> {
     const ctx = this.ctx

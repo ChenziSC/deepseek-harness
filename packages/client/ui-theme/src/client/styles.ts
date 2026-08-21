@@ -16,8 +16,8 @@ const STYLES = [
 ] as const
 
 /**
- * Mount the global theme sheets for exactly the owning plugin lifetime.
- * @param ctx - Owning plugin context.
+ * 在所属插件的生命周期内挂载全局主题样式表，并随插件一起卸载。
+ * @param ctx - 所属插件的上下文。
  */
 export function installThemeStyles(ctx: Context): void {
   if (typeof document === 'undefined') return

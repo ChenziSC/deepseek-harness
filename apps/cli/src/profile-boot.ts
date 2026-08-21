@@ -11,6 +11,10 @@
  * @module @deepseek-ai/dsh/profile-boot
  */
 
+// 学习入口：把本文件按“解析 profile → 组合 patch 层 → boot 插件树 → 安装 HMR 与
+// 进程关闭”四个区块阅读。这里决定装载哪些能力，但不实现这些能力；组合后的每一行
+// 都应继续追到对应 Cordis 插件，而不是把行为归因给启动器。
+
 import { writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'

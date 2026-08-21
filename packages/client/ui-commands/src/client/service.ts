@@ -123,7 +123,7 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
 
   private readonly directory: CommandDirectory
   private readonly live: LiveState = { contributions: new Map(), decorations: new Map(), popups: new Map() }
-  /** `command`-namespace translator (composer refusal notices). */
+  /** `command` 命名空间翻译器，用于编辑器拒绝提示。 */
   private readonly t: TranslateNS<'command'>
 
   /**
@@ -153,10 +153,8 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
       warm: (session) => { this.directory.warm(session.sessionId) },
     }), 'command: slash source')
     ctx.remote.$on('commands/change', () => { this.directory.invalidateAll() })
-    // A preset switch changes which commands one session's agent resolves and
-    // registers nothing globally, so the registry-wide signal above never
-    // fires for it: repull that key alone, soft, so the old snapshot serves
-    // the menu until the new one lands.
+    // 切换 preset 会改变某会话 Agent 可解析的命令，但不会注册任何全局内容，因此
+    // 上方注册表级信号不会触发。只柔性重拉该键，在新快照到达前继续用旧快照服务菜单。
     ctx.remote.$on('agent-preset/selected', (sessionId) => { void this.directory.refresh(sessionId) })
     ctx.on('connection/reset', () => { this.directory.resetConnected() })
   }
@@ -304,16 +302,12 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
   }
 
   /**
-   * Decision table, enter column. Strong-waits the session's catalog (a
-   * warmup failure rejects — never a silent downgrade). Contributions and
-   * bare host commands act on the bare token only; leadingInput claims
-   * args-tolerant.
+   * 决策表的回车列。强等待会话目录；预热失败会拒绝，绝不静默降级。贡献命令和
+   * Host 裸命令只作用于裸词元，leadingInput 认领则允许参数。
    *
-   * Envelope policy: an enter submission carrying images resolves only
-   * through a command declaring image acceptance. Every other command route —
-   * popup, non-accepting claim, bare detached execute — throws the refusal
-   * so the machine surfaces one composer notice and the draft and images
-   * stay in place; nothing executes and nothing is dropped.
+   * 信封策略：携带图片的回车提交只能由声明接受图片的命令解析。其他命令路径——
+   * popup、不接受图片的认领、裸 detached 执行——都会抛出拒绝，使状态机显示一条
+   * 编辑器提示并原位保留草稿和图片；不执行任何内容，也不丢弃任何内容。
    */
   private async matchEnter(
     session: ClientSessionContext,
@@ -386,15 +380,11 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
   }
 
   /**
-   * The command.execute transaction, addressed to the session's agent — pure
-   * admission semantics. An unmatched line reports an error outcome (the
-   * composer's immediate admission feedback); an admitted command reports
-   * plain success regardless of its handler outcome, because the host
-   * executor durably logged the lifecycle (`command/run`/`command/done`) and
-   * the outcome renders as a persistent flow node — the composer never
-   * echoes it. A handler error result reports an error outcome so the
-   * composer keeps the submission (draft and images) for correction.
-   * Transport failures throw.
+   * 寻址到会话 Agent 的 command.execute 事务，只表达准入语义。未匹配文本行报告
+   * error 结果，作为编辑器即时准入反馈；已准入命令无论处理器结果如何都报告普通
+   * success，因为 Host 执行器已持久记录生命周期（`command/run`/`command/done`），
+   * 结果会渲染为持久流程节点，编辑器从不重复显示。处理器 error 结果则报告 error，
+   * 使编辑器保留提交内容（草稿和图片）供修正。传输失败直接抛错。
    */
   private async execute(
     session: ClientSessionContext,
@@ -405,8 +395,7 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     if (!result.ok) throw new Error(`command.execute failed: ${result.error.code}: ${result.error.message}`)
     if (result.value === undefined) return { kind: 'error', text: `unknown or malformed command: ${line}` }
     this.notifyExecuted(session.sessionId, submittedCommandName(line), result.value.result)
-    // An image-carrying submission consumed its images only on handler
-    // success; an error outcome keeps draft and images in the composer.
+    // 携带图片的提交只在处理器成功时消费图片；error 结果把草稿和图片保留在编辑器。
     if (images.length > 0 && result.value.result.kind === 'error') {
       return { kind: 'error', text: result.value.result.text }
     }
@@ -437,12 +426,10 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
   }
 
   /**
-   * Fire-and-forget execute for the internal ('handled') paths. Outcomes are
-   * NOT surfaced here: the host executor durably logs the command lifecycle
-   * (`command/run`/`command/done`), and the mux-broadcast events render as a
-   * persistent flow node on every tab. Only a transport/admission failure —
-   * which never entered a handler and therefore never logged — falls back to
-   * the composer notice as immediate feedback.
+   * 内部 `'handled'` 路径的触发后不等待执行。此处不显示结果：Host 执行器会持久记录
+   * 命令生命周期（`command/run`/`command/done`），mux 广播事件会在每个标签渲染为
+   * 持久流程节点。只有从未进入处理器、因而也从未记录的传输/准入失败，才退回编辑器
+   * 提示作为即时反馈。
    */
   private runDetached(desc: CommandDescriptor, session: ClientSessionContext, line: string): void {
     void this.execute(session, line).then(

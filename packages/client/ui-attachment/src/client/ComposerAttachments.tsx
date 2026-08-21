@@ -9,12 +9,12 @@ import { ImageLightbox } from '../ImageLightbox.tsx'
 import { attachmentRailLabels, dropOverlayLabels, lightboxLabels } from './labels.ts'
 import css from './ComposerAttachments.module.css'
 
-/** Rail item retaining its browser-owned attachment for callbacks. */
+/** 保留浏览器所拥有附件、供回调使用的 Rail item。 */
 interface ComposerRailItem extends AttachmentRailItem {
   attachment: ComposerAttachment
 }
 
-/** Draft-image rail, document drop target, and original-image preview slot entry. */
+/** 草稿图片 Rail、文档级拖放目标与原图预览的 Slot 条目。 */
 export function ComposerAttachments({
   attachments, canAcceptDrop, onAddImages, onRemoveImage, dropLimits, t,
 }: ComposerAttachmentsProps) {

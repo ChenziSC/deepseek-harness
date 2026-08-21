@@ -1,8 +1,6 @@
 /**
- * The model-facing `web_search` tool: discover current information on the web.
- * Execution goes through `ctx.web` — this module owns only the model-facing
- * schema, argument validation, the result-count bound, and result formatting,
- * never provider selection or network access.
+ * 模型可见的 `web_search` Tool：在 Web 上发现当前信息。执行经由 `ctx.web`；本模块只负责
+ * 模型可见 schema、参数校验、结果数量限制和结果格式化，不负责选择 Provider 或访问网络。
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -12,30 +10,27 @@ import type { WebSearchResult, WebSearchSource } from '@deepseek-ai/dsh-web'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 
 /**
- * Default upper bound on returned sources (the `searchMaxResults` config).
- * Owned by the consumer (not the provider or model), mirroring `dsh-tool-fs`'s
- * `READ_LIMIT`. The model just asks a question; the product controls how much
- * context returns. The default `8` aligns with OpenCode's Exa default.
+ * 返回来源数量的默认上限（`searchMaxResults` 配置）。该限制归 Consumer 所有，而非
+ * Provider 或模型，方式与 `dsh-tool-fs` 的 `READ_LIMIT` 相同。模型只负责提出问题，
+ * 产品控制返回多少上下文。默认值 `8` 与 OpenCode 的 Exa 默认值一致。
  */
 export const WEB_SEARCH_MAX_RESULTS = 8
 
-/** Default upper bound on concurrent searches in one tool call. */
+/** 单次 Tool 调用中并发搜索数量的默认上限。 */
 export const WEB_SEARCH_MAX_QUERIES = 4
 
-/** Model-facing `web_search` arguments. */
+/** 模型可见的 `web_search` 参数。 */
 interface WebSearchArgs {
   queries: string[]
 }
 
 /**
- * Validate value constraints the schema DSL can't express: `queries` is
- * non-empty, contains only non-blank strings, and fits the deployment's
- * query-count bound. Exact duplicate strings are collapsed after the bound
- * check. Throws a plain `Error` otherwise.
+ * 校验 schema DSL 无法表达的值约束：`queries` 非空、只包含非空白字符串，且不超过部署
+ * 的查询数量上限。完成上限检查后合并完全相同的字符串，否则抛出普通 `Error`。
  *
- * @param args - the schema-validated `web_search` arguments.
- * @param maxQueries - the deployment's upper bound on queries in one call.
- * @returns the accepted queries in their first-occurrence order.
+ * @param args - 经 schema 校验的 `web_search` 参数。
+ * @param maxQueries - 部署规定的单次调用查询数量上限。
+ * @returns 按首次出现顺序排列的已接受查询。
  */
 export function parseSearchArgs(
   args: WebSearchArgs,
@@ -95,10 +90,10 @@ export function formatSearchOutput(result: WebSearchResult): string {
 }
 
 /**
- * Pending-call presentation: a search card titled by the query list.
+ * 待定调用展示：以查询列表为标题的搜索卡片。
  *
- * @param args - the raw tool arguments; only the query text feeds the view.
- * @returns the generic card view (`kind: 'search'`) shown while the call runs.
+ * @param args - 原始 Tool 参数；只有查询文本会进入视图。
+ * @returns 调用执行期间展示的通用卡片视图（`kind: 'search'`）。
  */
 export function presentSearchCall(args: WebSearchArgs): GenericCallView {
   const title = args.queries.join(', ')
@@ -116,7 +111,7 @@ export function presentSearchCall(args: WebSearchArgs): GenericCallView {
 export interface WebSearchMeta {
   /** The faithful structured sources, in result order. */
   sources: WebSource[]
-  /** True when the seam or multi-query merge cut the source list to honor the result cap. */
+  /** seam 或多查询合并为了遵守结果上限而截断来源列表时为 true。 */
   truncated: boolean
   /** The provider-generated answer text, when any. */
   answer?: string
@@ -196,8 +191,8 @@ export function searchMetaFromResult(meta: unknown): WebSearchMeta | undefined {
  * `web` capability falls back to the raw `tool/result` content, which is the
  * same text (see the web-result-card Agent Note).
  *
- * @param args - the raw tool arguments; the queries become the result-state
- *   title so a window-truncated replay that dropped the call head still has one.
+ * @param args - 原始 Tool 参数；查询会成为结果态标题，使窗口截断回放即使丢失调用头部
+ *   仍有标题可用。
  * @param result - the final model-facing tool result; `meta` carries the sources.
  * @returns the search result view, or `undefined` (generic card) on failure or
  *   malformed meta.
@@ -217,17 +212,15 @@ export function presentSearchResult(args: WebSearchArgs, result: ToolResult): We
 }
 
 /**
- * Run one or more searches through the web seam. A single query keeps the
- * provider's exact result; multiple queries run concurrently and are merged
- * into one normalized result capped at `maxResults`. A failed search aborts
- * its siblings, and this function waits for every search to settle before
- * rethrowing the first failure.
+ * 通过 Web seam 执行一个或多个搜索。单个查询保留 Provider 的原始结果；多个查询并发
+ * 执行，再合并为最多包含 `maxResults` 项的规范结果。任一搜索失败会中止同级搜索；本函数
+ * 等待所有搜索结束后，再重新抛出首个失败。
  *
- * @param ctx - context whose `web` service performs the searches.
- * @param queries - validated non-empty queries.
- * @param maxResults - the deployment's source cap for the combined result.
- * @param signal - cancellation signal forwarded to every search.
- * @returns the combined search result.
+ * @param ctx - 由其 `web` 服务执行搜索的 context。
+ * @param queries - 已校验的非空查询。
+ * @param maxResults - 部署规定的合并结果来源上限。
+ * @param signal - 转发给每个搜索的取消信号。
+ * @returns 合并后的搜索结果。
  */
 async function runSearchQueries(
   ctx: Context,
@@ -256,7 +249,7 @@ async function runSearchQueries(
   return mergeSearchResults(queries, results, maxResults)
 }
 
-/** Merge per-query results into one deduplicated, round-robin, capped result. */
+/** 把逐查询结果合并为一个去重、轮询选取且有数量上限的结果。 */
 function mergeSearchResults(
   queries: string[],
   results: WebSearchResult[],
@@ -300,7 +293,7 @@ function mergeSearchResults(
  *   registrations; both are effect-scoped and unregister on plugin dispose.
  * @param maxResults - the deployment's source cap, sent as every seam
  *   request's `maxResults`.
- * @param maxQueries - the deployment's query cap enforced before provider calls.
+ * @param maxQueries - 调用 Provider 前执行的部署查询数量上限。
  * @param timeoutMs - the cooperative tool-call budget (ms) attached as the tool's
  *   `ToolDefinition.timeoutMs` for `@deepseek-ai/dsh-tool-call-timeout-policy` to enforce.
  * @param fetchEnabled - whether the same composition exposes `web_fetch`, which
@@ -363,7 +356,7 @@ export function applyWebSearchTool(
       presentationMeta: (_args, value) => searchMetaFromValue(value),
     },
     timeoutMs,
-    // Provider reads do not mutate parent-agent state.
+    // Provider 读取不会修改父 Agent 状态。
     isConcurrencySafe: () => true,
     async execute(args, exec) {
       const queries = parseSearchArgs(args, maxQueries)

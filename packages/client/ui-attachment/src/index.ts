@@ -1,4 +1,4 @@
-/** Host half of the browser-only attachment presentation plugin. */
+/** 仅浏览器附件展示插件的 Host half。 */
 
-/** No host-side behavior; the client half registers the React slot entries. */
+/** 无 Host 侧行为；Client half 负责注册 React Slot 条目。 */
 export function apply(): void {}

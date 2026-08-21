@@ -1,6 +1,6 @@
 - menu "模型与推理等级":
-  - menuitemradio "Default" [checked]:
-    - text: Default
+  - menuitemradio "默认" [checked]:
+    - text: 默认
     - img
   - menuitemradio "Off"
   - menuitemradio "High"

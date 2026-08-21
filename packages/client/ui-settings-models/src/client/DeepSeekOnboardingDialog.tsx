@@ -29,7 +29,7 @@ export interface DeepSeekOnboardingInjected {
   controller: ModelsSettingsStore
   /** Existing wire face reused by the Models credential editor. */
   api: Pick<IApiClient, 'settings' | 'credentials' | 'llm'>
-  /** Settings schema and immutable path callbacks. */
+  /** 设置 Schema 与不可变路径操作回调。 */
   schema: SettingsSchemaOperations
   /** Feature copy. */
   t: (key: keyof typeof en) => string

@@ -1,4 +1,4 @@
-/** Host registration for the browser theme preference and pre-plugin palette. */
+/** 在 Host 注册浏览器主题偏好及插件启动前使用的配色。 */
 
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
@@ -16,7 +16,7 @@ export {
 
 const THEME_NAMESPACE = settingsNamespace(THEME_SETTINGS_NAMESPACE)
 
-/** Read the registered preference or use the schema default without a settings provider. */
+/** 读取已注册的偏好；没有设置 Provider 时使用 Schema 默认值。 */
 function readPreference(ctx: Context): ThemePreference {
   const settings = ctx.get('settings')
   if (settings === undefined) return DEFAULT_PREFERENCE
@@ -26,10 +26,9 @@ function readPreference(ctx: Context): ThemePreference {
 }
 
 /**
- * Register the durable theme section when the optional settings service is
- * composed, and answer every index injection collection with the current
- * theme bootstrap row.
- * @param ctx - Host context that may acquire the settings service.
+ * 可选设置服务组合进来后注册持久化主题区段，并在每次收集 index 注入项时
+ * 提供基于当前偏好的主题引导项。
+ * @param ctx - 可能取得设置服务的 Host 上下文。
  */
 export function apply(ctx: Context): void {
   ctx.inject(['settings'], (settingsCtx) => {

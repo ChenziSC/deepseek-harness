@@ -5,18 +5,18 @@ import type { ImageLightboxLabels } from '../ImageLightbox.tsx'
 import type { MessageImageLabels } from '../MessageImage.tsx'
 
 /**
- * Resolve original-image lightbox strings from the conversation namespace.
- * @param t - conversation namespace translator.
- * @returns translated lightbox labels.
+ * 从 Conversation namespace 解析原图 Lightbox 文案。
+ * @param t - Conversation namespace translator。
+ * @returns 已翻译的 Lightbox 标签。
  */
 export function lightboxLabels(t: TranslateNS<'conversation'>): ImageLightboxLabels {
   return { dialog: t('image.preview'), close: t('image.closePreview') }
 }
 
 /**
- * Resolve historical message-image strings from the conversation namespace.
- * @param t - conversation namespace translator.
- * @returns translated message-image labels.
+ * 从 Conversation namespace 解析历史消息图片文案。
+ * @param t - Conversation namespace translator。
+ * @returns 已翻译的消息图片标签。
  */
 export function messageImageLabels(t: TranslateNS<'conversation'>): MessageImageLabels {
   return {
@@ -30,11 +30,11 @@ export function messageImageLabels(t: TranslateNS<'conversation'>): MessageImage
 }
 
 /**
- * Resolve the document-level drop invitation and its optional limits line.
- * @param t - conversation namespace translator.
- * @param accepting - whether the composer can accept dropped files.
- * @param limits - optional translated count and size values.
- * @returns translated drop-overlay labels.
+ * 解析文档级拖放邀请，以及可选的限制说明行。
+ * @param t - Conversation namespace translator。
+ * @param accepting - Composer 是否可接受拖入文件。
+ * @param limits - 可选且已翻译的数量和尺寸值。
+ * @returns 已翻译的拖放 Overlay 标签。
  */
 export function dropOverlayLabels(
   t: TranslateNS<'conversation'>,
@@ -49,9 +49,9 @@ export function dropOverlayLabels(
 }
 
 /**
- * Resolve draft-image rail strings from the conversation namespace.
- * @param t - conversation namespace translator.
- * @returns translated attachment-rail labels.
+ * 从 Conversation namespace 解析草稿图片 Rail 文案。
+ * @param t - Conversation namespace translator。
+ * @returns 已翻译的附件 Rail 标签。
  */
 export function attachmentRailLabels(t: TranslateNS<'conversation'>): AttachmentRailLabels {
   return {

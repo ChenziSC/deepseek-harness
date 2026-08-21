@@ -1,9 +1,8 @@
 /**
- * Models settings page store: one snapshot joining the configurable-provider
- * directory (`llm.providers`), the settings namespaces (shared settings mirror),
- * and the referenced credentials (`credentials.describe`). The host stays the
- * single fact source — every mutation writes through the wire and the page
- * re-renders from the next describe, pushed or refetched.
+ * Models 设置页存储：用一个快照联接可配置提供方目录（`llm.providers`）、设置命名
+ * 空间（共享 settings 镜像）和被引用凭据（`credentials.describe`）。Host 始终是
+ * 唯一事实来源；每次变更都通过线协议写入，页面从下一次推送或重新获取的 describe
+ * 重新渲染。
  */
 
 import type {
@@ -15,70 +14,67 @@ import type { SettingsDescribeFace } from '@deepseek-ai/dsh-client-ui-settings/c
 import type { SettingsSchemaOperations } from './schema-operations.ts'
 
 /**
- * Any route key walks a dict schema to the same profile node, so the lookup
- * names one that cannot collide with a configured route.
+ * 任意路由键遍历 dict schema 都会到达同一 profile 节点，因此查询使用一个不可能
+ * 与已配置路由冲突的名称。
  */
 const PROBE_ROUTE = '\u0000probe'
 
-/** One provider row the page renders. */
+/** 页面渲染的一行提供方。 */
 export interface ProviderRow {
-  /** The directory entry (route id, display name, settings address, live state). */
+  /** 目录条目，包括路由 ID、展示名、设置地址和实时状态。 */
   entry: ConfigurableProviderView
-  /** Whether any layer configures this provider (its profile resolves). */
+  /** 是否有任一层配置此提供方，即其 profile 能否解析。 */
   configured: boolean
-  /** Whether the user layer alone carries the profile (removal restores the base). */
+  /** 是否只有用户层携带 profile；移除后会恢复 base。 */
   removable: boolean
-  /** The credential reference the resolved profile names, when one does. */
+  /** 已解析 profile 指定凭据时，其凭据引用。 */
   apiKeyEnv: string | undefined
-  /** Credential state for {@link apiKeyEnv}, once described. */
+  /** describe 完成后 {@link apiKeyEnv} 对应的凭据状态。 */
   credential: CredentialView | undefined
 }
 
-/** Page snapshot. */
+/** 页面快照。 */
 export interface ModelsSettingsState {
   status: 'idle' | 'loading' | 'ready' | 'error'
-  /** Whole-load failure text; row-level write failures stay in the editor. */
+  /** 整体加载失败文本；行级写入失败保留在编辑器中。 */
   error: string | null
-  /** Credential enrichment failure; provider/settings rows remain usable. */
+  /** 凭据补充失败；提供方/settings 行仍可使用。 */
   credentialError: string | null
-  /** Whether the settings provider accepts writes. */
+  /** settings 提供方是否接受写入。 */
   writable: boolean
-  /** Every configurable provider joined with its configured/credential state. */
+  /** 每个可配置提供方与其配置/凭据状态的联接结果。 */
   rows: readonly ProviderRow[]
-  /** Namespace views by ns, for the editor's schema/layers/secrets. */
+  /** 按 ns 索引的命名空间视图，供编辑器读取 schema/layers/secrets。 */
   namespaces: ReadonlyMap<string, SettingsNamespaceView>
 }
 
 /**
- * Human text for a rejected wire call. A transport failure rejects with an
- * Error; a host or a runtime can reject with anything, and the page still has
- * to say something.
- * @param error - the rejection value.
- * @returns the message to show.
+ * 线协议调用被拒绝时的可读文本。传输失败会以 Error 拒绝，Host 或运行时则可能
+ * 用任意值拒绝，但页面仍必须显示内容。
+ * @param error - 拒绝值。
+ * @returns 要显示的消息。
  */
 export function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
 /**
- * Derive the conventional credential reference for a provider route: the v1
- * page never asks for an environment-variable name, so a typed key stores
- * under this derived reference and the profile records it as `apiKeyEnv`.
- * @param provider - provider route id (e.g. `anthropic`, `minimax-cn`).
- * @returns the derived reference name (e.g. `MINIMAX_CN_API_KEY`).
+ * 为提供方路由派生常规凭据引用。v1 页面从不要求用户填写环境变量名，因此输入的键
+ * 保存到该派生引用下，profile 则把它记录为 `apiKeyEnv`。
+ * @param provider - 提供方路由 ID，如 `anthropic`、`minimax-cn`。
+ * @returns 派生引用名，如 `MINIMAX_CN_API_KEY`。
  */
 export function deriveKeyRef(provider: string): string {
   return `${provider.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}_API_KEY`
 }
 
 /**
- * The wire protocols a hand-declared route may name, read out of the owning
- * namespace's own schema. This stays a schema read rather than a wire field so
- * the choices the page offers cannot drift from the ones the adapter accepts:
- * both come from the same `Config`.
- * @param namespace - the namespace view whose schema declares the profile shape.
- * @param schema - settings schema operations.
- * @returns the protocol identifiers, or an empty list when the schema has none.
+ * 手工声明路由可指定的线协议，从所属命名空间自身 schema 读取。它保持为 schema
+ * 读取而不是线协议字段，使页面提供的选项不会与 adapter 接受的选项漂移；两者都
+ * 来自同一个 `Config`。
+ * @param namespace - 其 schema 声明 profile 结构的命名空间视图。
+ * @param schema - settings schema 操作。
+ * @returns 协议标识列表；schema 没有声明时为空列表。
  */
 export function protocolChoices(
   namespace: SettingsNamespaceView | undefined,
@@ -91,7 +87,7 @@ export function protocolChoices(
   return list.list.map(entry => entry.value).filter((value): value is string => typeof value === 'string')
 }
 
-/** The credential reference a resolved profile names (its `apiKeyEnv` field). */
+/** 已解析 profile 指定的凭据引用，即其 `apiKeyEnv` 字段。 */
 function apiKeyEnvOf(
   namespace: SettingsNamespaceView | undefined,
   path: readonly string[],
@@ -104,19 +100,19 @@ function apiKeyEnvOf(
   return typeof ref === 'string' && ref.length > 0 ? ref : undefined
 }
 
-/** The models settings page controller (one per settings surface). */
+/** Models 设置页控制器；每个设置界面一个。 */
 export class ModelsSettingsStore {
-  /** The snapshot the section renders from (uSES-safe store). */
+  /** 分区用于渲染的快照，来自符合 uSES 要求的存储。 */
   readonly store: SnapshotStore<ModelsSettingsState> = createSnapshotStore<ModelsSettingsState>({
     status: 'idle', error: null, credentialError: null, writable: false, rows: [], namespaces: new Map(),
   })
 
-  /** Latest load wins; an older response never overwrites a newer one. */
+  /** 最新加载获胜；旧响应绝不覆盖新响应。 */
   private generation = 0
 
   /**
-   * @param api - the wire face (credentials/llm domains, and settings writes).
-   * @param describeFace - the shared mirror's describe face (namespace views and writability).
+   * @param api - 线协议接口，包括 credentials/llm 领域和 settings 写入。
+   * @param describeFace - 共享镜像的 describe 接口，提供命名空间视图和可写性。
    */
   constructor(
     private readonly api: Pick<IApiClient, 'settings' | 'credentials' | 'llm'>,
@@ -125,12 +121,10 @@ export class ModelsSettingsStore {
   ) {}
 
   /**
-   * Refresh the whole page snapshot: the provider directory and the mirror's
-   * settings answer in parallel, then one batched credential describe over
-   * every referenced ref. Provider failure or absence of an initial settings
-   * answer keeps the last good rows and surfaces an error; a failed settings
-   * refresh reuses the mirror's held view.
-   * @returns nothing; the snapshot carries the outcome.
+   * 刷新整个页面快照：并行读取提供方目录和镜像 settings 回答，再对所有被引用 ref
+   * 批量执行一次凭据 describe。提供方失败或缺少初始 settings 回答时保留最近正常行
+   * 并显示错误；settings 刷新失败则复用镜像持有的视图。
+   * @returns 无返回值；结果由快照承载。
    */
   async load(): Promise<void> {
     const generation = ++this.generation
@@ -182,9 +176,8 @@ export class ModelsSettingsStore {
     if (refs.length > 0) {
       try {
         const response = await this.api.credentials.describe({ refs })
-        // Credential state is an enrichment for the Models page: neither a
-        // business rejection nor a transport failure fails the load. The
-        // onboarding projection below retains the failure distinction.
+        // 凭据状态只是 Models 页的补充信息：业务拒绝和传输失败都不会让整体加载失败。
+        // 下方 onboarding 投影仍保留失败类别差异。
         if (response.result.ok) credentials = response.result.value.credentials
         else credentialError = response.result.error.message
       } catch (error) {

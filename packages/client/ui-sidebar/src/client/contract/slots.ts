@@ -1,3 +1,7 @@
+// 中文学习导读：侧栏外壳只负责折叠状态、品牌行和“新建会话”；Workspace 浏览区、
+// 设置入口与底部操作都是独立 Slot。外壳只传列状态，业务数据由各注册方自行 inject，
+// 因而替换品牌或设置入口不需要接管整个侧栏。下方英文 JSDoc 是 client catalog 的
+// 生成来源，必须保持英文；本段负责提供中文架构说明。
 /**
  * Sidebar slot contract: the registrant-side props composition for the
  * layout-owned `sidebar` slot, plus the holes this shell declares. The shell

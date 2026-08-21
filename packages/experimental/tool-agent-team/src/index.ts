@@ -28,6 +28,10 @@ export const Config: z<Config> = z.object({
 })
 
 /** Model-facing collaboration guidance shared by Lead and teammates. */
+// 这段 POLICY 会在 Team 成员的 system prompt 组装阶段发送给模型，用来约束协作、
+// 文件并发和等待时序。它属于模型运行时输入且会影响工具选择，因此保留经过测试的
+// 英文原文；中文读者应把下方各段分别理解为启用条件、共享目录规则、冲突恢复规则
+// 和消息/任务/等待协议，修改时还需同步检查快照与 Agent Teams 行为测试。
 const POLICY = `Agent Teams is available in this session, but create teammates only when the user explicitly asks to use Agent Teams or teammates.
 
 The Team Lead and all teammates share the same working directory and filesystem. Edits are immediately visible to every member. Split write work into disjoint scopes, record expected write scopes on shared tasks, and use task dependencies when work must be ordered. Write-scope overlap is advisory, not a lock.

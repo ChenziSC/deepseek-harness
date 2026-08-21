@@ -1,3 +1,10 @@
+// 中文学习导读：本文件是会话 UI 的“装配图”，建议按运行顺序阅读：
+// 1. `conversation.session` 建立单个 Session 的页面边界；
+// 2. header 与 view Slot 组装标题、导航和当前视图；
+// 3. `conversation.chat.*` 按 Node/命令/Turn 分派持久化会话内容；
+// 4. `conversation.composer` 先进行接管选择，再由默认输入栏及其左右/dock 插槽组成输入区；
+// 5. 下方 owner props 只描述各 Slot 跨模块传递的数据，业务服务仍由注册方 inject。
+// 紧随其后的英文 JSDoc 是 client catalog 的生成来源，必须保持英文以免污染英文目录。
 /** Conversation slot declarations and their composed component props. */
 import type { ReactNode, RefObject } from 'react'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'

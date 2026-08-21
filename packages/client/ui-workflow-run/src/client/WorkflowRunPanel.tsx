@@ -348,7 +348,7 @@ export function WorkflowRunPanel({ node, sessionId, useSessions, openSession, t 
     shallowEqual,
   )
 
-  // Outer hiding unmounts Phase content without a dependable blur event, so this edge settles deferred closes.
+  // 外层隐藏会直接卸载 Phase 内容，无法依赖 blur 事件，因此在这个状态边沿完成延迟关闭。
   useLayoutEffect(() => {
     setDisclosures((current) => {
       const phases = new Map<string, DisclosureState>()

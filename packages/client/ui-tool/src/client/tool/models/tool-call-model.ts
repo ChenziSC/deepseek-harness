@@ -211,7 +211,7 @@ function deriveBody(variant: ToolRowVariant, argsRaw: string): string | null {
  * @param toolName - wire tool name (dispatch-supplied; survives windowless results).
  * @param block - RunningToolCall or ToolResultNode off the snapshot caches.
  * @param cwd - session workspace root; workspace-rooted path summaries display relative to it.
- * @param home - host account home; a leftover POSIX home path displays as `~`.
+ * @param home - Host 账户主目录；剩余的 POSIX 主目录路径显示为 `~`。
  * @returns the row model.
  */
 export function toolRowModel(toolName: string, block: ToolCallBlock, cwd?: string, home?: string): ToolRowModel {

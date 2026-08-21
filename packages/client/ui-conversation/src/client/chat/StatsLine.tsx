@@ -1,12 +1,12 @@
-// Settled-node identity prevents stream-delta updates from rerendering this row.
-// Mounted on 'conversation.composer.dock' so it sticks with the composer in the
-// active conversation scrollport (see ConversationRoot data-conversation-scroll).
+// 已结算节点身份可防止流增量更新重渲染此行。它挂载在
+// 'conversation.composer.dock'，因此会在活动会话滚动区中与编辑器粘在一起；
+// 见 ConversationRoot data-conversation-scroll。
 
 import { Fragment, memo, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ConversationSnapshot, UseProjection } from '@deepseek-ai/dsh-client-runtime/client'
 import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
-// Type-only: merges the sessionStats key into SessionProjectionMap for useProjection.
+// 仅类型：把 sessionStats 键合并进 SessionProjectionMap，供 useProjection 使用。
 import type {} from '@deepseek-ai/dsh-session-stats/client'
 import type { ContextPressureProjection, TokenUsageProjection } from '@deepseek-ai/dsh-token-meter/client'
 import type { ComposerBarProps } from '../contract/slots.ts'
@@ -17,31 +17,29 @@ import css from './StatsLine.module.css'
 interface WindowStats {
   turns: number
   steps: number
-  /** Summed request wall time (step/start → assistant/message); 0 when no node carries timing. */
+  /** 请求墙上时间总和（step/start → assistant/message）；没有节点携带 timing 时为 0。 */
   llmMs: number
-  /** Summed tool wall time (tool/call → tool/result); 0 when no pair is in-window. */
+  /** 工具墙上时间总和（tool/call → tool/result）；窗口内没有配对时为 0。 */
   toolMs: number
-  /** Summed first-token latency over `ttftSteps`; 0 when no step records it. */
+  /** `ttftSteps` 上首 token 延迟总和；没有 step 记录时为 0。 */
   ttftMs: number
-  /** Steps carrying a recorded TTFT. */
+  /** 带有已记录 TTFT 的 step 数。 */
   ttftSteps: number
-  /** Summed decode wall time over steps that also report output tokens. */
+  /** 同时报告输出 token 的 step 上 decode 墙上时间总和。 */
   decodeMs: number
-  /** Summed output tokens over the same decode-timed steps. */
+  /** 同一批带 decode 时间 step 的输出 token 总和。 */
   decodeTokens: number
 }
 
 /**
- * Fold assistant and tool-result nodes into window-scoped display totals —
- * the FALLBACK for assemblies without the `sessionStats` projection.
+ * 把助手和 tool-result 节点折叠为窗口作用域展示总计；这是未提供 `sessionStats`
+ * 投影的装配所用 fallback。
  *
- * Every displayed figure rides that durable whole-log projection (and token
- * accounting rides `tokenUsage`) because the window is paged and compaction
- * rewrites it; this fold answers "what is on screen" only when no projection
- * value is served. Its field names deliberately mirror the projection's so
- * the two swap wholesale.
- * @param nodes - snapshot nodes.
- * @returns fallback counts and summed wall times.
+ * 由于窗口会分页且 compaction 会重写它，每个展示数字都依赖持久化全日志投影，
+ * token 计量依赖 `tokenUsage`。只有未提供投影值时，此折叠才回答“屏幕上有什么”。
+ * 字段名有意与投影一致，使两者可以整体替换。
+ * @param nodes - 快照节点。
+ * @returns fallback 计数和墙上时间总和。
  */
 export function deriveStats(nodes: ConversationSnapshot['nodes']): WindowStats {
   const turns = new Set<number>()
@@ -77,9 +75,9 @@ export function deriveStats(nodes: ConversationSnapshot['nodes']): WindowStats {
 }
 
 /**
- * Compact token count: 517 / 12.2K / 517K / 1.2M (one decimal under three digits).
- * @param n - token count.
- * @returns display string.
+ * 紧凑 token 数：517 / 12.2K / 517K / 1.2M；三位数以下保留一位小数。
+ * @param n - token 数。
+ * @returns 展示字符串。
  */
 export function formatTokens(n: number): string {
   const scaled = (v: number): string =>
@@ -90,9 +88,9 @@ export function formatTokens(n: number): string {
 }
 
 /**
- * Compact duration: 45.2s under a minute, 2m42s from there on.
- * @param ms - duration in milliseconds.
- * @returns display string.
+ * 紧凑时长：一分钟内显示 45.2s，之后显示 2m42s。
+ * @param ms - 毫秒时长。
+ * @returns 展示字符串。
  */
 export function formatDuration(ms: number): string {
   const s = ms / 1_000
@@ -101,7 +99,7 @@ export function formatDuration(ms: number): string {
   return `${Math.floor(whole / 60)}m${whole % 60}s`
 }
 
-/** Round a cache-read ratio to an integer percentage, with positive ties rounded up. */
+/** 把缓存读取比例舍入为整数百分比；正数恰好居中时向上舍入。 */
 function roundedIntegerPercent(cacheReadTokens: number, denominator: number): number {
   const denominatorQuotient = Math.floor(denominator / 200)
   const denominatorRemainder = denominator % 200
@@ -122,11 +120,10 @@ function roundedIntegerPercent(cacheReadTokens: number, denominator: number): nu
 }
 
 /**
- * Display-ready cache-hit share of prompt-side input over the whole durable log.
- * @param usage - the session's token-usage projection value.
- * @returns integer text when integer rounding stays below 100, otherwise the
- * minimum decimal precision that still rounds below 100; a full hit returns
- * 100, and no billed input returns null.
+ * 整份持久日志中 prompt 侧输入的可展示缓存命中比例。
+ * @param usage - 会话 token-usage 投影值。
+ * @returns 整数舍入低于 100 时返回整数文本；否则返回仍能舍入到 100 以下的最小
+ * 小数精度。完全命中返回 100，没有计费输入时返回 null。
  */
 export function cacheHitPercent(usage: TokenUsageProjection): string | null {
   const denominator = billedInputTokens(usage)
@@ -137,10 +134,8 @@ export function cacheHitPercent(usage: TokenUsageProjection): string | null {
   const integerPercent = roundedIntegerPercent(usage.cacheReadTokens, denominator)
   if (integerPercent < 100) return String(integerPercent)
 
-  // At the first distinguishing precision, the rounded result is 100 minus
-  // one to five units in the final decimal place. Scale only while the next
-  // multiplication remains at or below the denominator, then derive that
-  // final digit through exact small-factor comparisons.
+  // 在首个可区分精度上，舍入结果是 100 减去末位小数的一到五个单位。只有下一次
+  // 乘法仍不超过分母时才继续缩放，然后通过精确小因子比较派生最后一位。
   let decimalPlaces = 1
   let scaledDoubleGap = missedInputTokens * 200
   const denominatorTens = Math.floor(denominator / 10)
@@ -162,9 +157,9 @@ export function cacheHitPercent(usage: TokenUsageProjection): string | null {
 }
 
 /**
- * Sum the three disjoint prompt-side billing buckets.
- * @param usage - the session's token-usage projection value.
- * @returns billed input tokens.
+ * 汇总三个互不重叠的 prompt 侧计费桶。
+ * @param usage - 会话 token-usage 投影值。
+ * @returns 已计费输入 token 数。
  */
 export function billedInputTokens(usage: TokenUsageProjection): number {
   return usage.uncachedInputTokens + usage.cacheReadTokens + usage.cacheWriteTokens

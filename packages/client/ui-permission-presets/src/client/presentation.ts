@@ -1,7 +1,7 @@
-/** Machine value of the preset that requires an explicit GUI risk gate. */
+/** 需要显式 GUI 风险门的 preset 机器值。 */
 export const FULL_ACCESS_PRESET = 'danger-full-access'
 
-/** Locale dictionary key for a built-in permission preset label. */
+/** 内置权限 preset 标签的 locale 字典键。 */
 export type PermissionPresetLabelKey =
   | 'preset.readOnly'
   | 'preset.workspaceWrite'
@@ -20,9 +20,9 @@ const DEFAULT_PRESET_LABELS: Record<PermissionPresetLabelKey, string> = {
 }
 
 /**
- * Convert conventional kebab-case preset names into user-facing title case.
- * @param name - host-supplied preset label or key.
- * @returns the title-cased conventional key, or a non-kebab label unchanged.
+ * 把常规 kebab-case preset 名称转换为面向用户的标题格式。
+ * @param name - Host 提供的 preset 标签或键。
+ * @returns 标题格式的常规键；非 kebab 标签原样返回。
  */
 export function displayPresetName(name: string): string {
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name)) return name
@@ -30,11 +30,11 @@ export function displayPresetName(name: string): string {
 }
 
 /**
- * Render a permission preset under its product label.
- * @param value - preset machine value.
- * @param name - host-supplied preset name.
- * @param t - optional locale dictionary lookup for built-in product labels.
- * @returns the built-in product label or the conventional display name.
+ * 使用产品标签渲染权限 preset。
+ * @param value - preset 机器值。
+ * @param name - Host 提供的 preset 名称。
+ * @param t - 内置产品标签的可选 locale 字典查询。
+ * @returns 内置产品标签或常规展示名称。
  */
 export function displayPermissionPreset(
   value: string,

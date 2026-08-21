@@ -17,6 +17,10 @@
  * @module @deepseek-ai/dsh-session-projection
  */
 
+// 学习入口：把投影理解为“事件日志 → 可重算读取状态”。领域插件只提供同步纯 fold；
+// 本注册表统一推进水位、缓存结果并通知 Host 消费方。wire view 是对当前完整状态的安全
+// 映射，不是另一份真源，也不能反向修改会话日志。
+
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { ZodType } from 'zod'
 import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'

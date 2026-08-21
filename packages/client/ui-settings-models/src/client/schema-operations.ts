@@ -2,16 +2,16 @@ import type {
   SettingsSchemaService,
 } from '@deepseek-ai/dsh-client-ui-settings/client'
 
-/** Plain schema callbacks exposed to Models stores and presentation components. */
+/** 暴露给 Models 存储和展示组件的纯 schema 回调。 */
 export type SettingsSchemaOperations = Pick<
   SettingsSchemaService,
   'rehydrate' | 'validate' | 'nodeAtPath' | 'getPath' | 'hasPath' | 'setPath' | 'deletePath'
 >
 
 /**
- * Hide the Cordis service identity behind bound schema callbacks.
- * @param service - settings-owned schema service available in the apply context.
- * @returns callbacks that cannot expose the service context to React components.
+ * 把 Cordis 服务身份隐藏在已绑定 schema 回调之后。
+ * @param service - apply 上下文中可用、由 settings 拥有的 schema 服务。
+ * @returns 无法向 React 组件暴露服务上下文的回调。
  */
 export function createSettingsSchemaOperations(service: SettingsSchemaService): SettingsSchemaOperations {
   return {

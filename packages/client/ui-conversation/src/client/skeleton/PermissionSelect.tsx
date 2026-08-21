@@ -46,8 +46,7 @@ function permissionGlyph(value: string): ReactNode | undefined {
 }
 
 /**
- * Display transform: built-in machine names render as locale product labels;
- * non-kebab host-configured names pass through.
+ * 展示转换：内置机器名渲染为 locale 产品标签；Host 配置的非 kebab 名称原样透传。
  */
 function displayName(name: string): string {
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name)) return name

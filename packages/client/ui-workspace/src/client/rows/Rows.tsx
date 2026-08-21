@@ -51,7 +51,7 @@ function createdLabel(createdAt: number, t: RowTranslate): string {
   return t('hover.created', { time: `${date} ${pad2(d.getHours())}:${pad2(d.getMinutes())}` })
 }
 
-/** Hover-card body: workspace title, display directory path, absolute creation time. */
+/** 悬浮卡片内容：Workspace 标题、展示用目录路径与绝对创建时间。 */
 function WorkspaceHoverContent({ label, cwd, createdAt, t }: {
   label: string
   cwd: string | undefined
@@ -105,7 +105,7 @@ function rowHalf(e: { clientY: number; currentTarget: HTMLElement }): 'before' |
  * @param props.onToggle - expand/collapse the group.
  * @param props.onCreate - start a frontend Session inside this Workspace.
  * @param props.drag - optional workspace-row drag wiring.
- * @param props.home - host account home for POSIX hover-path abbreviation.
+ * @param props.home - Host 账户主目录，用于缩写悬浮卡片中的 POSIX 路径。
  * @param props.t - the browser root's locale seat.
  * @returns the row element.
  */
@@ -117,7 +117,7 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
   actions?: { rename: () => void; delete: () => void } | undefined
   /** Present only for real Workspace rows in the grouped view. */
   drag?: WorkspaceRowDragProps | undefined
-  /** Host account home; POSIX home-rooted hover paths display as `~`. */
+  /** Host 账户主目录；POSIX 主目录下的悬浮路径显示为 `~`。 */
   home?: string | undefined
   t: RowTranslate
 }) {

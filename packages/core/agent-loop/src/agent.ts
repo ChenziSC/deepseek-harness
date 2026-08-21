@@ -4,6 +4,10 @@
  * @module dsh-agent-loop/agent
  */
 
+// 学习入口：ReactLoopAgent 只拥有驱动时序。wakeDriver/kick 管理一次驱动占用，turn
+// 建立 Turn/Step 事件边界，preStep 领取 inbox 并组装上下文，step 请求模型并派发工具。
+// 提示词、工具策略、压缩和重试等行为应由扩展点插件贡献，不应继续堆进这个循环。
+
 import type {
   Agent,
   AgentCancelCause,

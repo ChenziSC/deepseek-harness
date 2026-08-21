@@ -1,9 +1,8 @@
 /**
- * File/session reference plugin, node half. Pure UI plugin: the empty apply
- * exists so the plugin appears in the host cordis.yml / Loader; the browser
- * half ships via exports["./client"], discovered through the package.json
- * `dsh.client` declaration.
+ * 文件/Session Reference 插件的 Node half。作为纯 UI 插件，空 apply 用于让插件出现在
+ * Host cordis.yml / Loader 中；Browser half 通过 exports["./client"] 发布，并由
+ * package.json 的 `dsh.client` 声明发现。
  */
 
-/** Host plugin body — no host-side behavior for this source plugin. */
+/** Host 插件主体；本数据源插件没有 Host 侧行为。 */
 export function apply(): void {}

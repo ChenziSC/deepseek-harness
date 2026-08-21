@@ -218,11 +218,11 @@ function UserStyleBubble({
 }: {
   content: readonly unknown[]
   renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
-  /** Optional IconActions (or similar) below the bubble; receives the joined text. */
+  /** 气泡下方可选的 IconActions 或类似操作；接收拼接后的文本。 */
   actions?: (text: string) => ReactNode
-  /** Whether this is the Host-authoritative pre-admission steering projection. */
+  /** 是否为 Host 权威的准入前 steering 投影。 */
   pending?: boolean
-  /** Exact session mention labels associated by the adjacent recall node. */
+  /** 由相邻 recall 节点关联的精确会话提及标签。 */
   referenceLabels?: readonly string[]
   t: ChatViewSlotProps['t']
 }): ReactNode {

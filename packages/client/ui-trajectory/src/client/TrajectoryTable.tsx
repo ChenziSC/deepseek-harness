@@ -1,5 +1,10 @@
 /** Turn-aware trajectory event ledger with a local record inspector. */
 
+// 学习入口：这个组件不创造会话事实。它把 layout 已整理的语义记录分为“可虚拟滚动
+// 的事件账本”和“当前记录检查器”两块；选择、折叠、搜索命中都只是本地展示状态。
+// SYSTEM/USER/ASSISTANT/TOOL/SUBTOOL 是事件分类标签，保持英文可与日志类型直接对照；
+// 其余人类可读文案从 trajectory locale 取得。
+
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
@@ -16,6 +21,13 @@ import { structuredPatch } from 'diff'
 import type {
   AssistantRequestConfig, ConversationPromptSnapshot,
 } from '@deepseek-ai/dsh-client-runtime/client'
+import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
+import {
+  TrajectoryTranslateContext,
+  translateEnglish,
+  useTrajectoryTranslate,
+  type NS,
+} from './locales.ts'
 import type {
   AssistantMetricDetail, TrajectoryCellKind, TrajectoryCellProps, TrajectorySourceBlock,
 } from './trajectory-record.ts'
@@ -173,6 +185,24 @@ interface DetailTabItem {
   label: string
 }
 
+function detailTabLabel(id: DetailTab, t: TranslateNS<typeof NS>): string {
+  switch (id) {
+    case 'system-prompt': return t('tab.systemPrompt')
+    case 'tools': return t('tab.tools')
+    case 'diff': return t('tab.diff')
+    case 'overview': return t('tab.summary')
+    case 'options': return t('tab.options')
+    case 'usage': return t('tab.usage')
+    case 'timing': return t('tab.timing')
+    case 'rendered': return t('tab.preview')
+    case 'raw': return t('tab.raw')
+    case 'source': return t('tab.source')
+    case 'input': return t('tab.payload')
+    case 'output': return t('tab.result')
+    case 'schema': return t('tab.schema')
+  }
+}
+
 interface ParentRecords {
   message?: TableRecord
   tool?: TableRecord
@@ -262,8 +292,7 @@ function formatDurationMs(milliseconds: number): string {
   return `${(milliseconds / 1_000).toFixed(milliseconds < 10_000 ? 2 : 1)} s`
 }
 
-function formatStartedAt(timestamp: number | null): string {
-  if (timestamp === null || !Number.isFinite(timestamp)) return 'Not available'
+function formatStartedAt(timestamp: number): string {
   const date = new Date(timestamp)
   const two = (value: number) => String(value).padStart(2, '0')
   const three = (value: number) => String(value).padStart(3, '0')
@@ -282,14 +311,15 @@ function clickSelectsText(target: Node): boolean {
 }
 
 function StartedAtValue({ timestamp }: { timestamp: number | null }) {
+  const t = useTrajectoryTranslate()
   const [showUnix, setShowUnix] = useState(false)
-  if (timestamp === null || !Number.isFinite(timestamp)) return <dd>Not available</dd>
+  if (timestamp === null || !Number.isFinite(timestamp)) return <dd>{t('table.notAvailable')}</dd>
   return (
     <dd>
       <button
         type="button"
         className={css.timestampToggle}
-        title={showUnix ? 'Show local time' : 'Show Unix timestamp'}
+        title={showUnix ? t('table.showLocalTime') : t('table.showUnixTimestamp')}
         onClick={(event) => {
           if (clickSelectsText(event.currentTarget)) return
           setShowUnix(current => !current)
@@ -301,44 +331,45 @@ function StartedAtValue({ timestamp }: { timestamp: number | null }) {
   )
 }
 
-function totalTime(metrics: AssistantMetricDetail): string {
-  if (!metrics.timingRecorded) return 'Not recorded'
-  if (metrics.stepStartTime === null) return 'Step start unavailable'
-  if (metrics.completedTime === null) return 'Pending'
+function totalTime(metrics: AssistantMetricDetail, t: TranslateNS<typeof NS>): string {
+  if (!metrics.timingRecorded) return t('table.notRecorded')
+  if (metrics.stepStartTime === null) return t('table.stepStartUnavailable')
+  if (metrics.completedTime === null) return t('table.pending')
   return formatDurationMs(Math.max(0, metrics.completedTime - metrics.stepStartTime))
 }
 
-function ttft(metrics: AssistantMetricDetail): string {
-  if (!metrics.timingRecorded) return 'Not recorded'
-  if (metrics.stepStartTime === null) return 'Step start unavailable'
-  if (metrics.firstTokenTime === null) return 'First token unavailable'
+function ttft(metrics: AssistantMetricDetail, t: TranslateNS<typeof NS>): string {
+  if (!metrics.timingRecorded) return t('table.notRecorded')
+  if (metrics.stepStartTime === null) return t('table.stepStartUnavailable')
+  if (metrics.firstTokenTime === null) return t('table.firstTokenUnavailable')
   return formatDurationMs(Math.max(0, metrics.firstTokenTime - metrics.stepStartTime))
 }
 
-function generationTime(metrics: AssistantMetricDetail): string {
-  if (!metrics.timingRecorded || metrics.firstTokenTime === null) return 'First token unavailable'
-  if (metrics.completedTime === null) return 'Pending'
+function generationTime(metrics: AssistantMetricDetail, t: TranslateNS<typeof NS>): string {
+  if (!metrics.timingRecorded || metrics.firstTokenTime === null) return t('table.firstTokenUnavailable')
+  if (metrics.completedTime === null) return t('table.pending')
   return formatDurationMs(Math.max(0, metrics.completedTime - metrics.firstTokenTime))
 }
 
-function throughput(metrics: AssistantMetricDetail): string {
-  if (!metrics.usageProvided) return 'Usage unavailable'
-  if (metrics.outputTokens === null) return 'Output tokens unavailable'
-  if (!metrics.timingRecorded || metrics.firstTokenTime === null) return 'First token unavailable'
-  if (metrics.completedTime === null) return 'Pending'
+function throughput(metrics: AssistantMetricDetail, t: TranslateNS<typeof NS>): string {
+  if (!metrics.usageProvided) return t('table.usageUnavailable')
+  if (metrics.outputTokens === null) return t('table.outputTokensUnavailable')
+  if (!metrics.timingRecorded || metrics.firstTokenTime === null) return t('table.firstTokenUnavailable')
+  if (metrics.completedTime === null) return t('table.pending')
   const generationSeconds = (metrics.completedTime - metrics.firstTokenTime) / 1_000
-  if (generationSeconds <= 0) return 'Duration too short'
+  if (generationSeconds <= 0) return t('table.durationTooShort')
   return `${(metrics.outputTokens / generationSeconds).toFixed(1)} tok/s`
 }
 
 function AssistantTimingPanel({ metrics }: { metrics: AssistantMetricDetail }) {
+  const t = useTrajectoryTranslate()
   return (
     <dl className={css.overview}>
-      <div><dt>Started</dt><StartedAtValue timestamp={metrics.stepStartTime} /></div>
-      <div><dt>Total duration</dt><dd>{totalTime(metrics)}</dd></div>
-      <div><dt>TTFT</dt><dd>{ttft(metrics)}</dd></div>
-      <div><dt>Generation</dt><dd>{generationTime(metrics)}</dd></div>
-      <div><dt>Throughput</dt><dd>{throughput(metrics)}</dd></div>
+      <div><dt>{t('table.started')}</dt><StartedAtValue timestamp={metrics.stepStartTime} /></div>
+      <div><dt>{t('table.totalDuration')}</dt><dd>{totalTime(metrics, t)}</dd></div>
+      <div><dt>TTFT</dt><dd>{ttft(metrics, t)}</dd></div>
+      <div><dt>{t('table.generation')}</dt><dd>{generationTime(metrics, t)}</dd></div>
+      <div><dt>{t('table.throughput')}</dt><dd>{throughput(metrics, t)}</dd></div>
     </dl>
   )
 }
@@ -387,6 +418,8 @@ export interface TrajectoryTableProps {
   inspectCallId?: string | null
   /** Acknowledge a consumed (or unresolvable) inspect request. */
   onInspectApplied?: (() => void) | undefined
+  /** Translate ledger copy; standalone component tests default to English. */
+  t?: TranslateNS<typeof NS>
 }
 
 /** Request-inspector fields shared by ordinary generation and compaction. */
@@ -510,8 +543,8 @@ function indexRequestBoundaries(records: readonly TableRecord[]): ReadonlyMap<st
   return boundaries
 }
 
-function sectionLabel(turn: number | null): string {
-  return turn === null ? 'Between turns' : `Turn ${turn}`
+function sectionLabel(turn: number | null, t: TranslateNS<typeof NS>): string {
+  return turn === null ? t('table.betweenTurns') : t('table.turn', { turn })
 }
 
 function indexRequestNumbers(
@@ -674,31 +707,32 @@ function stateOf(record: TableRecord): RecordState {
   return 'complete'
 }
 
-function statusLabel(state: RecordState): string {
-  if (state === 'error') return 'Failed'
-  if (state === 'running') return 'Pending'
-  return 'Completed'
+function statusLabel(state: RecordState, t: TranslateNS<typeof NS>): string {
+  if (state === 'error') return t('table.failed')
+  if (state === 'running') return t('table.pending')
+  return t('table.completed')
 }
 
 function TokenRows({ cell }: { cell: TrajectoryCellProps }) {
+  const t = useTrajectoryTranslate()
   const content = cell.output !== undefined && cell.think !== undefined
     ? Math.max(0, cell.output - cell.think)
     : undefined
   return (
     <>
       <div>
-        <dt>Tokens</dt>
+        <dt>{t('table.tokens')}</dt>
         <dd>{cell.output === undefined ? '—' : `${cell.output} tok`}</dd>
       </div>
       {cell.think !== undefined && (
         <div className={css.requestTokenDetail}>
-          <dt>Reasoning</dt>
+          <dt>{t('table.reasoning')}</dt>
           <dd>{cell.think} tok</dd>
         </div>
       )}
       {content !== undefined && (
         <div className={css.requestTokenDetail}>
-          <dt>Content</dt>
+          <dt>{t('table.content')}</dt>
           <dd>{content} tok</dd>
         </div>
       )}
@@ -716,7 +750,8 @@ function inputTotal(usage: TrajectoryUsage): number | undefined {
 }
 
 function UsageRows({ usage }: { usage: TrajectoryUsage | undefined }) {
-  if (usage === undefined) return <p className={css.noPayload}>Usage not reported</p>
+  const t = useTrajectoryTranslate()
+  if (usage === undefined) return <p className={css.noPayload}>{t('table.usageNotReported')}</p>
   const totalInput = inputTotal(usage)
   const otherOutput = usage.output !== undefined && usage.reasoning !== undefined
     ? usage.output - usage.reasoning
@@ -724,38 +759,38 @@ function UsageRows({ usage }: { usage: TrajectoryUsage | undefined }) {
   return (
     <dl className={css.overview}>
       {totalInput !== undefined && (
-        <div><dt>Input</dt><dd>{totalInput} tok</dd></div>
+        <div><dt>{t('table.input')}</dt><dd>{totalInput} tok</dd></div>
       )}
       {usage.cacheRead !== undefined && (
         <div className={css.requestTokenDetail}>
-          <dt>Cached</dt>
+          <dt>{t('table.cached')}</dt>
           <dd>{usage.cacheRead} tok</dd>
         </div>
       )}
       {usage.cacheWrite !== undefined && (
         <div className={css.requestTokenDetail}>
-          <dt>Cache created</dt>
+          <dt>{t('table.cacheCreated')}</dt>
           <dd>{usage.cacheWrite} tok</dd>
         </div>
       )}
       {usage.input !== undefined && (
         <div className={css.requestTokenDetail}>
-          <dt>Other</dt>
+          <dt>{t('table.other')}</dt>
           <dd>{usage.input} tok</dd>
         </div>
       )}
       {usage.output !== undefined && (
-        <div><dt>Output</dt><dd>{usage.output} tok</dd></div>
+        <div><dt>{t('table.output')}</dt><dd>{usage.output} tok</dd></div>
       )}
       {usage.reasoning !== undefined && (
         <div className={css.requestTokenDetail}>
-          <dt>Reasoning</dt>
+          <dt>{t('table.reasoning')}</dt>
           <dd>{usage.reasoning} tok</dd>
         </div>
       )}
       {otherOutput !== undefined && (
         <div className={css.requestTokenDetail}>
-          <dt>Content</dt>
+          <dt>{t('table.content')}</dt>
           <dd>{otherOutput} tok</dd>
         </div>
       )}
@@ -770,14 +805,15 @@ function RequestUsagePanel({
   usage: TrajectoryUsage | undefined
   cumulative: TrajectoryUsage | undefined
 }) {
+  const t = useTrajectoryTranslate()
   return (
     <div className={css.usagePanel}>
       <section className={css.usageGroup}>
-        <h4 className={css.usageHeading}>This request</h4>
+        <h4 className={css.usageHeading}>{t('table.thisRequest')}</h4>
         <UsageRows usage={usage} />
       </section>
       <section className={css.usageGroup}>
-        <h4 className={css.usageHeading}>Session cumulative</h4>
+        <h4 className={css.usageHeading}>{t('table.sessionCumulative')}</h4>
         <UsageRows usage={cumulative} />
       </section>
     </div>
@@ -791,51 +827,53 @@ function RequestOptions({
   options: AssistantRequestConfig | undefined
   preview?: boolean
 }) {
+  const t = useTrajectoryTranslate()
   if (options === undefined) {
-    return <p className={css.noPayload}>Options not recorded</p>
+    return <p className={css.noPayload}>{t('table.optionsNotRecorded')}</p>
   }
   return (
     <JsonTree
       data={options}
-      label="Request options JSON"
+      label={t('table.requestOptionsJson')}
       className={preview ? css.jsonPreview : css.jsonPayload}
     />
   )
 }
 
-function messageSourceLabel(source: unknown): string {
+function messageSourceLabel(source: unknown, t: TranslateNS<typeof NS>): string {
   if (typeof source !== 'object' || source === null || Array.isArray(source)) {
-    return 'Unknown'
+    return t('table.unknown')
   }
   const properties = source as Record<string, unknown>
   const kind = properties.kind
-  if (kind === 'user') return 'User'
+  if (kind === 'user') return t('table.user')
   if (kind === 'plugin') {
     const plugin = properties.plugin
     return typeof plugin === 'string' && plugin !== ''
-      ? `Plugin · ${plugin}`
-      : 'Plugin'
+      ? `${t('table.plugin')} · ${plugin}`
+      : t('table.plugin')
   }
   if (kind === 'goal') {
     const round = properties.round
     return typeof round === 'number' && round > 0
-      ? `Goal · Round ${round}`
-      : 'Goal'
+      ? t('table.goalRound', { round })
+      : t('table.goal')
   }
-  if (typeof kind !== 'string' || kind === '') return 'Unknown'
+  if (typeof kind !== 'string' || kind === '') return t('table.unknown')
   return `${kind[0]?.toUpperCase() ?? ''}${kind.slice(1)}`
 }
 
 function MessageSource({ record }: { record: TableRecord }) {
+  const t = useTrajectoryTranslate()
   const source = record.cell.messageSource
-  if (source === undefined) return <p className={css.noPayload}>Source not recorded</p>
+  if (source === undefined) return <p className={css.noPayload}>{t('table.sourceNotRecorded')}</p>
   const data = typeof source === 'object' && source !== null
     ? source
     : { value: source }
   return (
     <JsonTree
       data={data}
-      label="Message source JSON"
+      label={t('table.messageSourceJson')}
       className={css.jsonPayload}
     />
   )
@@ -979,6 +1017,7 @@ function RecordPresentation({
   cell: TrajectoryCellProps
   children: (value: RecordPresentationValue) => ReactNode
 }) {
+  const t = useTrajectoryTranslate()
   const displayText = useMemo(
     () => recordDisplayText(cell),
     [
@@ -993,7 +1032,7 @@ function RecordPresentation({
   const toolCallOnly = isToolCallOnly(cell)
   const toolCallText = toolCallTextParts(cell.kind, displayText)
   const listDisplayText = toolCallOnly
-    ? '(tool call only)'
+    ? t('table.toolCallOnly')
     : toolCallText === undefined
       ? displayText
       : [toolCallText.name, toolCallText.args].filter(Boolean).join(' ')
@@ -1011,8 +1050,9 @@ function RecordListText({
   toolCallOnly,
   toolCallText,
 }: Pick<RecordPresentationValue, 'displayText' | 'toolCallOnly' | 'toolCallText'>) {
+  const t = useTrajectoryTranslate()
   if (toolCallOnly) {
-    return <span className={css.toolCallOnly}>(tool call only)</span>
+    return <span className={css.toolCallOnly}>{t('table.toolCallOnly')}</span>
   }
   if (toolCallText === undefined) return displayText || '—'
   return (
@@ -1059,6 +1099,7 @@ function SourceBlocks({
   blocks: readonly TrajectorySourceBlock[]
   onOpenCall: (callId: string) => void
 }) {
+  const t = useTrajectoryTranslate()
   return (
     <div className={css.sourceBlocks}>
       {blocks.map((block, index) => (
@@ -1068,14 +1109,14 @@ function SourceBlocks({
               <button
                 type="button"
                 className={css.sourceBlockJumpTarget}
-                aria-label={`Open Block #${index + 1} tool call summary`}
-                title="Open tool call summary"
+                aria-label={t('table.openBlockToolSummary', { index: index + 1 })}
+                title={t('table.openToolSummary')}
                 onClick={() => {
                   if (block.callId !== undefined) onOpenCall(block.callId)
                 }}
               >
                 <span className={css.sourceBlockLabel}>
-                  {`Block #${index + 1} ${block.type}`}
+                  {t('table.block', { index: index + 1, type: block.type })}
                 </span>
                 <IconChevronRightOutline14 className={css.sourceBlockJumpIcon} size={12} />
               </button>
@@ -1083,7 +1124,7 @@ function SourceBlocks({
             : (
               <div className={css.sourceBlockHeader}>
                 <span className={css.sourceBlockLabel}>
-                  {`Block #${index + 1} ${block.type}`}
+                  {t('table.block', { index: index + 1, type: block.type })}
                 </span>
               </div>
             )}
@@ -1103,6 +1144,7 @@ function PanelImage({
   block: TrajectorySourceBlock
   preview?: boolean
 }) {
+  const t = useTrajectoryTranslate()
   if (block.imageSrc === undefined) return null
   return (
     <a
@@ -1110,7 +1152,7 @@ function PanelImage({
       href={block.imageSrc}
       target="_blank"
       rel="noopener noreferrer"
-      title="Open image"
+      title={t('table.openImage')}
     >
       <img
         className={css.panelImage}
@@ -1146,6 +1188,7 @@ function AssistantToolCalls({
   preview: boolean
   onOpenCall: (callId: string) => void
 }) {
+  const t = useTrajectoryTranslate()
   const calls = blocks?.filter(block => block.type === 'tool-call') ?? []
   if (calls.length === 0) return null
   return (
@@ -1158,7 +1201,7 @@ function AssistantToolCalls({
           <button
             type="button"
             className={css.assistantToolCallButton}
-            title="Open tool call summary"
+            title={t('table.openToolSummary')}
             onClick={() => {
               if (call.callId !== undefined) onOpenCall(call.callId)
             }}
@@ -1216,7 +1259,8 @@ function ToolGlyph() {
 }
 
 function ToolCatalog({ tools }: { tools: ConversationPromptSnapshot['tools'] }) {
-  if (tools.length === 0) return <p className={css.noPayload}>No tools in this request</p>
+  const t = useTrajectoryTranslate()
+  if (tools.length === 0) return <p className={css.noPayload}>{t('table.noTools')}</p>
   return (
     <div className={css.toolCatalog}>
       {tools.map((tool, index) => (
@@ -1233,7 +1277,7 @@ function ToolCatalog({ tools }: { tools: ConversationPromptSnapshot['tools'] }) 
             )}
             <JsonTree
               data={tool.parameters}
-              label={`${tool.name} parameters JSON`}
+              label={t('table.parametersJson', { name: tool.name })}
               className={css.toolCatalogTree}
             />
           </div>
@@ -1298,20 +1342,21 @@ function SystemPromptDiff({
   before: ConversationPromptSnapshot
   after: ConversationPromptSnapshot
 }) {
+  const t = useTrajectoryTranslate()
   const toolsBefore = JSON.stringify(before.tools, null, 2)
   const toolsAfter = JSON.stringify(after.tools, null, 2)
   return (
     <div className={css.promptDiffSections}>
       {before.system !== after.system && (
         <PromptDiffSection
-          title="System Prompt"
+          title={t('tab.systemPrompt')}
           before={before.system}
           after={after.system}
         />
       )}
       {toolsBefore !== toolsAfter && (
         <PromptDiffSection
-          title="Tools"
+          title={t('tab.tools')}
           before={toolsBefore}
           after={toolsAfter}
         />
@@ -1362,6 +1407,7 @@ function MarkdownRecordContent({
   onThinkingExpandedChange: (expanded: boolean) => void
   onOpenCall: (callId: string) => void
 }) {
+  const t = useTrajectoryTranslate()
   if (!rendered && record.cell.sourceBlocks && record.cell.sourceBlocks.length > 0) {
     return <SourceBlocks blocks={record.cell.sourceBlocks} onOpenCall={onOpenCall} />
   }
@@ -1387,7 +1433,7 @@ function MarkdownRecordContent({
             aria-expanded={thinkingExpanded}
             onClick={() => { onThinkingExpandedChange(!thinkingExpanded) }}
           >
-            Thinking
+            {t('table.thinking')}
             <IconChevronRightOutline14 className={css.thinkingChevron} size={12} />
           </button>
           {thinkingExpanded && (
@@ -1425,8 +1471,8 @@ function MarkdownRecordContent({
     && record.cell.sourceBlocks?.some(block => block.type === 'tool-call') === true
   if (!source && !hasImages && !hasToolCalls) {
     const emptyLabel = isToolCallOnly(record.cell)
-      ? 'Tool call only'
-      : record.cell.text || 'No content'
+      ? t('table.toolCallOnlyPlain')
+      : record.cell.text || t('table.noContent')
     return <p className={css.noPayload}>{emptyLabel}</p>
   }
   if (!rendered || (!hasImages && !hasToolCalls)) {
@@ -1448,13 +1494,14 @@ function MarkdownRecordContent({
 }
 
 function RecordTiming({ record }: { record: TableRecord }) {
+  const t = useTrajectoryTranslate()
   return record.cell.kind === 'message' && record.cell.assistantMetrics !== undefined
     ? <AssistantTimingPanel metrics={record.cell.assistantMetrics} />
     : (
       <dl className={css.overview}>
-        <div><dt>Started</dt><StartedAtValue timestamp={record.cell.startedAt ?? null} /></div>
-        <div><dt>Duration</dt><dd>{formatElapsedSeconds(record.cell.timeSeconds)}</dd></div>
-        <div><dt>Timing source</dt><dd>{record.cell.timeSeconds === null ? 'Not available' : 'Session timestamps'}</dd></div>
+        <div><dt>{t('table.started')}</dt><StartedAtValue timestamp={record.cell.startedAt ?? null} /></div>
+        <div><dt>{t('table.duration')}</dt><dd>{formatElapsedSeconds(record.cell.timeSeconds)}</dd></div>
+        <div><dt>{t('table.timingSource')}</dt><dd>{record.cell.timeSeconds === null ? t('table.notAvailable') : t('table.sessionTimestamps')}</dd></div>
       </dl>
     )
 }
@@ -1468,6 +1515,7 @@ function RequestTiming({
   anchor: TableRecord | undefined
   request: TrajectoryRequestNumber | undefined
 }) {
+  const t = useTrajectoryTranslate()
   if (assistant !== undefined) return <RecordTiming record={assistant} />
   if (request?.startedAt !== undefined) {
     const duration = request.completedAt === null || request.completedAt === undefined
@@ -1475,11 +1523,11 @@ function RequestTiming({
       : Math.max(0, (request.completedAt - request.startedAt) / 1000)
     return (
       <dl className={css.overview}>
-        <div><dt>Started</dt><StartedAtValue timestamp={request.startedAt} /></div>
-        <div><dt>Duration</dt><dd>{formatElapsedSeconds(duration)}</dd></div>
+        <div><dt>{t('table.started')}</dt><StartedAtValue timestamp={request.startedAt} /></div>
+        <div><dt>{t('table.duration')}</dt><dd>{formatElapsedSeconds(duration)}</dd></div>
         <div>
-          <dt>Timing source</dt>
-          <dd>{duration === null ? 'Session timestamps (running)' : 'Session timestamps'}</dd>
+          <dt>{t('table.timingSource')}</dt>
+          <dd>{duration === null ? t('table.sessionTimestampsRunning') : t('table.sessionTimestamps')}</dd>
         </div>
       </dl>
     )
@@ -1487,10 +1535,10 @@ function RequestTiming({
   return (
     <dl className={css.overview}>
       <div>
-        <dt>Started</dt>
+        <dt>{t('table.started')}</dt>
         <StartedAtValue timestamp={anchor?.cell.startedAt ?? null} />
       </div>
-      <div><dt>Duration</dt><dd>{formatElapsedSeconds(null)}</dd></div>
+      <div><dt>{t('table.duration')}</dt><dd>{formatElapsedSeconds(null)}</dd></div>
     </dl>
   )
 }
@@ -1504,10 +1552,11 @@ function RecordPayload({
   direction: 'input' | 'output'
   preview?: boolean
 }) {
+  const t = useTrajectoryTranslate()
   const value = direction === 'input' ? record.cell.inputDetail : record.cell.outputDetail
   const missing = direction === 'input'
-    ? 'No payload captured'
-    : 'No result captured'
+    ? t('table.noPayloadCaptured')
+    : t('table.noResultCaptured')
   if (!value) return <p className={css.noPayload}>{missing}</p>
   const error = direction === 'output' && record.cell.isError === true
   const payloadClass = preview ? css.jsonPreview : css.jsonPayload
@@ -1521,7 +1570,7 @@ function RecordPayload({
     return (
       <JsonTree
         data={json}
-        label="Result JSON"
+        label={t('table.resultJson')}
         className={payloadClassName}
       />
     )
@@ -1562,7 +1611,7 @@ function RecordPayload({
     return (
       <JsonTree
         data={json}
-        label={`${direction === 'input' ? 'Payload' : 'Result'} JSON`}
+        label={direction === 'input' ? t('table.payloadJson') : t('table.resultJson')}
         className={payloadClassName}
       />
     )
@@ -1587,8 +1636,9 @@ function RecordSchema({
   record: TableRecord
   preview?: boolean
 }) {
+  const t = useTrajectoryTranslate()
   if (!record.cell.schemaDetail) {
-    return <p className={css.noPayload}>Schema unavailable</p>
+    return <p className={css.noPayload}>{t('table.schemaUnavailable')}</p>
   }
   const schema = parseToolSchema(record.cell.schemaDetail)
   if (schema !== undefined) {
@@ -1599,10 +1649,10 @@ function RecordSchema({
           <p className={css.schemaDescription}>{schema.description}</p>
         </header>
         <section className={css.schemaParameters}>
-          <h4 className={css.schemaParametersTitle}>Parameters</h4>
+          <h4 className={css.schemaParametersTitle}>{t('table.parameters')}</h4>
           <JsonTree
             data={schema.parameters}
-            label={`${schema.name} parameters JSON`}
+            label={t('table.parametersJson', { name: schema.name })}
             className={css.schemaTree}
           />
         </section>
@@ -1712,7 +1762,9 @@ export function TrajectoryTable({
   onToggleAssistant,
   inspectCallId = null,
   onInspectApplied,
+  t: providedT,
 }: TrajectoryTableProps) {
+  const t: TranslateNS<typeof NS> = providedT ?? translateEnglish
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null)
   const [selectedRequest, setSelectedRequest] = useState<SelectedRequest | null>(null)
   const [activeTab, setActiveTab] = useState<DetailTab>('overview')
@@ -2193,882 +2245,886 @@ export function TrajectoryTable({
   const historyRowOffset = hasOlderRecords ? 1 : 0
 
   return (
-    <div ref={rootRef} className={css.split} style={splitStyle}>
-      <div
-        ref={tablePaneRef}
-        className={css.tablePane}
-        data-trajectory-scroll=""
-        onScroll={(event) => {
-          const pane = event.currentTarget
-          followsTableTail.current =
-            pane.scrollHeight - pane.clientHeight - pane.scrollTop
+    <TrajectoryTranslateContext.Provider value={t}>
+      <div ref={rootRef} className={css.split} style={splitStyle}>
+        <div
+          ref={tablePaneRef}
+          className={css.tablePane}
+          data-trajectory-scroll=""
+          onScroll={(event) => {
+            const pane = event.currentTarget
+            followsTableTail.current =
+              pane.scrollHeight - pane.clientHeight - pane.scrollTop
               <= BOTTOM_FOLLOW_THRESHOLD_PX
-          requestOlder(pane, true)
-        }}
-        onClick={(event) => {
-          if (event.target === event.currentTarget) clearAllSelections()
-        }}
-      >
-        {showInitialLoading && (
-          <div className={css.historyLoading} role="status" aria-live="polite">
-            <span className={css.historyLoadingBar}>
-              <span className={css.historyLoadingSpinner} aria-hidden="true" />
-              Loading trajectory…
-            </span>
-          </div>
-        )}
-        <table
-          className={css.table}
-          data-scroll-ready={tableScrollReady || undefined}
-          aria-rowcount={records.length + historyRowOffset}
+            requestOlder(pane, true)
+          }}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) clearAllSelections()
+          }}
         >
-          <colgroup>
-            <col className={css.eventColumn} />
-            <col className={css.contentColumn} />
-          </colgroup>
-          <tbody>
-            {hasOlderRecords && (
-              <tr
-                className={css.historyLoadRow}
-                data-history-load=""
-                aria-rowindex={1}
-              >
-                <td colSpan={2}>
-                  <button
-                    type="button"
-                    className={css.historyLoadButton}
-                    disabled={olderBusy || onLoadOlder === undefined}
-                    aria-label={olderBusy
-                      ? 'Loading earlier history…'
-                      : 'Load earlier history'}
-                    onClick={() => {
-                      const pane = tablePaneRef.current
-                      if (pane !== null) requestOlder(pane, false)
-                    }}
-                  >
-                    {olderBusy && (
-                      <span className={css.historyLoadingSpinner} aria-hidden="true" />
-                    )}
-                    <span aria-hidden="true">
-                      {olderBusy ? 'Loading earlier history…' : 'Load earlier history'}
-                    </span>
-                    <span className={css.visuallyHidden} role="status" aria-live="polite">
-                      {olderBusy ? 'Loading earlier history…' : ''}
-                    </span>
-                  </button>
-                </td>
-              </tr>
-            )}
-            {virtualTop > 0 && (
-              <tr className={css.virtualSpacer} data-virtual-spacer="top" aria-hidden="true">
-                <td
-                  colSpan={2}
-                  style={{
-                    '--trajectory-virtual-spacer-height': `${virtualTop}px`,
-                  } as VirtualSpacerStyle}
-                />
-              </tr>
-            )}
-            {renderedRecords.map(({ record, position, terminalRequestBoundary }) => (
-              <RecordPresentation
-                key={trajectoryVirtualRecordKey(record)}
-                cell={record.cell}
-              >
-                {({ displayText, listDisplayText, resultText, toolCallOnly, toolCallText }) => {
-                  const isCollapsedSummary = record.collapsedSummary !== undefined
-                  const isRequestOnly = record.cell.requestOnly === true
-                  const isInitialSystem = record.cell.kind === 'system'
+          {showInitialLoading && (
+            <div className={css.historyLoading} role="status" aria-live="polite">
+              <span className={css.historyLoadingBar}>
+                <span className={css.historyLoadingSpinner} aria-hidden="true" />
+                {t('table.loadingTrajectory')}
+              </span>
+            </div>
+          )}
+          <table
+            className={css.table}
+            data-scroll-ready={tableScrollReady || undefined}
+            aria-rowcount={records.length + historyRowOffset}
+          >
+            <colgroup>
+              <col className={css.eventColumn} />
+              <col className={css.contentColumn} />
+            </colgroup>
+            <tbody>
+              {hasOlderRecords && (
+                <tr
+                  className={css.historyLoadRow}
+                  data-history-load=""
+                  aria-rowindex={1}
+                >
+                  <td colSpan={2}>
+                    <button
+                      type="button"
+                      className={css.historyLoadButton}
+                      disabled={olderBusy || onLoadOlder === undefined}
+                      aria-label={olderBusy
+                        ? t('table.loadingEarlier')
+                        : t('table.loadEarlier')}
+                      onClick={() => {
+                        const pane = tablePaneRef.current
+                        if (pane !== null) requestOlder(pane, false)
+                      }}
+                    >
+                      {olderBusy && (
+                        <span className={css.historyLoadingSpinner} aria-hidden="true" />
+                      )}
+                      <span aria-hidden="true">
+                        {olderBusy ? t('table.loadingEarlier') : t('table.loadEarlier')}
+                      </span>
+                      <span className={css.visuallyHidden} role="status" aria-live="polite">
+                        {olderBusy ? t('table.loadingEarlier') : ''}
+                      </span>
+                    </button>
+                  </td>
+                </tr>
+              )}
+              {virtualTop > 0 && (
+                <tr className={css.virtualSpacer} data-virtual-spacer="top" aria-hidden="true">
+                  <td
+                    colSpan={2}
+                    style={{
+                      '--trajectory-virtual-spacer-height': `${virtualTop}px`,
+                    } as VirtualSpacerStyle}
+                  />
+                </tr>
+              )}
+              {renderedRecords.map(({ record, position, terminalRequestBoundary }) => (
+                <RecordPresentation
+                  key={trajectoryVirtualRecordKey(record)}
+                  cell={record.cell}
+                >
+                  {({ displayText, listDisplayText, resultText, toolCallOnly, toolCallText }) => {
+                    const isCollapsedSummary = record.collapsedSummary !== undefined
+                    const isRequestOnly = record.cell.requestOnly === true
+                    const isInitialSystem = record.cell.kind === 'system'
                 && record.cell.index === allRecords[0]?.cell.index
-                  const key = requestKey(record.turn, record.group)
-                  const request = requestBoundaries.get(key) === record.cell.index
+                    const key = requestKey(record.turn, record.group)
+                    const request = requestBoundaries.get(key) === record.cell.index
                 && !isCollapsedSummary
                 && (record.turn === null || !collapsedTurns.has(record.turn))
-                    ? requestNumbers.get(key)
-                    : undefined
-                  const requestInfo = request === undefined
-                    ? undefined
-                    : sessionRequestNumbers?.find(candidate => candidate.number === request)
-                  const requestStatus = requestInfo?.status
+                      ? requestNumbers.get(key)
+                      : undefined
+                    const requestInfo = request === undefined
+                      ? undefined
+                      : sessionRequestNumbers?.find(candidate => candidate.number === request)
+                    const requestStatus = requestInfo?.status
                 ?? (record.cell.isError === true ? 'error' : undefined)
-                  const requestRunIndex = requestBoundaryRuns.get(record.cell.index) ?? 0
-                  const requestBoundaryStyle: RequestBoundaryStyle = {
-                    '--request-boundary-offset': `${requestRunIndex * 8}px`,
-                  }
-                  const requestLabel = request === undefined
-                    ? undefined
-                    : `Request #${request}${requestInfo?.purpose === 'compaction' ? ' · Compaction' : ''}`
-                  const requestSelected = request !== undefined
+                    const requestRunIndex = requestBoundaryRuns.get(record.cell.index) ?? 0
+                    const requestBoundaryStyle: RequestBoundaryStyle = {
+                      '--request-boundary-offset': `${requestRunIndex * 8}px`,
+                    }
+                    const requestLabel = request === undefined
+                      ? undefined
+                      : `Request #${request}${requestInfo?.purpose === 'compaction' ? ' · Compaction' : ''}`
+                    const requestSelected = request !== undefined
                 && selectedRequest?.turn === record.turn
                 && selectedRequest.group === record.group
-                  const sectionActive = record.turn === null
-                    ? activeSection === record.section
-                    : activeTurn === record.turn
-                  return (
-                    <tr
-                      tabIndex={isRequestOnly ? -1 : 0}
-                      aria-rowindex={position + 1 + historyRowOffset}
-                      aria-label={isCollapsedSummary
-                        ? `Collapsed ${record.collapsedSummaryKind} summary, ${record.collapsedSummary}`
-                        : isRequestOnly
-                          ? `Request ${request ?? ''}, compaction`
-                          : `${request === undefined ? '' : `Request ${request}, `}${KIND_LABEL[record.cell.kind]}, ${listDisplayText || 'no content'}`}
-                      aria-selected={!isCollapsedSummary && !isRequestOnly && selectedIndex === record.cell.index}
-                      data-kind={record.cell.kind}
-                      data-trajectory-row-key={trajectoryVirtualRecordKey(record)}
-                      data-virtual-position={virtualizationEnabled ? position : undefined}
-                      data-record-index={!isCollapsedSummary && !isRequestOnly
-                        ? record.cell.index
-                        : undefined}
-                      data-request-only={isRequestOnly || undefined}
-                      data-terminal-request-boundary={terminalRequestBoundary || undefined}
-                      data-group-start={record.groupStart || undefined}
-                      data-turn-start={record.turnStart || undefined}
-                      data-error={record.cell.isError || undefined}
-                      data-running={stateOf(record) === 'running' || undefined}
-                      data-turn-end={record.turnEnd || undefined}
-                      data-collapsed-summary={record.collapsedSummaryKind}
-                      data-selected={!isCollapsedSummary && selectedIndex === record.cell.index || undefined}
-                      data-timeline-focus={isCollapsedSummary || timelineFocusIndexes === null
-                        ? undefined
-                        : timelineFocusIndexes.has(record.cell.index) ? 'inside' : 'outside'}
-                      onClick={isRequestOnly
-                        ? undefined
-                        : isCollapsedSummary
-                          ? () => {
+                    const sectionActive = record.turn === null
+                      ? activeSection === record.section
+                      : activeTurn === record.turn
+                    return (
+                      <tr
+                        tabIndex={isRequestOnly ? -1 : 0}
+                        aria-rowindex={position + 1 + historyRowOffset}
+                        aria-label={isCollapsedSummary
+                          ? `Collapsed ${record.collapsedSummaryKind} summary, ${record.collapsedSummary}`
+                          : isRequestOnly
+                            ? `Request ${request ?? ''}, compaction`
+                            : `${request === undefined ? '' : `Request ${request}, `}${KIND_LABEL[record.cell.kind]}, ${listDisplayText || 'no content'}`}
+                        aria-selected={!isCollapsedSummary && !isRequestOnly && selectedIndex === record.cell.index}
+                        data-kind={record.cell.kind}
+                        data-trajectory-row-key={trajectoryVirtualRecordKey(record)}
+                        data-virtual-position={virtualizationEnabled ? position : undefined}
+                        data-record-index={!isCollapsedSummary && !isRequestOnly
+                          ? record.cell.index
+                          : undefined}
+                        data-request-only={isRequestOnly || undefined}
+                        data-terminal-request-boundary={terminalRequestBoundary || undefined}
+                        data-group-start={record.groupStart || undefined}
+                        data-turn-start={record.turnStart || undefined}
+                        data-error={record.cell.isError || undefined}
+                        data-running={stateOf(record) === 'running' || undefined}
+                        data-turn-end={record.turnEnd || undefined}
+                        data-collapsed-summary={record.collapsedSummaryKind}
+                        data-selected={!isCollapsedSummary && selectedIndex === record.cell.index || undefined}
+                        data-timeline-focus={isCollapsedSummary || timelineFocusIndexes === null
+                          ? undefined
+                          : timelineFocusIndexes.has(record.cell.index) ? 'inside' : 'outside'}
+                        onClick={isRequestOnly
+                          ? undefined
+                          : isCollapsedSummary
+                            ? () => {
+                              if (record.collapsedSummaryKind === 'turn' && record.turn !== null) {
+                                onToggleTurn(record.turn)
+                              } else onToggleAssistant(trajectoryRecordId(record.cell))
+                            }
+                            : () => { selectRecord(record.cell.index) }}
+                        onDoubleClick={(event) => {
+                          if (isCollapsedSummary || isRequestOnly) return
+                          if (record.turn !== null && collapsedTurns.has(record.turn)) {
+                            event.preventDefault()
+                            onToggleTurn(record.turn)
+                            return
+                          }
+                          if (
+                            record.cell.kind === 'message'
+                      && assistantToolCalls(allRecords, record.cell.index).length > 0
+                          ) {
+                            event.preventDefault()
+                            onToggleAssistant(trajectoryRecordId(record.cell))
+                            return
+                          }
+                          if (!record.turnStart) return
+                          if (record.turn === null) return
+                          if (allRecords.filter(candidate =>
+                            candidate.turn === record.turn
+                      && candidate.cell.requestOnly !== true
+                      && candidate.cell.kind !== 'system').length <= 1) return
+                          event.preventDefault()
+                          onToggleTurn(record.turn)
+                        }}
+                        onKeyDown={(event) => {
+                          if (isRequestOnly) return
+                          if (event.key !== 'Enter' && event.key !== ' ') return
+                          event.preventDefault()
+                          if (isCollapsedSummary) {
                             if (record.collapsedSummaryKind === 'turn' && record.turn !== null) {
                               onToggleTurn(record.turn)
                             } else onToggleAssistant(trajectoryRecordId(record.cell))
+                            return
                           }
-                          : () => { selectRecord(record.cell.index) }}
-                      onDoubleClick={(event) => {
-                        if (isCollapsedSummary || isRequestOnly) return
-                        if (record.turn !== null && collapsedTurns.has(record.turn)) {
-                          event.preventDefault()
-                          onToggleTurn(record.turn)
-                          return
-                        }
-                        if (
-                          record.cell.kind === 'message'
-                      && assistantToolCalls(allRecords, record.cell.index).length > 0
-                        ) {
-                          event.preventDefault()
-                          onToggleAssistant(trajectoryRecordId(record.cell))
-                          return
-                        }
-                        if (!record.turnStart) return
-                        if (record.turn === null) return
-                        if (allRecords.filter(candidate =>
-                          candidate.turn === record.turn
-                      && candidate.cell.requestOnly !== true
-                      && candidate.cell.kind !== 'system').length <= 1) return
-                        event.preventDefault()
-                        onToggleTurn(record.turn)
-                      }}
-                      onKeyDown={(event) => {
-                        if (isRequestOnly) return
-                        if (event.key !== 'Enter' && event.key !== ' ') return
-                        event.preventDefault()
-                        if (isCollapsedSummary) {
-                          if (record.collapsedSummaryKind === 'turn' && record.turn !== null) {
-                            onToggleTurn(record.turn)
-                          } else onToggleAssistant(trajectoryRecordId(record.cell))
-                          return
-                        }
-                        selectRecord(record.cell.index)
-                      }}
-                    >
-                      <td className={css.event}>
-                        {request !== undefined && (
-                          <button
-                            type="button"
-                            className={requestSelected
-                              ? `${css.requestBoundaryControl} ${css.requestBoundaryControlActive}`
-                              : css.requestBoundaryControl}
-                            aria-label={requestLabel}
-                            aria-pressed={requestSelected}
-                            data-label={requestLabel}
-                            data-request-run-index={requestRunIndex}
-                            data-request-status={requestStatus}
-                            style={requestBoundaryStyle}
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              selectRequest({
-                                turn: record.turn,
-                                group: record.group,
-                                ...(requestInfo?.seq === undefined ? {} : { seq: requestInfo.seq }),
-                              })
-                            }}
-                            onDoubleClick={(event) => { event.stopPropagation() }}
-                          />
-                        )}
-                        {record.turn !== null
+                          selectRecord(record.cell.index)
+                        }}
+                      >
+                        <td className={css.event}>
+                          {request !== undefined && (
+                            <button
+                              type="button"
+                              className={requestSelected
+                                ? `${css.requestBoundaryControl} ${css.requestBoundaryControlActive}`
+                                : css.requestBoundaryControl}
+                              aria-label={requestLabel}
+                              aria-pressed={requestSelected}
+                              data-label={requestLabel}
+                              data-request-run-index={requestRunIndex}
+                              data-request-status={requestStatus}
+                              style={requestBoundaryStyle}
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                selectRequest({
+                                  turn: record.turn,
+                                  group: record.group,
+                                  ...(requestInfo?.seq === undefined ? {} : { seq: requestInfo.seq }),
+                                })
+                              }}
+                              onDoubleClick={(event) => { event.stopPropagation() }}
+                            />
+                          )}
+                          {record.turn !== null
                     && activeTurn === record.turn
                     && !isInitialSystem && (
-                          <span className={css.turnRail} aria-hidden="true" />
-                        )}
-                        {!isCollapsedSummary && selectedIndex === record.cell.index && (
-                          <span className={css.selectionRail} aria-hidden="true" />
-                        )}
-                        {!isCollapsedSummary
+                            <span className={css.turnRail} aria-hidden="true" />
+                          )}
+                          {!isCollapsedSummary && selectedIndex === record.cell.index && (
+                            <span className={css.selectionRail} aria-hidden="true" />
+                          )}
+                          {!isCollapsedSummary
                     && !isRequestOnly
                     && record.turnStart && (
-                          <span
-                            className={sectionActive
-                              ? `${css.turnLabel} ${css.turnLabelActive}`
-                              : css.turnLabel}
-                            aria-label={sectionLabel(record.turn)}
-                          >
-                            {record.turn === null
-                              ? sectionLabel(record.turn)
-                              : (
-                                <>
-                                  <span className={css.turnLabelFull} aria-hidden="true">
-                                    {sectionLabel(record.turn)}
-                                  </span>
-                                  <span className={css.turnLabelCompact} aria-hidden="true">
-                                    #{record.turn}
-                                  </span>
-                                </>
-                              )}
-                          </span>
-                        )}
-                        <div className={css.eventInner}>
-                          {!isCollapsedSummary && !isRequestOnly && (
                             <span
-                              className={css.kindSlot}
+                              className={sectionActive
+                                ? `${css.turnLabel} ${css.turnLabelActive}`
+                                : css.turnLabel}
+                              aria-label={sectionLabel(record.turn, t)}
                             >
-                              <span
-                                className={`${css.kindTag} ${
-                                  record.cell.kind === 'system'
-                                    ? css.systemNeutral
-                                    : record.cell.kind === 'context'
-                                      ? css.contextGreen
-                                      : record.cell.kind === 'compacted'
-                                        ? css.compacted
-                                        : record.cell.kind === 'tool'
-                                          ? css.toolAmber
-                                          : record.cell.kind === 'message'
-                                            ? css.assistantVioletBright
-                                            : record.cell.kind === 'subtool'
-                                              ? css.subtoolAmber
-                                              : css[record.cell.kind]
-                                }`}
-                                data-role-kind={record.cell.kind}
-                              >
-                                <Tooltip
-                                  label={KIND_LABEL[record.cell.kind]}
-                                  side="right"
-                                >
-                                  <span className={css.kindTagIcon} aria-hidden="true">
-                                    {KIND_ICON[record.cell.kind]}
-                                  </span>
-                                </Tooltip>
-                                <span className={css.kindTagLabel}>
-                                  {KIND_LABEL[record.cell.kind]}
-                                </span>
-                              </span>
+                              {record.turn === null
+                                ? sectionLabel(record.turn, t)
+                                : (
+                                  <>
+                                    <span className={css.turnLabelFull} aria-hidden="true">
+                                      {sectionLabel(record.turn, t)}
+                                    </span>
+                                    <span className={css.turnLabelCompact} aria-hidden="true">
+                                      #{record.turn}
+                                    </span>
+                                  </>
+                                )}
                             </span>
                           )}
-                        </div>
-                      </td>
-                      <td className={css.content}>
-                        {isRequestOnly
-                          ? null
-                          : record.collapsedSummary !== undefined
-                            ? (
-                              <span className={css.collapsedTurnContent} title={record.collapsedSummary}>
-                                <span className={css.collapsedTurnEllipsis}>…</span>
-                                <span className={css.collapsedTurnText}>{record.collapsedSummary}</span>
-                              </span>
-                            )
-                            : (
+                          <div className={css.eventInner}>
+                            {!isCollapsedSummary && !isRequestOnly && (
                               <span
-                                className={resultText === undefined ? css.contentText : css.resultPreview}
-                                title={resultText === undefined
-                                  ? listDisplayText
-                                  : `${listDisplayText} → ${resultText}`}
+                                className={css.kindSlot}
                               >
-                                <span className={resultText === undefined ? undefined : css.resultRequest}>
-                                  <RecordListText
-                                    displayText={displayText}
-                                    toolCallOnly={toolCallOnly}
-                                    toolCallText={toolCallText}
-                                  />
-                                </span>
-                                {resultText !== undefined && (
-                                  <span className={record.cell.isError ? `${css.inlineResult} ${css.error}` : css.inlineResult}>
-                                    <span className={css.arrow}>→</span>
-                                    <span className={resultText === 'No output'
-                                      ? `${css.inlineResultText} ${css.noOutputText}`
-                                      : css.inlineResultText}
-                                    >
-                                      {resultText}
+                                <span
+                                  className={`${css.kindTag} ${
+                                    record.cell.kind === 'system'
+                                      ? css.systemNeutral
+                                      : record.cell.kind === 'context'
+                                        ? css.contextGreen
+                                        : record.cell.kind === 'compacted'
+                                          ? css.compacted
+                                          : record.cell.kind === 'tool'
+                                            ? css.toolAmber
+                                            : record.cell.kind === 'message'
+                                              ? css.assistantVioletBright
+                                              : record.cell.kind === 'subtool'
+                                                ? css.subtoolAmber
+                                                : css[record.cell.kind]
+                                  }`}
+                                  data-role-kind={record.cell.kind}
+                                >
+                                  <Tooltip
+                                    label={KIND_LABEL[record.cell.kind]}
+                                    side="right"
+                                  >
+                                    <span className={css.kindTagIcon} aria-hidden="true">
+                                      {KIND_ICON[record.cell.kind]}
                                     </span>
+                                  </Tooltip>
+                                  <span className={css.kindTagLabel}>
+                                    {KIND_LABEL[record.cell.kind]}
                                   </span>
-                                )}
+                                </span>
                               </span>
                             )}
-                      </td>
-                    </tr>
-                  )
-                }}
-              </RecordPresentation>
-            ))}
-            {virtualBottom > 0 && (
-              <tr className={css.virtualSpacer} data-virtual-spacer="bottom" aria-hidden="true">
-                <td
-                  colSpan={2}
-                  style={{
-                    '--trajectory-virtual-spacer-height': `${virtualBottom}px`,
-                  } as VirtualSpacerStyle}
-                />
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-      {(selectedRequest !== null
+                          </div>
+                        </td>
+                        <td className={css.content}>
+                          {isRequestOnly
+                            ? null
+                            : record.collapsedSummary !== undefined
+                              ? (
+                                <span className={css.collapsedTurnContent} title={record.collapsedSummary}>
+                                  <span className={css.collapsedTurnEllipsis}>…</span>
+                                  <span className={css.collapsedTurnText}>{record.collapsedSummary}</span>
+                                </span>
+                              )
+                              : (
+                                <span
+                                  className={resultText === undefined ? css.contentText : css.resultPreview}
+                                  title={resultText === undefined
+                                    ? listDisplayText
+                                    : `${listDisplayText} → ${resultText}`}
+                                >
+                                  <span className={resultText === undefined ? undefined : css.resultRequest}>
+                                    <RecordListText
+                                      displayText={displayText}
+                                      toolCallOnly={toolCallOnly}
+                                      toolCallText={toolCallText}
+                                    />
+                                  </span>
+                                  {resultText !== undefined && (
+                                    <span className={record.cell.isError ? `${css.inlineResult} ${css.error}` : css.inlineResult}>
+                                      <span className={css.arrow}>→</span>
+                                      <span className={resultText === 'No output'
+                                        ? `${css.inlineResultText} ${css.noOutputText}`
+                                        : css.inlineResultText}
+                                      >
+                                        {resultText}
+                                      </span>
+                                    </span>
+                                  )}
+                                </span>
+                              )}
+                        </td>
+                      </tr>
+                    )
+                  }}
+                </RecordPresentation>
+              ))}
+              {virtualBottom > 0 && (
+                <tr className={css.virtualSpacer} data-virtual-spacer="bottom" aria-hidden="true">
+                  <td
+                    colSpan={2}
+                    style={{
+                      '--trajectory-virtual-spacer-height': `${virtualBottom}px`,
+                    } as VirtualSpacerStyle}
+                  />
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {(selectedRequest !== null
         || promptSelected
         || (selected !== undefined && selectedState !== undefined)) && (
-        <aside
-          className={css.details}
-          aria-label="Event details"
-          style={detailsWidth === null ? undefined : { width: detailsWidth }}
-        >
-          <div
-            className={css.detailsResizeHandle}
-            role="separator"
-            aria-label="Resize event details"
-            aria-controls="trajectory-detail-panel"
-            aria-orientation="vertical"
-            tabIndex={0}
-            title="Drag to resize. Double-click to reset."
-            onDoubleClick={() => {
-              setDetailsWidth(null)
-              setToolRequestOffset(null)
-            }}
-            onPointerDown={(event) => {
-              if (event.button !== 0) return
-              const details = event.currentTarget.parentElement
-              if (details === null) return
-              const split = details.parentElement
-              if (split === null) return
-              const splitWidth = split.getBoundingClientRect().width
-              detailsResizeDrag.current = {
-                pointerId: event.pointerId,
-                startX: event.clientX,
-                startWidth: details.getBoundingClientRect().width,
-                splitWidth,
-                startToolRequestOffset: toolRequestOffset ?? (
-                  splitWidth * TOOL_REQUEST_SHARE - defaultToolRequestWidth(splitWidth)
-                ),
-              }
-              event.currentTarget.setPointerCapture(event.pointerId)
-              event.preventDefault()
-            }}
-            onPointerMove={(event) => {
-              const drag = detailsResizeDrag.current
-              if (drag === null || drag.pointerId !== event.pointerId) return
-              const nextDetailsWidth = clampDetailsWidth(
-                drag.startWidth + drag.startX - event.clientX,
-                drag.splitWidth,
-              )
-              setDetailsWidth(nextDetailsWidth)
-              setToolRequestOffset(
-                drag.startToolRequestOffset
-                + (nextDetailsWidth - drag.startWidth) * TOOL_REQUEST_SHARE,
-              )
-            }}
-            onPointerUp={(event) => {
-              if (detailsResizeDrag.current?.pointerId !== event.pointerId) return
-              detailsResizeDrag.current = null
-              event.currentTarget.releasePointerCapture(event.pointerId)
-            }}
-            onPointerCancel={() => {
-              detailsResizeDrag.current = null
-            }}
-            onKeyDown={(event) => {
-              if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
-              const details = event.currentTarget.parentElement
-              if (details === null) return
-              const split = details.parentElement
-              if (split === null) return
-              const direction = event.key === 'ArrowLeft' ? 1 : -1
-              const currentDetailsWidth = details.getBoundingClientRect().width
-              const splitWidth = split.getBoundingClientRect().width
-              const nextDetailsWidth = clampDetailsWidth(
-                currentDetailsWidth + direction * DETAILS_RESIZE_STEP,
-                splitWidth,
-              )
-              const currentToolRequestOffset = toolRequestOffset ?? (
-                splitWidth * TOOL_REQUEST_SHARE - defaultToolRequestWidth(splitWidth)
-              )
-              setDetailsWidth(nextDetailsWidth)
-              setToolRequestOffset(
-                currentToolRequestOffset
-                + (nextDetailsWidth - currentDetailsWidth) * TOOL_REQUEST_SHARE,
-              )
-              event.preventDefault()
-            }}
-          />
-          <div className={css.detailsHeader}>
-            <div className={css.detailsTitle}>
-              {selectedRequest !== null
-                ? (
-                  <>
-                    <span className={css.requestDetailsDot} aria-hidden="true" />
-                    <span className={css.requestDetailsName}>
-                      Request #{selectedRequestNumber ?? '—'}
-                    </span>
-                    <span className={css.detailsLocation}>
-                      {selectedRequestInfo?.purpose === 'compaction'
-                        ? `Compaction · ${sectionLabel(selectedRequest.turn)}`
-                        : sectionLabel(selectedRequest.turn)}
-                    </span>
-                  </>
+          <aside
+            className={css.details}
+            aria-label={t('table.eventDetails')}
+            style={detailsWidth === null ? undefined : { width: detailsWidth }}
+          >
+            <div
+              className={css.detailsResizeHandle}
+              role="separator"
+              aria-label={t('table.resizeDetails')}
+              aria-controls="trajectory-detail-panel"
+              aria-orientation="vertical"
+              tabIndex={0}
+              title={t('table.resizeDetailsHint')}
+              onDoubleClick={() => {
+                setDetailsWidth(null)
+                setToolRequestOffset(null)
+              }}
+              onPointerDown={(event) => {
+                if (event.button !== 0) return
+                const details = event.currentTarget.parentElement
+                if (details === null) return
+                const split = details.parentElement
+                if (split === null) return
+                const splitWidth = split.getBoundingClientRect().width
+                detailsResizeDrag.current = {
+                  pointerId: event.pointerId,
+                  startX: event.clientX,
+                  startWidth: details.getBoundingClientRect().width,
+                  splitWidth,
+                  startToolRequestOffset: toolRequestOffset ?? (
+                    splitWidth * TOOL_REQUEST_SHARE - defaultToolRequestWidth(splitWidth)
+                  ),
+                }
+                event.currentTarget.setPointerCapture(event.pointerId)
+                event.preventDefault()
+              }}
+              onPointerMove={(event) => {
+                const drag = detailsResizeDrag.current
+                if (drag === null || drag.pointerId !== event.pointerId) return
+                const nextDetailsWidth = clampDetailsWidth(
+                  drag.startWidth + drag.startX - event.clientX,
+                  drag.splitWidth,
                 )
-                : promptSelected
+                setDetailsWidth(nextDetailsWidth)
+                setToolRequestOffset(
+                  drag.startToolRequestOffset
+                + (nextDetailsWidth - drag.startWidth) * TOOL_REQUEST_SHARE,
+                )
+              }}
+              onPointerUp={(event) => {
+                if (detailsResizeDrag.current?.pointerId !== event.pointerId) return
+                detailsResizeDrag.current = null
+                event.currentTarget.releasePointerCapture(event.pointerId)
+              }}
+              onPointerCancel={() => {
+                detailsResizeDrag.current = null
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                const details = event.currentTarget.parentElement
+                if (details === null) return
+                const split = details.parentElement
+                if (split === null) return
+                const direction = event.key === 'ArrowLeft' ? 1 : -1
+                const currentDetailsWidth = details.getBoundingClientRect().width
+                const splitWidth = split.getBoundingClientRect().width
+                const nextDetailsWidth = clampDetailsWidth(
+                  currentDetailsWidth + direction * DETAILS_RESIZE_STEP,
+                  splitWidth,
+                )
+                const currentToolRequestOffset = toolRequestOffset ?? (
+                  splitWidth * TOOL_REQUEST_SHARE - defaultToolRequestWidth(splitWidth)
+                )
+                setDetailsWidth(nextDetailsWidth)
+                setToolRequestOffset(
+                  currentToolRequestOffset
+                + (nextDetailsWidth - currentDetailsWidth) * TOOL_REQUEST_SHARE,
+                )
+                event.preventDefault()
+              }}
+            />
+            <div className={css.detailsHeader}>
+              <div className={css.detailsTitle}>
+                {selectedRequest !== null
                   ? (
                     <>
-                      <span className={`${css.kindTag} ${css.systemNeutral}`}>SYSTEM</span>
-                      <span className={css.detailsLocation}>{selected?.cell.text}</span>
-                    </>
-                  )
-                  : selected !== undefined && (
-                    <>
-                      <span className={`${css.kindTag} ${
-                        selected.cell.kind === 'context'
-                          ? css.contextGreen
-                          : selected.cell.kind === 'compacted'
-                            ? css.compacted
-                            : selected.cell.kind === 'tool'
-                              ? css.toolAmber
-                              : selected.cell.kind === 'message'
-                                ? css.assistantVioletBright
-                                : selected.cell.kind === 'subtool'
-                                  ? css.subtoolAmber
-                                  : css[selected.cell.kind]
-                      }`}
-                      >
-                        {KIND_LABEL[selected.cell.kind]}
+                      <span className={css.requestDetailsDot} aria-hidden="true" />
+                      <span className={css.requestDetailsName}>
+                        {t('table.request', { number: selectedRequestNumber ?? '—' })}
                       </span>
                       <span className={css.detailsLocation}>
-                        {selected.cell.kind === 'compacted'
-                          ? sectionLabel(selected.turn)
-                          : `${sectionLabel(selected.turn)} · ${selected.group}`}
+                        {selectedRequestInfo?.purpose === 'compaction'
+                          ? `${t('table.compaction')} · ${sectionLabel(selectedRequest.turn, t)}`
+                          : sectionLabel(selectedRequest.turn, t)}
                       </span>
                     </>
-                  )}
-            </div>
-            <button
-              type="button"
-              className={css.close}
-              aria-label="Close details"
-              onClick={clearInspectorSelection}
-            >
-              <span aria-hidden="true">×</span>
-            </button>
-          </div>
-          <div className={css.detailTabs} role="tablist" aria-label="Event details">
-            {selectedTabs.map(tab => (
+                  )
+                  : promptSelected
+                    ? (
+                      <>
+                        <span className={`${css.kindTag} ${css.systemNeutral}`}>SYSTEM</span>
+                        <span className={css.detailsLocation}>{selected?.cell.text}</span>
+                      </>
+                    )
+                    : selected !== undefined && (
+                      <>
+                        <span className={`${css.kindTag} ${
+                          selected.cell.kind === 'context'
+                            ? css.contextGreen
+                            : selected.cell.kind === 'compacted'
+                              ? css.compacted
+                              : selected.cell.kind === 'tool'
+                                ? css.toolAmber
+                                : selected.cell.kind === 'message'
+                                  ? css.assistantVioletBright
+                                  : selected.cell.kind === 'subtool'
+                                    ? css.subtoolAmber
+                                    : css[selected.cell.kind]
+                        }`}
+                        >
+                          {KIND_LABEL[selected.cell.kind]}
+                        </span>
+                        <span className={css.detailsLocation}>
+                          {selected.cell.kind === 'compacted'
+                            ? sectionLabel(selected.turn, t)
+                            : `${sectionLabel(selected.turn, t)} · ${selected.group}`}
+                        </span>
+                      </>
+                    )}
+              </div>
               <button
-                key={tab.id}
-                id={`trajectory-detail-${tab.id}`}
                 type="button"
-                role="tab"
-                aria-controls="trajectory-detail-panel"
-                aria-selected={activeTab === tab.id}
-                className={activeTab === tab.id ? `${css.detailTab} ${css.detailTabActive}` : css.detailTab}
-                onClick={() => { activateTab(tab.id) }}
+                className={css.close}
+                aria-label={t('table.closeDetails')}
+                onClick={clearInspectorSelection}
               >
-                {tab.label}
+                <span aria-hidden="true">×</span>
               </button>
-            ))}
-          </div>
-          <div
-            id="trajectory-detail-panel"
-            className={activeTab === 'overview'
-              ? `${css.detailBody} ${css.detailBodySummary}`
-              : css.detailBody}
-            role="tabpanel"
-            aria-labelledby={`trajectory-detail-${activeTab}`}
-          >
-            {selectedRequest !== null
+            </div>
+            <div className={css.detailTabs} role="tablist" aria-label={t('table.eventDetails')}>
+              {selectedTabs.map(tab => (
+                <button
+                  key={tab.id}
+                  id={`trajectory-detail-${tab.id}`}
+                  type="button"
+                  role="tab"
+                  aria-controls="trajectory-detail-panel"
+                  aria-selected={activeTab === tab.id}
+                  className={activeTab === tab.id ? `${css.detailTab} ${css.detailTabActive}` : css.detailTab}
+                  onClick={() => { activateTab(tab.id) }}
+                >
+                  {detailTabLabel(tab.id, t)}
+                </button>
+              ))}
+            </div>
+            <div
+              id="trajectory-detail-panel"
+              className={activeTab === 'overview'
+                ? `${css.detailBody} ${css.detailBodySummary}`
+                : css.detailBody}
+              role="tabpanel"
+              aria-labelledby={`trajectory-detail-${activeTab}`}
+            >
+              {selectedRequest !== null
               && selectedRequestState !== undefined
               && activeTab === 'overview' && (
-              <>
-                <dl
-                  className={`${css.overview} ${css.summaryScrollRegion}`}
-                  data-summary-scroll-region=""
-                >
-                  <div>
-                    <dt>Status</dt>
-                    <dd className={selectedRequestState === 'error' ? css.error : undefined}>
-                      {statusLabel(selectedRequestState)}
-                    </dd>
-                  </div>
-                  {selectedRequestInfo?.purpose === 'compaction' && (
-                    <div>
-                      <dt>Purpose</dt>
-                      <dd>Compaction</dd>
-                    </div>
-                  )}
-                  {(selectedRequestInfo?.provider
-                    ?? selectedRequestInfo?.requestConfig?.provider) !== undefined && (
-                    <div>
-                      <dt>Provider</dt>
-                      <dd>
-                        {selectedRequestInfo?.provider
-                          ?? selectedRequestInfo?.requestConfig?.provider}
-                      </dd>
-                    </div>
-                  )}
-                  {(selectedRequestInfo?.model
-                    ?? selectedRequestInfo?.requestConfig?.model) !== undefined && (
-                    <div>
-                      <dt>Model</dt>
-                      <dd>
-                        {selectedRequestInfo?.model
-                          ?? selectedRequestInfo?.requestConfig?.model}
-                      </dd>
-                    </div>
-                  )}
-                  <div>
-                    <dt>Tool calls</dt>
-                    <dd>{selectedRequestToolCalls}</dd>
-                  </div>
-                  {selectedRequestSubtoolCalls > 0 && (
-                    <div>
-                      <dt>Subtool calls</dt>
-                      <dd>{selectedRequestSubtoolCalls}</dd>
-                    </div>
-                  )}
-                  {selectedRequestInfo?.error !== undefined && (
-                    <div>
-                      <dt>Error</dt>
-                      <dd className={css.error}>{selectedRequestInfo.error}</dd>
-                    </div>
-                  )}
-                  {selectedRequestInfo?.retry !== undefined && (
-                    <div>
-                      <dt>Retry</dt>
-                      <dd>
-                        Scheduled {selectedRequestInfo.retry}
-                        {selectedRequestInfo.maxRetries === undefined
-                          ? ''
-                          : ` of ${selectedRequestInfo.maxRetries}`}
-                      </dd>
-                    </div>
-                  )}
-                  {selectedRequestInfo?.retryDelayMs !== undefined && (
-                    <div>
-                      <dt>Retry delay</dt>
-                      <dd>{formatDurationMs(selectedRequestInfo.retryDelayMs)}</dd>
-                    </div>
-                  )}
-                  {selectedRequestResult !== undefined && (
-                    <div>
-                      <dt>Result</dt>
-                      <dd className={css.overviewParentLinks}>
-                        <button
-                          type="button"
-                          className={css.overviewHierarchyNavLink}
-                          onClick={() => {
-                            openRecordSummary(selectedRequestResult)
-                          }}
-                        >
-                          <span>
-                            {selectedRequestInfo?.purpose === 'compaction'
-                              ? 'Compacted'
-                              : 'Assistant Message'}
-                          </span>
-                          <IconChevronRightOutline14
-                            className={css.overviewHierarchyJumpIconTight}
-                            size={11}
-                          />
-                        </button>
-                      </dd>
-                    </div>
-                  )}
-                </dl>
-                <div className={css.overviewSections}>
-                  {selectedRequestOptions !== undefined && (
-                    <OverviewSection label="Options" onOpen={() => { activateTab('options') }}>
-                      <RequestOptions options={selectedRequestOptions} preview />
-                    </OverviewSection>
-                  )}
-                  <OverviewSection label="Usage" onOpen={() => { activateTab('usage') }}>
-                    <UsageRows usage={selectedRequestUsage} />
-                  </OverviewSection>
-                  <OverviewSection label="Timing" onOpen={() => { activateTab('timing') }}>
-                    <RequestTiming
-                      assistant={selectedRequestAssistant}
-                      anchor={selectedRequestAnchor}
-                      request={selectedRequestInfo}
-                    />
-                  </OverviewSection>
-                </div>
-              </>
-            )}
-            {selectedRequest !== null && activeTab === 'options' && (
-              <RequestOptions options={selectedRequestOptions} />
-            )}
-            {selectedRequest !== null && activeTab === 'usage' && (
-              <RequestUsagePanel
-                usage={selectedRequestUsage}
-                cumulative={selectedRequestCumulativeUsage}
-              />
-            )}
-            {selectedRequest !== null && activeTab === 'timing' && (
-              <RequestTiming
-                assistant={selectedRequestAssistant}
-                anchor={selectedRequestAnchor}
-                request={selectedRequestInfo}
-              />
-            )}
-            {promptSelected
-              && selectedPreviousPrompt !== undefined
-              && activeTab === 'diff' && (
-              <SystemPromptDiff
-                before={selectedPreviousPrompt}
-                after={selectedPrompt}
-              />
-            )}
-            {promptSelected && activeTab === 'system-prompt' && (
-              selectedPrompt.system === ''
-                ? <p className={css.noPayload}>No system prompt in this request</p>
-                : (
-                  <div className={`${css.markdownPayload} ${css.systemPrompt}`}>
-                    <MarkdownText text={selectedPrompt.system} />
-                  </div>
-                )
-            )}
-            {promptSelected && activeTab === 'tools' && (
-              <ToolCatalog tools={selectedPrompt.tools} />
-            )}
-            {!promptSelected
-              && selected?.cell.kind === 'compacted'
-              && selectedState !== undefined
-              && activeTab === 'overview' && (
-              <>
-                <dl
-                  className={`${css.overview} ${css.summaryScrollRegion}`}
-                  data-summary-scroll-region=""
-                >
-                  <div>
-                    <dt>Status</dt>
-                    <dd className={selectedState === 'error' ? css.error : undefined}>
-                      {statusLabel(selectedState)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Duration</dt>
-                    <dd>{formatElapsedSeconds(selected.cell.timeSeconds)}</dd>
-                  </div>
-                  <div>
-                    <dt>Tokens</dt>
-                    <dd>—</dd>
-                  </div>
-                </dl>
-                {selected.cell.outputDetail !== undefined && (
-                  <div
-                    className={`${css.compactedSummary} ${css.summaryScrollRegion}`}
+                <>
+                  <dl
+                    className={`${css.overview} ${css.summaryScrollRegion}`}
                     data-summary-scroll-region=""
                   >
-                    <MarkdownRecordContent
-                      record={selected}
-                      rendered
-                      thinkingExpanded={thinkingExpanded}
-                      onThinkingExpandedChange={setThinkingExpanded}
-                      onOpenCall={openCallSummary}
-                    />
-                  </div>
-                )}
-              </>
-            )}
-            {!promptSelected
-              && selected !== undefined
-              && selected.cell.kind !== 'compacted'
-              && selectedState !== undefined
-              && activeTab === 'overview' && (
-              <>
-                <dl
-                  className={`${css.overview} ${css.summaryScrollRegion}`}
-                  data-summary-scroll-region=""
-                >
-                  {selected.cell.messageSource !== undefined && (
                     <div>
-                      <dt>Source</dt>
-                      <dd className={css.overviewParentLinks}>
-                        <button
-                          type="button"
-                          className={css.overviewHierarchyNavLink}
-                          onClick={() => { activateTab('source') }}
-                        >
-                          <span>{messageSourceLabel(selected.cell.messageSource)}</span>
-                          <IconChevronRightOutline14
-                            className={css.overviewHierarchyJumpIconTight}
-                            size={11}
-                          />
-                        </button>
+                      <dt>{t('table.status')}</dt>
+                      <dd className={selectedRequestState === 'error' ? css.error : undefined}>
+                        {statusLabel(selectedRequestState, t)}
                       </dd>
                     </div>
-                  )}
-                  {hasSelectedHierarchy && (
+                    {selectedRequestInfo?.purpose === 'compaction' && (
+                      <div>
+                        <dt>{t('table.purpose')}</dt>
+                        <dd>{t('table.compaction')}</dd>
+                      </div>
+                    )}
+                    {(selectedRequestInfo?.provider
+                    ?? selectedRequestInfo?.requestConfig?.provider) !== undefined && (
+                      <div>
+                        <dt>{t('table.provider')}</dt>
+                        <dd>
+                          {selectedRequestInfo?.provider
+                          ?? selectedRequestInfo?.requestConfig?.provider}
+                        </dd>
+                      </div>
+                    )}
+                    {(selectedRequestInfo?.model
+                    ?? selectedRequestInfo?.requestConfig?.model) !== undefined && (
+                      <div>
+                        <dt>{t('table.model')}</dt>
+                        <dd>
+                          {selectedRequestInfo?.model
+                          ?? selectedRequestInfo?.requestConfig?.model}
+                        </dd>
+                      </div>
+                    )}
                     <div>
-                      <dt>
-                        {selectedAssistantRequestTarget !== undefined
-                          ? 'Source'
-                          : 'Hierarchy'}
-                      </dt>
-                      <dd className={css.overviewParentLinks}>
-                        {selectedAssistantRequestTarget !== undefined && (
+                      <dt>{t('table.toolCalls')}</dt>
+                      <dd>{selectedRequestToolCalls}</dd>
+                    </div>
+                    {selectedRequestSubtoolCalls > 0 && (
+                      <div>
+                        <dt>{t('table.subtoolCalls')}</dt>
+                        <dd>{selectedRequestSubtoolCalls}</dd>
+                      </div>
+                    )}
+                    {selectedRequestInfo?.error !== undefined && (
+                      <div>
+                        <dt>{t('table.error')}</dt>
+                        <dd className={css.error}>{selectedRequestInfo.error}</dd>
+                      </div>
+                    )}
+                    {selectedRequestInfo?.retry !== undefined && (
+                      <div>
+                        <dt>{t('table.retry')}</dt>
+                        <dd>
+                          {selectedRequestInfo.maxRetries === undefined
+                            ? t('table.retryScheduled', { retry: selectedRequestInfo.retry })
+                            : t('table.retryOf', {
+                              retry: selectedRequestInfo.retry,
+                              maximum: selectedRequestInfo.maxRetries,
+                            })}
+                        </dd>
+                      </div>
+                    )}
+                    {selectedRequestInfo?.retryDelayMs !== undefined && (
+                      <div>
+                        <dt>{t('table.retryDelay')}</dt>
+                        <dd>{formatDurationMs(selectedRequestInfo.retryDelayMs)}</dd>
+                      </div>
+                    )}
+                    {selectedRequestResult !== undefined && (
+                      <div>
+                        <dt>{t('table.result')}</dt>
+                        <dd className={css.overviewParentLinks}>
                           <button
                             type="button"
                             className={css.overviewHierarchyNavLink}
                             onClick={() => {
-                              selectRequest(selectedAssistantRequestTarget)
+                              openRecordSummary(selectedRequestResult)
                             }}
                           >
-                            <span>Request #{selectedAssistantRequest ?? '—'}</span>
+                            <span>
+                              {selectedRequestInfo?.purpose === 'compaction'
+                                ? t('table.compacted')
+                                : t('table.assistantMessage')}
+                            </span>
                             <IconChevronRightOutline14
                               className={css.overviewHierarchyJumpIconTight}
                               size={11}
                             />
                           </button>
-                        )}
-                        {selectedParentMessage !== undefined && (
-                          <button
-                            type="button"
-                            className={css.overviewHierarchyNavLink}
-                            onClick={() => { openRecordSummary(selectedParentMessage) }}
-                          >
-                            <span>Assistant Message</span>
-                            <IconChevronRightOutline14
-                              className={css.overviewHierarchyJumpIconTight}
-                              size={11}
-                            />
-                          </button>
-                        )}
-                        {selectedParentTool !== undefined && (
-                          <button
-                            type="button"
-                            className={css.overviewHierarchyNavLink}
-                            onClick={() => { openRecordSummary(selectedParentTool) }}
-                          >
-                            <span>Tool Call</span>
-                            <IconChevronRightOutline14
-                              className={css.overviewHierarchyJumpIconTight}
-                              size={11}
-                            />
-                          </button>
-                        )}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                  <div className={css.overviewSections}>
+                    {selectedRequestOptions !== undefined && (
+                      <OverviewSection label={t('tab.options')} onOpen={() => { activateTab('options') }}>
+                        <RequestOptions options={selectedRequestOptions} preview />
+                      </OverviewSection>
+                    )}
+                    <OverviewSection label={t('tab.usage')} onOpen={() => { activateTab('usage') }}>
+                      <UsageRows usage={selectedRequestUsage} />
+                    </OverviewSection>
+                    <OverviewSection label={t('tab.timing')} onOpen={() => { activateTab('timing') }}>
+                      <RequestTiming
+                        assistant={selectedRequestAssistant}
+                        anchor={selectedRequestAnchor}
+                        request={selectedRequestInfo}
+                      />
+                    </OverviewSection>
+                  </div>
+                </>
+              )}
+              {selectedRequest !== null && activeTab === 'options' && (
+                <RequestOptions options={selectedRequestOptions} />
+              )}
+              {selectedRequest !== null && activeTab === 'usage' && (
+                <RequestUsagePanel
+                  usage={selectedRequestUsage}
+                  cumulative={selectedRequestCumulativeUsage}
+                />
+              )}
+              {selectedRequest !== null && activeTab === 'timing' && (
+                <RequestTiming
+                  assistant={selectedRequestAssistant}
+                  anchor={selectedRequestAnchor}
+                  request={selectedRequestInfo}
+                />
+              )}
+              {promptSelected
+              && selectedPreviousPrompt !== undefined
+              && activeTab === 'diff' && (
+                <SystemPromptDiff
+                  before={selectedPreviousPrompt}
+                  after={selectedPrompt}
+                />
+              )}
+              {promptSelected && activeTab === 'system-prompt' && (
+                selectedPrompt.system === ''
+                  ? <p className={css.noPayload}>{t('table.noSystemPrompt')}</p>
+                  : (
+                    <div className={`${css.markdownPayload} ${css.systemPrompt}`}>
+                      <MarkdownText text={selectedPrompt.system} />
+                    </div>
+                  )
+              )}
+              {promptSelected && activeTab === 'tools' && (
+                <ToolCatalog tools={selectedPrompt.tools} />
+              )}
+              {!promptSelected
+              && selected?.cell.kind === 'compacted'
+              && selectedState !== undefined
+              && activeTab === 'overview' && (
+                <>
+                  <dl
+                    className={`${css.overview} ${css.summaryScrollRegion}`}
+                    data-summary-scroll-region=""
+                  >
+                    <div>
+                      <dt>{t('table.status')}</dt>
+                      <dd className={selectedState === 'error' ? css.error : undefined}>
+                        {statusLabel(selectedState, t)}
                       </dd>
                     </div>
-                  )}
-                  <div>
-                    <dt>Status</dt>
-                    <dd className={selectedState === 'error' ? css.error : undefined}>
-                      {statusLabel(selectedState)}
-                    </dd>
-                  </div>
-                  {selected.cell.kind === 'message' && (
-                    <TokenRows cell={selected.cell} />
-                  )}
-                  {(selected.cell.kind === 'user' || selected.cell.kind === 'context') && (
                     <div>
-                      <dt>Duration</dt>
+                      <dt>{t('table.duration')}</dt>
                       <dd>{formatElapsedSeconds(selected.cell.timeSeconds)}</dd>
                     </div>
-                  )}
-                </dl>
-                <div className={css.overviewSections}>
-                  {isMarkdownRecord(selected)
-                    ? (
-                      <>
-                        <OverviewSection label="Preview" onOpen={() => { activateTab('rendered') }}>
-                          <MarkdownRecordContent
-                            record={selected}
-                            rendered
-                            preview
-                            thinkingExpanded={thinkingExpanded}
-                            onThinkingExpandedChange={setThinkingExpanded}
-                            onOpenCall={openCallSummary}
-                          />
-                        </OverviewSection>
-                      </>
-                    )
-                    : (
-                      <>
-                        {selected.cell.inputDetail && (
-                          <OverviewSection label="Payload" onOpen={() => { activateTab('input') }}>
-                            <RecordPayload record={selected} direction="input" preview />
-                          </OverviewSection>
-                        )}
-                        {selected.cell.outputDetail && (
-                          <OverviewSection label="Result" onOpen={() => { activateTab('output') }}>
-                            <RecordPayload record={selected} direction="output" preview />
-                          </OverviewSection>
-                        )}
-                        <OverviewSection label="Schema" onOpen={() => { activateTab('schema') }}>
-                          <RecordSchema record={selected} preview />
-                        </OverviewSection>
-                      </>
-                    )}
-                  {selectedAssistantRequestTarget !== undefined && (
-                    <OverviewSection
-                      label="Request Timing"
-                      onOpen={() => {
-                        selectRequest(selectedAssistantRequestTarget, 'timing')
-                      }}
+                    <div>
+                      <dt>{t('table.tokens')}</dt>
+                      <dd>—</dd>
+                    </div>
+                  </dl>
+                  {selected.cell.outputDetail !== undefined && (
+                    <div
+                      className={`${css.compactedSummary} ${css.summaryScrollRegion}`}
+                      data-summary-scroll-region=""
                     >
-                      <RecordTiming record={selected} />
-                    </OverviewSection>
+                      <MarkdownRecordContent
+                        record={selected}
+                        rendered
+                        thinkingExpanded={thinkingExpanded}
+                        onThinkingExpandedChange={setThinkingExpanded}
+                        onOpenCall={openCallSummary}
+                      />
+                    </div>
                   )}
-                  {(selected.cell.kind === 'tool' || selected.cell.kind === 'subtool') && (
-                    <OverviewSection label="Timing" onOpen={() => { activateTab('timing') }}>
-                      <RecordTiming record={selected} />
-                    </OverviewSection>
-                  )}
-                </div>
-              </>
-            )}
-            {!promptSelected && selected !== undefined && activeTab === 'rendered' && (
-              <MarkdownRecordContent
-                record={selected}
-                rendered
-                thinkingExpanded={thinkingExpanded}
-                onThinkingExpandedChange={setThinkingExpanded}
-                onOpenCall={openCallSummary}
-              />
-            )}
-            {!promptSelected && selected !== undefined && activeTab === 'raw' && (
-              <MarkdownRecordContent
-                record={selected}
-                rendered={false}
-                thinkingExpanded={thinkingExpanded}
-                onThinkingExpandedChange={setThinkingExpanded}
-                onOpenCall={openCallSummary}
-              />
-            )}
-            {!promptSelected && selected !== undefined && activeTab === 'source' && (
-              <MessageSource record={selected} />
-            )}
-            {!promptSelected && selected !== undefined && activeTab === 'input' && (
-              <RecordPayload record={selected} direction="input" />
-            )}
-            {!promptSelected && selected !== undefined && activeTab === 'output' && (
-              <RecordPayload record={selected} direction="output" />
-            )}
-            {!promptSelected && selected !== undefined && activeTab === 'schema' && (
-              <RecordSchema record={selected} />
-            )}
-            {!promptSelected && selected !== undefined && activeTab === 'timing' && (
-              <RecordTiming record={selected} />
-            )}
-          </div>
-        </aside>
-      )}
-    </div>
+                </>
+              )}
+              {!promptSelected
+              && selected !== undefined
+              && selected.cell.kind !== 'compacted'
+              && selectedState !== undefined
+              && activeTab === 'overview' && (
+                <>
+                  <dl
+                    className={`${css.overview} ${css.summaryScrollRegion}`}
+                    data-summary-scroll-region=""
+                  >
+                    {selected.cell.messageSource !== undefined && (
+                      <div>
+                        <dt>{t('table.source')}</dt>
+                        <dd className={css.overviewParentLinks}>
+                          <button
+                            type="button"
+                            className={css.overviewHierarchyNavLink}
+                            onClick={() => { activateTab('source') }}
+                          >
+                            <span>{messageSourceLabel(selected.cell.messageSource, t)}</span>
+                            <IconChevronRightOutline14
+                              className={css.overviewHierarchyJumpIconTight}
+                              size={11}
+                            />
+                          </button>
+                        </dd>
+                      </div>
+                    )}
+                    {hasSelectedHierarchy && (
+                      <div>
+                        <dt>
+                          {selectedAssistantRequestTarget !== undefined
+                            ? t('table.source')
+                            : t('table.hierarchy')}
+                        </dt>
+                        <dd className={css.overviewParentLinks}>
+                          {selectedAssistantRequestTarget !== undefined && (
+                            <button
+                              type="button"
+                              className={css.overviewHierarchyNavLink}
+                              onClick={() => {
+                                selectRequest(selectedAssistantRequestTarget)
+                              }}
+                            >
+                              <span>Request #{selectedAssistantRequest ?? '—'}</span>
+                              <IconChevronRightOutline14
+                                className={css.overviewHierarchyJumpIconTight}
+                                size={11}
+                              />
+                            </button>
+                          )}
+                          {selectedParentMessage !== undefined && (
+                            <button
+                              type="button"
+                              className={css.overviewHierarchyNavLink}
+                              onClick={() => { openRecordSummary(selectedParentMessage) }}
+                            >
+                              <span>{t('table.assistantMessage')}</span>
+                              <IconChevronRightOutline14
+                                className={css.overviewHierarchyJumpIconTight}
+                                size={11}
+                              />
+                            </button>
+                          )}
+                          {selectedParentTool !== undefined && (
+                            <button
+                              type="button"
+                              className={css.overviewHierarchyNavLink}
+                              onClick={() => { openRecordSummary(selectedParentTool) }}
+                            >
+                              <span>{t('table.toolCall')}</span>
+                              <IconChevronRightOutline14
+                                className={css.overviewHierarchyJumpIconTight}
+                                size={11}
+                              />
+                            </button>
+                          )}
+                        </dd>
+                      </div>
+                    )}
+                    <div>
+                      <dt>{t('table.status')}</dt>
+                      <dd className={selectedState === 'error' ? css.error : undefined}>
+                        {statusLabel(selectedState, t)}
+                      </dd>
+                    </div>
+                    {selected.cell.kind === 'message' && (
+                      <TokenRows cell={selected.cell} />
+                    )}
+                    {(selected.cell.kind === 'user' || selected.cell.kind === 'context') && (
+                      <div>
+                        <dt>{t('table.duration')}</dt>
+                        <dd>{formatElapsedSeconds(selected.cell.timeSeconds)}</dd>
+                      </div>
+                    )}
+                  </dl>
+                  <div className={css.overviewSections}>
+                    {isMarkdownRecord(selected)
+                      ? (
+                        <>
+                          <OverviewSection label={t('tab.preview')} onOpen={() => { activateTab('rendered') }}>
+                            <MarkdownRecordContent
+                              record={selected}
+                              rendered
+                              preview
+                              thinkingExpanded={thinkingExpanded}
+                              onThinkingExpandedChange={setThinkingExpanded}
+                              onOpenCall={openCallSummary}
+                            />
+                          </OverviewSection>
+                        </>
+                      )
+                      : (
+                        <>
+                          {selected.cell.inputDetail && (
+                            <OverviewSection label={t('tab.payload')} onOpen={() => { activateTab('input') }}>
+                              <RecordPayload record={selected} direction="input" preview />
+                            </OverviewSection>
+                          )}
+                          {selected.cell.outputDetail && (
+                            <OverviewSection label={t('tab.result')} onOpen={() => { activateTab('output') }}>
+                              <RecordPayload record={selected} direction="output" preview />
+                            </OverviewSection>
+                          )}
+                          <OverviewSection label={t('tab.schema')} onOpen={() => { activateTab('schema') }}>
+                            <RecordSchema record={selected} preview />
+                          </OverviewSection>
+                        </>
+                      )}
+                    {selectedAssistantRequestTarget !== undefined && (
+                      <OverviewSection
+                        label={t('tab.requestTiming')}
+                        onOpen={() => {
+                          selectRequest(selectedAssistantRequestTarget, 'timing')
+                        }}
+                      >
+                        <RecordTiming record={selected} />
+                      </OverviewSection>
+                    )}
+                    {(selected.cell.kind === 'tool' || selected.cell.kind === 'subtool') && (
+                      <OverviewSection label={t('tab.timing')} onOpen={() => { activateTab('timing') }}>
+                        <RecordTiming record={selected} />
+                      </OverviewSection>
+                    )}
+                  </div>
+                </>
+              )}
+              {!promptSelected && selected !== undefined && activeTab === 'rendered' && (
+                <MarkdownRecordContent
+                  record={selected}
+                  rendered
+                  thinkingExpanded={thinkingExpanded}
+                  onThinkingExpandedChange={setThinkingExpanded}
+                  onOpenCall={openCallSummary}
+                />
+              )}
+              {!promptSelected && selected !== undefined && activeTab === 'raw' && (
+                <MarkdownRecordContent
+                  record={selected}
+                  rendered={false}
+                  thinkingExpanded={thinkingExpanded}
+                  onThinkingExpandedChange={setThinkingExpanded}
+                  onOpenCall={openCallSummary}
+                />
+              )}
+              {!promptSelected && selected !== undefined && activeTab === 'source' && (
+                <MessageSource record={selected} />
+              )}
+              {!promptSelected && selected !== undefined && activeTab === 'input' && (
+                <RecordPayload record={selected} direction="input" />
+              )}
+              {!promptSelected && selected !== undefined && activeTab === 'output' && (
+                <RecordPayload record={selected} direction="output" />
+              )}
+              {!promptSelected && selected !== undefined && activeTab === 'schema' && (
+                <RecordSchema record={selected} />
+              )}
+              {!promptSelected && selected !== undefined && activeTab === 'timing' && (
+                <RecordTiming record={selected} />
+              )}
+            </div>
+          </aside>
+        )}
+      </div>
+    </TrajectoryTranslateContext.Provider>
   )
 }

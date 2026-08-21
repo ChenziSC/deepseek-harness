@@ -1,8 +1,8 @@
 /**
- * Resolve a workspace-relative path into the Host-facing spelling used by openPath.
- * @param cwd - session workspace root, when known.
- * @param path - absolute or workspace-relative path.
- * @returns an absolute path when a workspace root is available, otherwise the original path.
+ * 把 Workspace 相对路径解析为 openPath 使用的 Host-facing 表示。
+ * @param cwd - 已知时为 Session Workspace 根目录。
+ * @param path - 绝对路径或 Workspace 相对路径。
+ * @returns 存在 Workspace 根目录时返回绝对路径，否则返回原路径。
  */
 export function resolveWorkspacePath(cwd: string | undefined, path: string): string {
   if (path.startsWith('/') || isWindowsStylePath(path)) return path
@@ -12,18 +12,18 @@ export function resolveWorkspacePath(cwd: string | undefined, path: string): str
   return `${base}/${rel}`
 }
 
-/** Drive-letter or UNC path; Web display must not rewrite these as `~`. */
+/** 盘符或 UNC 路径；Web 展示不能将其改写为 `~`。 */
 function isWindowsStylePath(value: string): boolean {
   return /^[A-Za-z]:[/\\]/.test(value) || value.startsWith('\\\\')
 }
 
 /**
- * Display-only POSIX home abbreviation. Windows drive and UNC paths stay
- * verbatim, including when `home` itself is a Windows path. A missing, empty,
- * or filesystem-root `home` leaves `path` unchanged so `/` cannot become `~`.
- * @param path - absolute or already-short display path.
- * @param home - host account home from `host.describe`; absent skips abbreviation.
- * @returns `~` or `~/…` for the POSIX home and its descendants, otherwise `path`.
+ * 仅用于展示的 POSIX Home 缩写。Windows 盘符和 UNC 路径保持原样，包括 `home` 本身是
+ * Windows 路径的情况。`home` 缺失、为空或为文件系统根目录时保持 `path` 不变，避免把
+ * `/` 变成 `~`。
+ * @param path - 绝对路径或已缩短的展示路径。
+ * @param home - 来自 `host.describe` 的 Host 账户 Home；缺失时不缩写。
+ * @returns POSIX Home 及其子路径使用 `~` 或 `~/…`，否则返回 `path`。
  */
 export function abbreviateHomePath(path: string, home?: string): string {
   if (home === undefined || home === '') return path

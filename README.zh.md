@@ -69,7 +69,7 @@ pnpm dsh web
 
 ## 开发
 
-请先阅读[开发指南](docs/development.zh.md)与[架构文档](docs/architecture.zh.md)。
+请先阅读[开发指南](docs/development.zh.md)与[架构文档](docs/architecture.zh.md)。如果希望从代码入口沿运行时序理解设计，请使用[源码学习路径](docs/source-learning-path.zh.md)。
 
 面向 agent：请遵循 [AGENTS.md](AGENTS.md)。
 

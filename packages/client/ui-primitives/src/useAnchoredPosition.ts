@@ -1,35 +1,33 @@
 /**
- * Keep a fixed-position floating element anchored to a trigger.
+ * 让固定定位浮动元素始终锚定到触发器。
  *
- * A portaled panel is positioned from its anchor's viewport rect, which stops
- * being true the moment anything scrolls or the window resizes. This owns that
- * one concern: measure the anchor, offset the panel below it, clamp the result
- * inside the viewport, and re-run on scroll (capture phase, so scrollers nested
- * inside the page are caught too), on resize, and on the panel's own size
- * changes while the element is open.
+ * 传送面板根据锚点的视口矩形定位，一旦任意位置滚动或窗口缩放，原坐标就会失效。
+ * 本模块只负责这一件事：测量锚点，把面板偏移到其下方，将结果限制在视口内；
+ * 打开期间在滚动（使用捕获阶段，因此也能捕获页面内嵌滚动容器）、窗口缩放和
+ * 面板自身尺寸变化时重新执行。
  * @module @deepseek-ai/dsh-client-ui-primitives/useAnchoredPosition
  */
 
 import { useLayoutEffect, useState, type CSSProperties, type RefObject } from 'react'
 
-/** Inputs for {@link useAnchoredPosition}. */
+/** {@link useAnchoredPosition} 的输入。 */
 export interface AnchoredPositionOptions {
-  /** Whether the floating element is mounted and should track its anchor. */
+  /** 浮动元素是否已挂载并应跟踪锚点。 */
   open: boolean
-  /** The element the panel is placed from. */
+  /** 面板定位所依据的元素。 */
   anchorRef: RefObject<HTMLElement | null>
-  /** The floating element, measured so the clamp uses real dimensions. */
+  /** 浮动元素；测量后让限位使用真实尺寸。 */
   panelRef: RefObject<HTMLElement | null>
-  /** Distance kept between the anchor's bottom edge and the panel's top. */
+  /** 锚点底边与面板顶边之间保留的距离。 */
   gap: number
-  /** Distance kept between the panel and each viewport edge. */
+  /** 面板与视口各边之间保留的距离。 */
   margin: number
 }
 
 /**
- * Track an anchor and return the panel's fixed coordinates.
- * @param options - the open state, the two refs, and the gap/margin distances.
- * @returns `left`/`top` for the panel, or `null` before the first measurement.
+ * 跟踪锚点并返回面板的固定坐标。
+ * @param options - 打开状态、两个 ref，以及 gap/margin 距离。
+ * @returns 面板的 `left`/`top`；首次测量前为 `null`。
  */
 export function useAnchoredPosition(options: AnchoredPositionOptions): CSSProperties | null {
   const { open, anchorRef, panelRef, gap, margin } = options
@@ -55,16 +53,13 @@ export function useAnchoredPosition(options: AnchoredPositionOptions): CSSProper
       /* v8 ignore stop */
       setPosition({ left, top })
     }
-    // The first run measures the panel in the same commit that opened it, so
-    // the clamp uses real dimensions before anything paints.
+    // 首次运行在打开面板的同一次提交中测量，使限位在任何内容绘制前使用真实尺寸。
     place()
     window.addEventListener('scroll', place, true)
     window.addEventListener('resize', place)
-    // The panel's own height changes without either event — a status line
-    // appearing inside it, or a `resize: vertical` textarea dragged taller —
-    // and a stale clamp would let a panel near the bottom edge cross the
-    // margin it is supposed to respect. The guard keeps the hook usable where
-    // `ResizeObserver` is absent, which is how jsdom runs.
+    // 面板自身高度可能在没有滚动或缩放事件时变化，例如内部出现状态行，或用户把
+    // `resize: vertical` textarea 拖高。过期限位会让靠近底边的面板越过应遵守的边距。
+    // 此保护使 hook 在缺少 `ResizeObserver` 的环境仍可用，jsdom 就以这种方式运行。
     const panel = panelRef.current
     let observer: ResizeObserver | null = null
     if (typeof ResizeObserver !== 'undefined' && panel !== null) {

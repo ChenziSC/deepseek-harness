@@ -1,13 +1,10 @@
 /**
- * @deepseek-ai/dsh-web-app — the browser-surface bundle's runtime glue plugin
- * plus the bundle patch (`cordis.patch.yml`, declared by the `dsh.bundle.patch`
- * manifest field). The plugin owns the browser-surface glue: it resolves
- * the built frontend dist (workspace knowledge of this bundle, never user
- * config), mounts the `frontend-static` fallback owner over it, registers the
- * harness-source and web-surface prompt sections, the bash-visible web runtime
- * variable, the URL line, and the default-browser handoff. App command-line
- * values arrive through the `webStartup` service expressions in the bundle
- * patch.
+ * @deepseek-ai/dsh-web-app —— 浏览器界面 Bundle 的运行时胶水插件，以及由
+ * `dsh.bundle.patch` manifest 字段声明的 Bundle patch（`cordis.patch.yml`）。本插件负责
+ * 浏览器界面胶水：解析已构建的 frontend dist（属于本 Bundle 的 workspace 知识，而非
+ * 用户配置），在其上挂载 `frontend-static` fallback owner，注册 harness-source 与
+ * web-surface Prompt 段、bash 可见的 Web 运行时变量、URL 输出行和默认浏览器交接。
+ * App 命令行值通过 Bundle patch 中的 `webStartup` 服务表达式传入。
  * @module @deepseek-ai/dsh-web-app
  */
 
@@ -26,18 +23,22 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-shell-env'
 
-/** Stable Cordis plugin name. */
+/** 稳定的 Cordis 插件名。 */
 export const name = 'web-app'
 
-/** This dsh installation's root, from either this package's source or built entry. */
+/** 当前 dsh 安装根目录；可从本包源码入口或构建后入口解析。 */
 const SOURCE_ROOT = fileURLToPath(new URL('../../../..', import.meta.url))
 
-/** Runtime service that releases Web rows after bind-dependent values resolve. */
+/** 绑定相关值解析完毕后放行 Web 行的运行时服务。 */
 const WEB_RUNTIME_SERVICE = 'webRuntime'
 
-/** Services required before the web runtime can mount. */
+/** Web 运行时挂载前所需的服务。 */
 export const inject = ['webServer']
 
+// 中文：插件配置由组合后的部署设置与每次调用的命令行值组成。openBrowser 控制 Loader
+// tree 稳定后的默认浏览器交接，SSH 启动会抑制它；printUrl 控制激活时的 URL 输出；
+// surfaceContext 控制模型可见的界面 Prompt 与 DSH_WEB_URL，非 GUI 的 one-shot 层可关闭；
+// trustedHosts 保存本次调用显式传入的 authority。下方英文 JSDoc 是配置目录生成来源。
 /** Plugin config: composed deployment settings plus per-invocation command-line values. */
 export interface Config {
   /** Permit default-browser handoff after the Loader tree settles; an SSH launch suppresses it. */
@@ -62,24 +63,24 @@ export const Config: z<Config> = z.object({
   trustedHosts: z.array(String).default([]),
 })
 
-/** Bind-dependent Web values shared by the trust fence and URL display. */
+/** trust fence 与 URL 展示共用、依赖绑定结果的 Web 值。 */
 export interface WebRuntimeValues {
-  /** LAN IPv4 literals sampled once when the server binds all interfaces. */
+  /** Server 绑定所有接口时一次性采样的 LAN IPv4 literal。 */
   lanAddresses: string[]
-  /** LAN literals followed by explicit invocation authorities. */
+  /** LAN literal，后接调用时显式传入的 authority。 */
   trustedHosts: string[]
 }
 
-/** Environment variable naming the canonical local URL of this Web GUI. */
+/** 保存此 Web GUI 规范本地 URL 的环境变量。 */
 const DSH_WEB_URL = 'DSH_WEB_URL' as const
 
-// Display-only mirror of the webserver schema's loopback host: the address the
-// local URL always prints. Not a source of truth — the schema is.
+// 仅用于展示的 webserver schema loopback host 镜像：本地 URL 始终输出该地址。
+// 它不是事实来源，schema 才是。
 const LOOPBACK_HOST = '127.0.0.1'
-/** The webserver schema's all-interfaces bind literal. */
+/** webserver schema 中表示绑定所有接口的 literal。 */
 const ALL_INTERFACES_HOST = '0.0.0.0'
 
-/** Whether this process was launched through SSH, including a forwarded-port session. */
+/** 当前进程是否通过 SSH 启动，包括端口转发 Session。 */
 function launchedThroughSsh(ctx: Context): boolean {
   const environment = launchEnvironmentOf(ctx)
   return ['SSH_CONNECTION', 'SSH_TTY'].some((name) => {
@@ -95,7 +96,7 @@ try {
   const { default: open } = await import(${JSON.stringify(BROWSER_OPENER_MODULE)})
   const launcher = await open(process.argv[1])
   if (process.platform === 'win32') {
-    // open resolves at PowerShell spawn; keep it referenced until that launcher hands the URL to Windows.
+    // open 在 PowerShell spawn 时即完成；保持引用，直到该 launcher 把 URL 交给 Windows。
     const code = launcher.exitCode ?? await new Promise((resolve, reject) => {
       function onError(error) {
         launcher.off('close', onClose)
@@ -113,21 +114,20 @@ try {
   }
   process.exitCode = 0
 } catch (error) {
-  // The parent turns this exit into the manual-URL warning.
+  // 父进程把此次退出转换为手动打开 URL 的警告。
   console.error(error)
   process.exitCode = 1
 }
 `
 
 /**
- * Resolve one LAN-trust snapshot from the active server bind.
+ * 根据活动 Server 的绑定配置解析一次 LAN trust 快照。
  *
- * Derived entries are port-less IP literals: DNS rebinding needs an
- * attacker-controlled name, while an IP-literal Host is safe on any port and
- * an OS-assigned port is unknowable before bind.
- * @param bindHost - the active webserver bind host.
- * @param extra - explicit `--trusted-host` values, in argument order.
- * @returns the LAN display addresses and invocation-derived fence authorities.
+ * 派生条目是不带端口的 IP literal：DNS rebinding 需要攻击者控制的名称，而 IP literal
+ * Host 在任意端口都安全，并且绑定前无法得知操作系统分配的端口。
+ * @param bindHost - 活动 webserver 的绑定 host。
+ * @param extra - 按参数顺序排列的显式 `--trusted-host` 值。
+ * @returns LAN 展示地址和从本次调用派生的 fence authority。
  */
 export function resolveLanTrust(bindHost: string, extra: readonly string[]): WebRuntimeValues {
   const lanAddresses = bindHost === ALL_INTERFACES_HOST
@@ -192,7 +192,7 @@ function spawnBrowserLauncher(url: string): ChildProcess {
   })
 }
 
-/** Hand one URL to the operating system's default browser. */
+/** 把 URL 交给操作系统的默认浏览器。 */
 async function openBrowser(url: string): Promise<void> {
   const launcher = spawnBrowserLauncher(url)
   let launcherStderr = ''
@@ -221,24 +221,22 @@ async function openBrowser(url: string): Promise<void> {
   })
 }
 
-/** Test hooks for the built dist and native browser handoff; production never mutates them. */
+/** 构建后 dist 与原生浏览器交接的测试钩子；生产环境不会修改。 */
 export const internals: {
   resolveDistIndex: () => string
   openBrowser: (url: string) => Promise<void>
 } = { resolveDistIndex, openBrowser }
 
 /**
- * Mount the Web runtime: dist serving, surface prompt, the bash runtime
- * variable, the URL line, and the default-browser handoff.
- * @param ctx - plugin context carrying the webServer service.
- * @param config - validated {@link Config}.
+ * 挂载 Web 运行时：dist 服务、界面 Prompt、bash 运行时变量、URL 输出行和默认浏览器交接。
+ * @param ctx - 携带 webServer 服务的插件上下文。
+ * @param config - 已校验的 {@link Config}。
  */
 export function apply(ctx: Context, config: Config): void {
   const runtime = resolveLanTrust(ctx.webServer.host, config.trustedHosts)
-  // The loopback URL belongs to this host. Under SSH, the operator reaches it
-  // through a local forwarding address that this process cannot derive.
+  // loopback URL 属于当前 Host。通过 SSH 时，操作者使用本进程无法推导的本地转发地址访问。
   const handoffBrowser = config.openBrowser && !launchedThroughSsh(ctx)
-  // Release dependent rows only after bind-dependent trust has been sampled once.
+  // 依赖绑定结果的 trust 完成一次采样后，才放行依赖行。
   ctx.provide(WEB_RUNTIME_SERVICE, runtime)
   ctx.plugin(FrontendStatic, { distIndex: internals.resolveDistIndex() })
   if (config.surfaceContext) {
@@ -261,14 +259,12 @@ export function apply(ctx: Context, config: Config): void {
     })
   }
   if (config.printUrl || handoffBrowser) {
-    // The URL line and browser handoff are readiness signals: supervisors RPC
-    // as soon as they observe the line, while a browser requests the page as
-    // soon as it opens. Neither may run while sibling rows such as the /api
-    // route owner are still mounting. Await Loader settlement first; a
-    // hand-built tree without a Loader is already the complete tree.
+    // URL 输出行与浏览器交接都是就绪信号：supervisor 看到该行就会发起 RPC，浏览器打开后
+    // 也会立即请求页面。因此，在 `/api` route owner 等同级行仍在挂载时，两者都不能执行。
+    // 先等待 Loader 稳定；不带 Loader 的手工构造 tree 已经是完整 tree。
     const announceReady = (): void => {
       const webUrl = localWebUrl(ctx)
-      // Reuse the exact LAN snapshot provided to the /api trust fence.
+      // 复用提供给 `/api` trust fence 的同一份 LAN 快照。
       const lanCandidate = runtime.lanAddresses[0]
       const port = ctx.webServer.port
       if (config.printUrl) {
@@ -282,19 +278,16 @@ export function apply(ctx: Context, config: Config): void {
         })
       }
     }
-    // This row's own activation can precede a sibling failure. The app owns
-    // readiness by waiting for its Loader tree, or announces at once in a
-    // hand-built context without Loader.
+    // 本行自身可能在同级行失败前激活。App 通过等待其 Loader tree 掌管就绪时机；若 context
+    // 为不带 Loader 的手工构造，则立即宣告就绪。
     const settled = ctx.get('loader')?.await()
     if (settled === undefined) announceReady()
     else {
       void settled.then(() => {
-        // The tree can be disposed while the boot was in flight (early
-        // SIGTERM); a URL line or browser tab for a dead server would only
-        // mislead, and reading the torn-down port would turn a clean shutdown
-        // into a crash.
+        // 启动仍在进行时 tree 可能已被释放（例如提前收到 SIGTERM）。为已停止的 Server
+        // 输出 URL 或打开浏览器只会造成误导，而读取已拆除的端口会把正常关闭变成崩溃。
         if (ctx.get('webServer') !== undefined) announceReady()
-      // Loader reports a failed boot; this row only stays quiet.
+      // Loader 负责报告启动失败；本行只需保持静默。
       }, () => {})
     }
   }

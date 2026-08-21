@@ -1,7 +1,6 @@
 /**
- * Browser wire client. The plugin selects fixture or HTTP transport, provides
- * the shared API client, and lets the runtime object layer start the stream
- * controller with its sinks.
+ * 浏览器 wire client。插件选择 fixture 或 HTTP transport，提供共享 API client，并由运行时
+ * 对象层使用自身 sink 启动 stream controller。
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { HostDescription, IApiClient } from './api.ts'
@@ -12,7 +11,7 @@ import { createWebConnectionRpc, type RpcFetch } from './rpc.ts'
 import { isLoopbackHostname } from '../loopback-hostname.ts'
 import type { ClientConnectionRpc } from '../rpc.ts'
 
-// ---- Contract re-exports (browser-safe apiproxy channels + core types) ----
+// ---- 约定重导出（browser-safe ApiProxy channel 与核心类型）----
 export type {
   ApiProxy, SessionsApi, SessionSearchItem, SessionSummary, PromptContentPart, HostApi, EventsApi, MuxFrame, HostFrame,
   ApprovalResponsePayload, QuestionResponsePayload, HistoryEntry, ToolEventView,
@@ -36,75 +35,70 @@ export {
   transportError,
 } from './api.ts'
 
-// Connection loop types are public through ConnectionHandle.start; the
-// controller remains package-internal.
+// Connection loop 类型通过 ConnectionHandle.start 公开，Controller 保留在包内。
 export type { ConnectionConfig, ConnectionSinks, ConnectionState }
 export type { ClientConnectionRpc } from '../rpc.ts'
 export type { RpcFetch } from './rpc.ts'
 
-/** Observable Host description published by each completed connection handshake. */
+/** 每次连接握手完成后发布的可观察 Host 描述。 */
 export interface HostDescriptionSource {
-  /** Latest connected-generation description; absent before connect and while reconnecting. */
+  /** 最近一个已连接代次的描述；连接前和重连期间不存在。 */
   getSnapshot(): HostDescription | undefined
-  /** Subscribe to description replacement and connection loss. */
+  /** 订阅描述替换与连接丢失。 */
   subscribe(listener: () => void): () => void
 }
 
-/** Required services (none — this is the wire root). */
+/** 必需服务：无；这里是 wire root。 */
 export const inject: string[] = []
 
 /**
- * Carrier override installed on the page global before plugin boot. The served
- * web app leaves it unset and gets HTTP + WebSocket; a shell that owns a
- * different physical transport (the worker preview's postMessage tunnel)
- * provides both halves here instead of forking this plugin.
+ * 插件启动前安装到页面全局对象的 Carrier 覆盖。由 Server 提供的 Web App 不设置它，使用
+ * HTTP + WebSocket；拥有不同物理 Transport 的 Shell（例如 Worker Preview 的 postMessage
+ * Tunnel）在此提供两部分实现，无需 fork 本插件。
  */
 export interface ClientTransportHooks {
-  /** Build the API carrier: unary calls plus the two downstream event streams. */
+  /** 构建 API Carrier：unary 调用加两条下行事件流。 */
   createApiClient(): IApiClient
-  /** Transport for generic unary RPC channels (the Typert gateway). */
+  /** 通用 unary RPC channel（Typert Gateway）的 Transport。 */
   fetch: RpcFetch
   /**
-   * Bundle transport for the module system, present when the carrier also owns
-   * bundle bytes (the worker tunnel). Absent in the served web app, whose
-   * bundles load over HTTP.
+   * 模块系统的 Bundle Transport。Carrier 同时拥有 Bundle 字节时存在，例如 Worker Tunnel；
+   * 由 Server 提供的 Web App 不设置，因为其 Bundle 经 HTTP 加载。
    */
   loadBundle?(url: string): Promise<void>
 }
 
-/** Page global carrying {@link ClientTransportHooks}; absent in the served web app. */
+/** 携带 {@link ClientTransportHooks} 的页面全局对象；由 Server 提供的 Web App 中不存在。 */
 interface ClientTransportGlobal {
   __DSH_TRANSPORT__?: ClientTransportHooks
 }
 
 /**
- * The ctx.connection service API: the API client plus a one-shot
- * controller starter (the runtime plugin supplies sinks when its object layer
- * is ready — connection stays consumer-agnostic).
+ * ctx.connection 服务 API：API client 加 one-shot Controller 启动器。运行时插件在对象层
+ * 就绪时提供 sink，使 Connection 不感知具体 Consumer。
  */
 export interface ConnectionHandle {
-  /** Shared api client (fixture or real, decided at boot from the page URL). */
+  /** 共享 API client；启动时根据页面 URL 选择 fixture 或真实实现。 */
   readonly api: IApiClient
-  /** Whether the current page authority is loopback; non-browser contexts default to true. */
+  /** 当前页面 authority 是否为 loopback；非浏览器 Context 默认为 true。 */
   readonly isLoopback: boolean
-  /** Generation-scoped Host facts, including the account home and native path-open capability. */
+  /** 连接代次范围的 Host 事实，包括账户 Home 与原生路径打开能力。 */
   readonly hostDescription: HostDescriptionSource
-  /** Generic logical RPC channels over the same Connection transport. */
+  /** 同一个 Connection Transport 上的通用逻辑 RPC channel。 */
   readonly rpc: ClientConnectionRpc
   /**
-   * Start the connect/pump/reconnect loop with the consumer's frame sinks.
-   * One consumer owns the streams (the runtime object layer); a second call
-   * throws.
-   * @param sinks - frame/state callbacks.
-   * @param config - reconnect/backoff tunables.
-   * @returns stop handle for the loop.
+   * 使用 Consumer 的 Frame sink 启动连接、抽取和重连循环。Stream 只允许一个 Consumer
+   *（运行时对象层）拥有，第二次调用会抛错。
+   * @param sinks - Frame/状态回调。
+   * @param config - 重连/backoff 可调参数。
+   * @returns 循环的停止 handle。
    */
   start(sinks: ConnectionSinks, config?: ConnectionConfig): { stop(): void }
 }
 
 /**
- * Client plugin body: pick the api by page mode and provide ctx.connection.
- * @param ctx - client cordis context.
+ * 客户端插件主体：按页面模式选择 API，并提供 ctx.connection。
+ * @param ctx - 客户端 Cordis Context。
  */
 export function apply(ctx: Context): void {
   const pageLocation = typeof location === 'undefined' ? undefined : location

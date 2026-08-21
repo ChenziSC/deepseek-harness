@@ -1,20 +1,16 @@
 /**
- * Settings shell and ownerless-copy plugin, browser half: renders the
- * `sidebar.settings` occupant — panel chrome, section navigation, and the
- * onboarding stage — and registers everything on the Settings pages that
- * belongs to no single feature: the trigger/header chrome content,
- * local-document action, General section, and `settings` dictionaries.
- * Feature-owned rows and sections stay with their features.
- * Export discipline: packages/client/AGENTS.md.
+ * 设置外壳和无特定拥有者文案插件的浏览器端：渲染 `sidebar.settings` 占用者，
+ * 包括面板外观、分区导航和 onboarding 阶段；并注册设置页面上不属于单一功能的
+ * 内容：触发器/header 外观、本地文档操作、General 分区和 `settings` 字典。
+ * 功能拥有的行和分区仍留在对应功能内。导出规范见 packages/client/AGENTS.md。
  */
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-api-remotes/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
-// Type-only: the settings slot declarations plus the ctx.settingsScope Context
-// merge. Cross-plugin collaboration goes through the service, never a value
-// import (client bundle purity gate).
+// 仅类型：引入 settings Slot 声明和 ctx.settingsScope Context 合并。跨插件协作
+// 通过服务完成，绝不进行值导入，以满足客户端 bundle 纯度门。
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-// Type-only: pulls ctx.locale into this program.
+// 仅类型：把 ctx.locale 引入本程序。
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {
   SettingsOnboardingStep, SettingsRootInjected, SettingsSectionRow,
@@ -40,36 +36,32 @@ export type { SettingsKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** Shell chrome + shell-owned General section copy. */
+    /** 外壳外观和由外壳拥有的 General 分区文案。 */
     settings: SettingsKey
   }
 }
 
-/** Dictionary namespace owned by this plugin (shell chrome + General copy). */
+/** 本插件拥有的字典命名空间：外壳外观加 General 文案。 */
 const NS = 'settings'
 
 /**
- * Required services (cordis fiber inject). The target slots are declared by
- * ui-settings' apply, whose activation order relative to this one is NOT
- * constrained; registrations depend on their slots through `slots.inject()`.
+ * 必需服务，通过 Cordis fiber inject。目标 Slot 由 ui-settings 的 apply 声明，
+ * 它与本插件的激活顺序没有约束；注册通过 `slots.inject()` 依赖对应 Slot。
  */
 export const inject = ['slots', 'locale', 'connection', 'settingsScope']
 
 /**
- * Register the `settings` dictionaries, the chrome content, and the General
- * section, each once its slot declaration is on the ledger.
- * @param ctx - client root context.
+ * 在各 Slot 声明进入台账后，分别注册 `settings` 字典、外观内容和 General 分区。
+ * @param ctx - 客户端根上下文。
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-general: dictionaries')
 
-  // Copy freshness is framework-owned: components read the standard `t`
-  // seat, and the nav label is a thunk the owner resolves per render — no
-  // locale/change re-registration wiring.
+  // 文案新鲜度由框架负责：组件读取标准 `t` 座位，导航标签则是拥有者每次渲染时
+  // 解析的 thunk；无需 locale/change 重新注册接线。
   const t = ctx.locale.bind(NS)
   const connection = ctx.get('connection') as ConnectionHandle
-  // The action follows the shared describe mirror, whose owning plugin
-  // already refreshes it on document commits and reconnects.
+  // 此操作跟随共享 describe 镜像；拥有该镜像的插件已负责文档提交和重连时刷新。
   const documentController = connection.isLoopback
     ? new SettingsDocumentStore(connection.api, ctx.settingsScope.describe())
     : undefined
@@ -80,11 +72,10 @@ export function apply(ctx: ClientContext): void {
       hooks: { snapshot: documentController.store },
     })
   ctx.effect(() => () => { documentController?.dispose() }, 'ui-settings-general: document action directory')
-  // The settings shell: this package occupies the sidebar-owned hole and
-  // declares the settings slots. Ledger → nav-row projection as an observable
-  // source (uSES contract: getSnapshot returns the cached rows until the
-  // ledger version moves). Labels may be locale-following thunks, so the cache
-  // key includes the locale revision and subscribers ride both sources.
+  // 设置外壳：本包占用 sidebar 所拥有孔位，并声明 settings Slot。台账到导航行的
+  // 投影作为 observable 来源；按 uSES 约定，台账版本变化前 getSnapshot 返回缓存行。
+  // 标签可能是跟随 locale 的 thunk，因此缓存键包含 locale 修订号，订阅者同时跟随
+  // 两个来源。
   let rowsVersion = -1
   let rowsRevision = -1
   let rows: readonly SettingsSectionRow[] = []

@@ -9,6 +9,8 @@
  * @module @deepseek-ai/dsh-tool-subagent-control
  */
 
+// 中文学习说明：下方 description 是发送给模型的工具 schema，而不是 CLI/UI 文案；
+// 英文原文保证不同模型与外部快照的一致性，中文只解释其消费者与修改影响。
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'

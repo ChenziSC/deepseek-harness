@@ -1,12 +1,10 @@
 /**
- * Per-message feedback controls: a Like/Dislike pair plus an optional note.
- * The buttons render inside the assistant message's IconActions row, so they
- * reuse that row's chrome and sit between copy and branch. The note editor is
- * a popover (portaled to `document.body`) anchored to the note trigger, not an
- * inline expansion: a 260px textarea plus buttons cannot fit the row at any
- * viewport, and an inline element pushed the branch action and clock out of the
- * conversation column. Portaling out of the column also escapes its `overflow`
- * clip, so the panel cannot be cropped or detached from the message it annotates.
+ * 每条消息的反馈控件：点赞/点踩按钮和可选备注。按钮渲染在助手消息的
+ * IconActions 行中，因此复用该行样式，并位于复制与分支操作之间。备注编辑器
+ * 是锚定到触发按钮、传送至 `document.body` 的浮层，而不是行内展开：260px
+ * 文本框和按钮在任何视口下都放不进行内，行内元素还会把分支操作和时间挤出
+ * 会话列。传送到列外也能避开 `overflow` 裁剪，使面板不会被截断或与所注释
+ * 的消息脱离。
  * @module @deepseek-ai/dsh-client-ui-message-feedback/client/MessageFeedbackActions
  */
 
@@ -22,26 +20,23 @@ import type { MessageFeedbackRating } from '@deepseek-ai/dsh-message-feedback/ty
 import type { MessageFeedbackActionProps } from './slots.ts'
 import css from './MessageFeedbackActions.module.css'
 
-/** Safe distance kept between the panel and the viewport edges (the Menu portal margin). */
+/** 面板与视口边缘之间的安全距离，与 Menu 浮层边距一致。 */
 const PANEL_MARGIN = 12
 
-/** Distance between the trigger's bottom edge and the panel's top. */
+/** 触发按钮底边与面板顶边之间的距离。 */
 const PANEL_GAP = 4
 
 /**
- * Unplaced portal panel: hidden but laid out so `offsetWidth` is real for the
- * clamp. The explicit insets match `Menu`'s measure style — a `position: fixed`
- * element with auto insets otherwise sits at its static position, a different
- * origin than the one the first placement measures from.
+ * 尚未定位的浮层面板：保持隐藏但参与布局，让限位计算能取得真实 `offsetWidth`。
+ * 显式边距与 `Menu` 的测量样式一致；否则，边距为 auto 的 `position: fixed`
+ * 元素会停在静态位置，与首次定位所用的测量原点不同。
  */
 const MEASURE_STYLE: CSSProperties = { visibility: 'hidden', left: 0, top: 0 }
 
 /**
- * One message's feedback controls.
- * @param props - the owner's message identity, the injected verbs, and the
- * shared feedback hook.
- * @returns the rating buttons and the note trigger, with the note editor
- * portal-open beneath the trigger while it is open.
+ * 一条消息的反馈控件。
+ * @param props - 拥有者提供的消息身份、注入的操作，以及共享反馈 hook。
+ * @returns 评分按钮和备注触发器；打开时，备注编辑器以浮层形式显示在触发器下方。
  */
 export function MessageFeedbackActions({ messageId, ensure, rate, toggle, clearNote, useFeedback, t }: MessageFeedbackActionProps) {
   const item = useFeedback(view => view.items.get(messageId))
@@ -50,17 +45,15 @@ export function MessageFeedbackActions({ messageId, ensure, rate, toggle, clearN
   const [noteOpen, setNoteOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const [pending, setPending] = useState(false)
-  // A rating or load failure surfaces beside the rating buttons, always legible
-  // whether or not the note popover is open.
+  // 评分或加载失败显示在评分按钮旁，无论备注浮层是否打开都始终可见。
   const [rowFailure, setRowFailure] = useState<string | null>(null)
-  // A note save failure surfaces inside the note popover, where the human is
-  // looking; it stays open so the draft survives to be corrected.
+  // 备注保存失败显示在用户正在查看的备注浮层内；浮层保持打开，让草稿可继续修正。
   const [noteFailure, setNoteFailure] = useState<string | null>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  // The controls mount for every settled message in the transcript, so the
-  // Session's feedback is read once on first hover/focus rather than on mount.
+  // 每条已完成消息都会挂载这些控件，因此会话反馈延迟到首次悬停/聚焦时读取一次，
+  // 而不是在挂载时读取。
   const seeded = useRef(false)
   const seed = useCallback(() => {
     if (seeded.current) return
@@ -71,10 +64,10 @@ export function MessageFeedbackActions({ messageId, ensure, rate, toggle, clearN
   const alive = useRef(true)
   useEffect(() => () => { alive.current = false }, [])
 
-  /** Bumped whenever an editing session ends, so a late save can tell it is stale. */
+  /** 每次编辑会话结束时递增，让迟到的保存结果能识别自己已经过期。 */
   const noteGeneration = useRef(0)
 
-  /** Current panel open-state, readable from a stale closure via a ref. */
+  /** 当前面板打开状态；过期闭包也能通过 ref 读取最新值。 */
   const noteOpenRef = useRef(false)
   useEffect(() => { noteOpenRef.current = noteOpen }, [noteOpen])
 
@@ -89,7 +82,7 @@ export function MessageFeedbackActions({ messageId, ensure, rate, toggle, clearN
   }, [errorCopy])
 
   const closeNote = useCallback(() => {
-    // Ends the editing session, so any save still in flight becomes stale.
+    // 结束编辑会话，使仍在途的保存请求变为过期结果。
     noteGeneration.current += 1
     setNoteOpen(false)
   }, [])
@@ -97,94 +90,76 @@ export function MessageFeedbackActions({ messageId, ensure, rate, toggle, clearN
   const onRate = useCallback((next: MessageFeedbackRating) => {
     setPending(true)
     setRowFailure(null)
-    // The controller decides retract-vs-replace from the committed item, so a
-    // click that lands before the first list read still toggles the stored
-    // value instead of this render's empty view.
+    // 控制器根据已提交条目决定撤回还是替换，因此即使点击早于首次列表读取，
+    // 也会切换已存值，而不是依赖本次渲染中的空视图。
     closeNote()
     void toggle(messageId, next).then(settleRating)
   }, [closeNote, messageId, settleRating, toggle])
 
-  // The rating is a parameter because only the note editor's render site can
-  // prove one is recorded; that removes an unreachable undefined guard here.
+  // rating 作为参数传入，因为只有备注编辑器的渲染位置能证明评分已经记录；
+  // 这样可移除这里永远不会触发的 undefined 保护。
   const onSaveNote = useCallback((current: MessageFeedbackRating) => {
     const trimmed = draft.trim()
     setPending(true)
     setNoteFailure(null)
-    // A save belongs to the editing session that started it. Closing and
-    // reopening the panel begins a new one, and a late reply from the old
-    // session must not act on it: a stale success would shut the panel the
-    // human just opened, and a stale failure would describe a draft this
-    // session never sent.
+    // 保存请求属于发起它的编辑会话。关闭并重新打开面板会创建新会话，旧会话迟到
+    // 的响应不得作用于新会话：过期成功会关闭用户刚打开的面板，过期失败则会错误
+    // 描述新会话从未发送的草稿。
     const generation = noteGeneration.current
-    // What a session reopened before this save commits would be seeded with.
+    // 若在本次保存提交前重新打开会话，它会以此值初始化。
     const staleSeed = item?.note ?? ''
-    // An emptied editor removes the note explicitly; `rate` alone preserves a
-    // stored note, so it cannot express deletion.
+    // 清空编辑器表示显式删除备注；单独调用 `rate` 会保留已有备注，无法表达删除。
     const settled = trimmed.length === 0
       ? clearNote(messageId)
       : rate(messageId, current, trimmed)
     void settled.then((result) => {
       if (!alive.current) return
-      // `pending` tracks the request in flight, not the editing session, so it
-      // is released either way; all three of like, dislike and Save read
-      // `disabled={pending}`, and holding it would lock the row until remount.
-      // Releasing it unconditionally is safe because those three are the only
-      // mutation entries and each is gated by it, so at most one request is ever
-      // in flight. A future entry that bypasses the gate would have to bind
-      // `pending` to the generation instead of clearing it here.
+      // `pending` 跟踪在途请求，而不是编辑会话，因此无论结果如何都要释放；点赞、
+      // 点踩和保存都读取 `disabled={pending}`，不释放会让整行锁定到下次重新挂载。
+      // 无条件释放是安全的，因为三者是仅有的变更入口且都受它保护，同一时刻最多
+      // 只有一个请求。若未来新增绕过该保护的入口，就必须让 `pending` 绑定代次，
+      // 而不能在这里直接清除。
       setPending(false)
       if (result.ok) {
-        // Only the session that is still open may act on a success: closing it
-        // already discarded the draft, and reopening seeded a new one.
+        // 只有仍然打开的原会话可以处理成功结果：关闭已丢弃草稿，重开则初始化了新草稿。
         if (generation === noteGeneration.current) {
           setNoteFailure(null)
           setNoteOpen(false)
           return
         }
-        // A newer session is open, seeded from the note as it read before this
-        // save committed. Resync it so the editor shows what is stored and the
-        // next save cannot overwrite the text that just landed. An edited draft
-        // is the human's, so it is left alone.
+        // 新会话已经打开，并用本次保存提交前读到的备注初始化。若用户尚未编辑，就
+        // 重新同步为已存值，避免下次保存覆盖刚落盘的文本；用户已经编辑的草稿则保留。
         setDraft(draftNow => (draftNow === staleSeed ? trimmed : draftNow))
         return
       }
-      // A failure from the session still on screen belongs in its panel. One
-      // from an abandoned session is reported only when no new session has
-      // taken over: the row then carries it, so a save that failed after the
-      // human walked away is not silently dropped. Writing it into a reopened
-      // panel instead would label the new draft with the old attempt's error.
-      // `noteOpenRef` — not the `noteOpen` this closure was created from — is
-      // read here, because a close+reopen between the save and resolution
-      // leaves this closure with the panel state from when the save started.
+      // 屏幕上仍是原会话时，失败应显示在其面板内。已放弃会话的失败只有在没有新会话
+      // 接管时才报告：此时由行内承载，避免用户离开后发生的保存失败被静默丢弃。
+      // 若写入重开的面板，反而会用旧尝试的错误标记新草稿。这里读取 `noteOpenRef`，
+      // 而不是创建闭包时的 `noteOpen`；因为保存与完成之间若发生关闭再打开，闭包内
+      // 保存的仍是请求发起时的面板状态。
       if (generation === noteGeneration.current || !noteOpenRef.current) {
         setNoteFailure(errorCopy(result))
       }
     })
   }, [clearNote, draft, errorCopy, item?.note, messageId, noteOpenRef, rate])
 
-  // The trigger toggles: while closed it opens the popover (seeding the draft
-  // with the recorded note), while open it closes it. Toggling closed via the
-  // trigger also fires the outside/within logic correctly because the trigger
-  // is inside the panel's "inside" region.
+  // 触发按钮负责切换：关闭时打开浮层并用已记录备注初始化草稿，打开时则关闭。
+  // 通过触发按钮关闭也能正确配合内外区域逻辑，因为按钮属于面板的“内部”区域。
   const toggleNote = useCallback(() => {
     if (noteOpen) {
       closeNote()
       return
     }
     setDraft(item?.note ?? '')
-    // A note-save failure belongs to the editing session that produced it. The
-    // panel stays open on failure so the draft can be corrected, but once it is
-    // closed and reopened the draft is reseeded from the stored note, so a
-    // carried-over error would describe an attempt the new draft never made.
-    // A failure that arrives after the panel closed is reported in the row, and
-    // clearing it here is what retires that notice when a new session starts.
+    // 备注保存失败属于产生它的编辑会话。失败时面板保持打开以便修正草稿；一旦关闭
+    // 再打开，草稿会从已存备注重新初始化，沿用旧错误就会描述新草稿从未做过的尝试。
+    // 面板关闭后才到达的失败会显示在行内；新会话开始时在这里清除该提示。
     setNoteFailure(null)
     setNoteOpen(true)
   }, [noteOpen, closeNote, item?.note])
 
-  // Place the portaled panel from the trigger rect before paint and keep it
-  // with the trigger on scroll/resize, the same anchoring `Menu` uses for its
-  // portal mode.
+  // 绘制前根据触发按钮矩形定位浮层，并在滚动/缩放时让它跟随触发按钮；
+  // 这与 `Menu` 浮层模式使用相同的锚定方式。
   const pos = useAnchoredPosition({
     open: noteOpen,
     anchorRef: triggerRef,
@@ -193,7 +168,7 @@ export function MessageFeedbackActions({ messageId, ensure, rate, toggle, clearN
     margin: PANEL_MARGIN,
   })
 
-  // Focus the input and close on Escape or outside pointer-down while open.
+  // 打开后聚焦输入框，并在按 Escape 或指针按下发生于外部时关闭。
   useEffect(() => {
     if (!noteOpen) return
     inputRef.current?.focus()
@@ -214,9 +189,8 @@ export function MessageFeedbackActions({ messageId, ensure, rate, toggle, clearN
     }
   }, [noteOpen, closeNote])
 
-  // Return focus to the trigger only when the panel actually closes, not on the
-  // initial mount (a freshly rendered message with a recorded rating must not
-  // pull focus into its action row).
+  // 仅在面板确实关闭时把焦点还给触发按钮，初次挂载时不执行；新渲染且已有评分
+  // 的消息不应把焦点拉入自己的操作行。
   const wasOpen = useRef(false)
   useEffect(() => {
     if (noteOpen) { wasOpen.current = true; return }
@@ -275,13 +249,10 @@ export function MessageFeedbackActions({ messageId, ensure, rate, toggle, clearN
         <span className={css.failure} role="status">{t('error.load')}</span>
       )}
       {rowFailure !== null && <span className={css.failure} role="status">{rowFailure}</span>}
-      {/* A note-save failure normally lives inside the panel, beside the buttons
-          that produced it. Whenever the panel is not on screen it falls back to
-          the row instead: the rating may have disappeared underneath an open
-          editor (another client retracts the feedback, a `version-conflict`
-          reply commits `current: null`, the item goes away), or the human may
-          have closed the panel before a slow save came back. Either way the row
-          reports that the save did not land rather than dropping it. */}
+      {/* 备注保存失败通常显示在面板内、触发它的按钮旁。面板不在屏幕上时则退回行内：
+          打开的编辑器下方可能已经没有评分（另一客户端撤回反馈，或
+          `version-conflict` 响应提交 `current: null` 后条目消失），用户也可能在
+          缓慢保存返回前关闭面板。无论哪种情况，都由行内报告保存未成功，而不丢弃错误。 */}
       {!(rating !== undefined && noteOpen) && noteFailure !== null && (
         <span className={css.failure} role="status">{noteFailure}</span>
       )}

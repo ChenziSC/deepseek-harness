@@ -1,7 +1,7 @@
 /**
- * Official browser-brand plugin, node half. The empty apply gives Loader a
- * host-side row while the browser half ships through `exports["./client"]`.
+ * 官方浏览器 Brand 插件的 Node half。空 apply 为 Loader 提供 Host 侧行，Browser half
+ * 则通过 `exports["./client"]` 发布。
  */
 
-/** Host plugin body — this package contributes browser presentation only. */
+/** Host 插件主体；本包只贡献浏览器展示。 */
 export function apply(): void {}

@@ -1,4 +1,4 @@
-/** Host loader entry for the browser-only UI renderer. */
+/** 仅浏览器 UI Renderer 的 Host Loader 入口。 */
 
-/** Provides no host-side behavior. */
+/** 不提供 Host 侧行为。 */
 export function apply(): void {}

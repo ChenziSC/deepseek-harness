@@ -1,9 +1,7 @@
 /**
- * Permission default-settings controller. The permission descriptor comes
- * from the shared describe mirror (the dynamic preset enum lives in the
- * namespace schema, which per-namespace scopes do not carry); writes target
- * only `defaultPreset`, carry the descriptor revision, and fold their answer
- * back into the mirror.
+ * 权限默认设置控制器。权限 descriptor 来自共享 describe 镜像；动态 preset 枚举
+ * 位于命名空间 schema 中，而每命名空间作用域不携带它。写入只针对 `defaultPreset`，
+ * 携带 descriptor 修订号，并把响应折叠回镜像。
  */
 
 import type {
@@ -17,18 +15,18 @@ import type {
 } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { displayPermissionPreset } from './presentation.ts'
 
-/** Permission's settings namespace on the host wire. */
+/** 权限在线协议中的 Host 设置命名空间。 */
 export const PERMISSION_SETTINGS_NS = 'permission'
 
-/** One selectable fresh-session and confirmed-reuse default. */
+/** 一个可选择的新会话及已确认复用默认值。 */
 export interface PermissionDefaultOption {
-  /** Preset key written to Settings. */
+  /** 写入 Settings 的 preset 键。 */
   id: string
-  /** Host-supplied label or a title-cased preset key. */
+  /** Host 提供的标签，或转为标题格式的 preset 键。 */
   label: string
 }
 
-/** Permission settings-row snapshot. */
+/** 权限设置行快照。 */
 export interface PermissionSettingsState {
   status: 'idle' | 'loading' | 'ready' | 'saving' | 'unavailable' | 'error'
   error: string | null
@@ -45,10 +43,10 @@ interface ConstChoice {
 }
 
 /**
- * Read the dynamic preset enum encoded by the host's `defaultPreset` schema.
- * @param view - permission namespace descriptor.
- * @param schema - settings schema operations.
- * @returns current value and selectable options.
+ * 读取 Host `defaultPreset` schema 编码的动态 preset 枚举。
+ * @param view - 权限命名空间 descriptor。
+ * @param schema - settings schema 操作。
+ * @returns 当前值和可选项。
  */
 export function permissionDefaultOf(view: SettingsNamespaceView, schema: SettingsSchemaService): {
   currentValue: string
@@ -78,9 +76,9 @@ export function permissionDefaultOf(view: SettingsNamespaceView, schema: Setting
   return { currentValue: value, options }
 }
 
-/** Controller deriving the row from the shared mirror and writing the default through it. */
+/** 从共享镜像派生设置行并通过该镜像写入默认值的控制器。 */
 export class PermissionPresetSettingsController {
-  /** Row snapshot consumed through a bound selector hook. */
+  /** 通过已绑定 selector hook 消费的行快照。 */
   readonly store: SnapshotStore<PermissionSettingsState> = createSnapshotStore({
     status: 'idle',
     error: null,
@@ -95,9 +93,9 @@ export class PermissionPresetSettingsController {
   private disposed = false
 
   /**
-   * @param describeFace - the shared mirror's read/fold face (descriptor and schema source).
-   * @param api - settings wire face for the `defaultPreset` write.
-   * @param schema - settings-owned schema operations.
+   * @param describeFace - 共享镜像的读取/折叠接口，也是 descriptor 和 schema 来源。
+   * @param api - 写入 `defaultPreset` 的 settings 线协议接口。
+   * @param schema - settings 拥有的 schema 操作。
    */
   constructor(
     private readonly describeFace: SettingsDescribeFace,
@@ -106,8 +104,8 @@ export class PermissionPresetSettingsController {
   ) {}
 
   /**
-   * Begin following the mirror (idempotent) and reflect its current answer.
-   * @returns settlement once the snapshot reflects the mirror.
+   * 开始跟随镜像（幂等），并反映其当前回答。
+   * @returns 快照反映镜像后完成。
    */
   async load(): Promise<void> {
     if (this.disposed) return
@@ -121,13 +119,11 @@ export class PermissionPresetSettingsController {
   }
 
   /**
-   * Persist one preset as the default for fresh sessions and eligible
-   * confirmed blank reuse.
-   * A selection made while one is already saving is ignored — the row's
-   * control is disabled during the save, so this only drops programmatic
-   * double-submits rather than user intent.
-   * @param preset - advertised preset key.
-   * @returns nothing; {@link store} carries success or failure.
+   * 把一个 preset 持久化为新会话及合格已确认空白复用的默认值。已有保存进行时的
+   * 新选择会被忽略；保存期间行控件已禁用，因此这里只会丢弃程序化重复提交，
+   * 不会丢失用户意图。
+   * @param preset - 已公布的 preset 键。
+   * @returns 无返回值；成功或失败由 {@link store} 承载。
    */
   async select(preset: string): Promise<void> {
     const state = this.store.getSnapshot()
@@ -148,8 +144,7 @@ export class PermissionPresetSettingsController {
       if (!response.result.ok) throw new Error(response.result.error.message)
       this.saving = false
       if (this.disposed) return
-      // The mirror publish reaches this row's own subscription, so the fold
-      // is also what republishes the accepted value here.
+      // 镜像发布会到达本行自身订阅，因此折叠同时会在这里重新发布已接受值。
       this.describeFace.acceptView(response.result.value)
     } catch (error) {
       this.saving = false
@@ -158,7 +153,7 @@ export class PermissionPresetSettingsController {
     }
   }
 
-  /** Stop following the mirror; later publishes leave the snapshot alone. */
+  /** 停止跟随镜像；后续发布不再改变快照。 */
   dispose(): void {
     this.disposed = true
     this.following?.()
@@ -169,8 +164,8 @@ export class PermissionPresetSettingsController {
     if (this.disposed || this.saving) return
     const mirrored = this.describeFace.getSnapshot()
     if (mirrored.status === 'unavailable') {
-      // The terminal non-loopback state: settings RPCs are loopback-only, so
-      // the row hides itself exactly like an unserved namespace.
+      // 终止的非 loopback 状态：settings RPC 仅支持 loopback，因此该行像未提供的
+      // 命名空间一样隐藏自身。
       this.store.update((state) => {
         state.status = 'unavailable'
         state.writable = false
@@ -180,8 +175,7 @@ export class PermissionPresetSettingsController {
       return
     }
     if (mirrored.view === undefined) {
-      // A held failure with no answer is a failed row; without one the read
-      // is still in flight and the row keeps its loading state.
+      // 没有回答但持有失败时，该行进入失败；没有失败则说明读取仍在途，保持 loading。
       if (mirrored.error !== null) this.fail(new Error(mirrored.error))
       return
     }

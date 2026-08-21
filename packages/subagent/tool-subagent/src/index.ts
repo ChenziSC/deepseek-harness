@@ -8,6 +8,10 @@
  * @module @deepseek-ai/dsh-tool-subagent
  */
 
+// 中文学习说明：本文件中的 tool description、参数 description 与 systemPrompt.section
+// 都会进入模型请求，用来约束委派方式及前后台策略。它们保留英文运行时原文；修改会
+// 改变模型选工具和组织子任务的行为，并可能影响快照与 KV Cache 前缀。
+
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
@@ -108,20 +112,19 @@ function outputValueText(values: JsonValue[]): string {
     .join('')
 }
 
-/** Settle pending startup without rejecting the task producer contract. */
+/** 完成待定的启动过程，同时不拒绝任务生产者约定。 */
 async function settleStart(start: Promise<SubagentRun>, signal: AbortSignal): Promise<JobOutcome> {
   try {
     return await settleRun(await start)
   } catch (error: unknown) {
-    // Product providers aggregate startup and rollback failures. Cancellation
-    // must not turn a failed cleanup into a cleanly killed Job.
+    // 产品 Provider 会聚合启动与回滚失败。取消不能把清理失败变成正常终止的 Job。
     return signal.aborted && !(error instanceof AggregateError)
       ? { status: 'killed' }
       : { status: 'failed', detail: String(error) }
   }
 }
 
-/** A non-`completed` stop reason means the child did not finish cleanly. */
+/** 非 `completed` 的停止原因表示子 Agent 未正常完成。 */
 function stopReasonError(result: SubagentResult): string | undefined {
   switch (result.stopReason) {
     case 'completed':
@@ -134,20 +137,19 @@ function stopReasonError(result: SubagentResult): string | undefined {
       return 'subagent run hit its token limit before finishing'
     case 'refusal':
       return 'subagent declined the task'
-    // Merge-extensible union: a backend may add stop reasons. Treat an unknown
-    // terminal reason as a failure rather than reporting partial output as success.
+    // 可合并扩展的 union：后端可以增加停止原因。未知终止原因按失败处理，不能把部分输出
+    // 报告为成功。
     default:
       return `subagent run ended abnormally (${String(result.stopReason)})`
   }
 }
 
 /**
- * Append provider-authored failure detail and the child's preserved partial
- * answer to a stop-reason error, keeping diagnostic text separate from the
- * child's assistant output.
- * @param error - the stop-reason headline.
- * @param result - the child's terminal result.
- * @returns the headline, diagnostic, and partial text that are present.
+ * 把 Provider 给出的失败详情和保留的子 Agent 部分答案附加到停止原因错误，同时保持诊断
+ * 文本与子 Agent 的 assistant 输出相互分离。
+ * @param error - 停止原因标题。
+ * @param result - 子 Agent 的终止结果。
+ * @returns 实际存在的标题、诊断和部分文本。
  */
 function withDiagnosticAndPartialText(error: string, result: SubagentResult): string {
   const diagnostic = result.diagnostic === undefined

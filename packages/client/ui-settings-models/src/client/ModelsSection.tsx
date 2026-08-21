@@ -30,12 +30,12 @@ export interface ModelsSectionInjected {
   /** The page store (loaded on mount, refreshed on pushed invalidations). */
   controller: ModelsSettingsStore
   hooks: {
-    /** Page snapshot bound by the UI renderer as useSnapshot. */
+    /** 页面快照，由 UI 渲染器绑定为 useSnapshot。 */
     snapshot: ModelsSettingsStore['store']
   }
   /** Wire faces the editor writes through. */
   api: Pick<IApiClient, 'settings' | 'credentials' | 'llm'>
-  /** Settings schema and immutable path callbacks. */
+  /** 设置 Schema 与不可变路径操作回调。 */
   schema: SettingsSchemaOperations
   /** Section copy. */
   t: (key: keyof typeof en) => string

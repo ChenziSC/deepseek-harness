@@ -173,7 +173,7 @@ function withReferenceLabels(
   return { ...candidate, data }
 }
 
-/** Associates a direct message with the sourced recall event that immediately follows it. */
+/** 把直接消息与紧随其后的有来源 recall 事件关联。 */
 class ReferenceLabelProjector {
   private readonly messagesBySeq = new Map<number, string>()
   private readonly labelsByMessageSeq = new Map<number, readonly string[]>()

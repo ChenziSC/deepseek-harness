@@ -2815,7 +2815,7 @@ export interface Config {
 
 依赖：[`AgentOptions`](subsystems/core.zh.md)
 
-来源：[`packages/subagent/tool-subagent/src/index.ts:29`](../packages/subagent/tool-subagent/src/index.ts)
+来源：[`packages/subagent/tool-subagent/src/index.ts:33`](../packages/subagent/tool-subagent/src/index.ts)
 
 <a id="deepseek-aidsh-tool-subagent-report"></a>
 
@@ -2837,7 +2837,7 @@ export interface Config {
 
 依赖：[`SubagentReportDelivery`](subsystems/subagent.zh.md)
 
-来源：[`packages/subagent/tool-subagent-report/src/index.ts:27`](../packages/subagent/tool-subagent-report/src/index.ts)
+来源：[`packages/subagent/tool-subagent-report/src/index.ts:31`](../packages/subagent/tool-subagent-report/src/index.ts)
 
 <a id="deepseek-aidsh-tool-terminal"></a>
 
@@ -3054,7 +3054,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/bundle/web-app/src/index.ts:42`](../packages/bundle/web-app/src/index.ts)
+来源：[`packages/bundle/web-app/src/index.ts:43`](../packages/bundle/web-app/src/index.ts)
 
 <a id="deepseek-aidsh-web-fetch-http"></a>
 

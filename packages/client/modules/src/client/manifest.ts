@@ -9,7 +9,8 @@
  * CSS）都位于 factory 闭包内，在实例化而非 script 执行时发生。首次
  * import/require 时执行 factory(require) → exports，并把结果缓存在
  * {@link ClientModuleLoader.loadCache}。若 factory require 了另一个已注册但未实例化
- * 的模块，则递归实例化，因此加载顺序不需要外部编排。
+ * 的模块，则递归实例化，因此已注册 factory 之间不需要另行编排实例化顺序；但同步
+ * require 无法等待尚未到达的 factory，所以 Host 仍须按 `external` 模块图先发送提供方。
  *
  * import 的解析分支顺序为：seed word → shell 实例；缓存记录 → exports；图条目 →
  * 注册依赖 factory 和自身 factory；已注册 factory → 实例化；其余情况明确抛错。

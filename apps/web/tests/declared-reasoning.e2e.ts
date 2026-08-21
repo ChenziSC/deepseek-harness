@@ -73,7 +73,7 @@ describe.skipIf(MODE === 'record')('web e2e: declared reasoning efforts reach th
     // and xhigh were not declared and must not be offered.
     const levels = page.getByRole('menuitemradio')
     await expect.poll(async () => levels.allTextContents(), { timeout: 10_000 })
-      .toEqual(['Default', 'Off', 'High', 'Max'])
+      .toEqual(['默认', 'Off', 'High', 'Max'])
     const snapshot = await captureStableAria(page, '[role="menu"]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(UI_EXPECTED, snapshot, MODE)
 

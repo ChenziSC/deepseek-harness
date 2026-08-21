@@ -1,8 +1,7 @@
 /**
- * Welcome-notice state derived from the welcome settings scope. The scope is
- * the transport: a loopback browser follows the durable Host section, while a
- * remote browser's memory-mode scope never answers and the acknowledgement
- * stays process-local here.
+ * 从 welcome settings 作用域派生的欢迎提示状态。作用域就是传输：loopback 浏览器
+ * 跟随 Host 持久化分区；远程浏览器的 memory 模式作用域永不回答，确认状态只保留
+ * 在本进程。
  */
 
 import type { SettingsScope, SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
@@ -11,22 +10,21 @@ import {
   WELCOME_NOTICE_ACK_FIELD, WELCOME_NOTICE_VERSION,
 } from '../onboarding-copy.ts'
 
-/** State rendered by the welcome step. */
+/** 欢迎步骤渲染的状态。 */
 export interface WelcomeNoticeState {
   status: 'idle' | 'loading' | 'ready' | 'saving' | 'error'
   acknowledged: boolean
   error: string | null
 }
 
-/** The welcome section as the notice reads it. */
+/** 欢迎提示所读取的 welcome 分区。 */
 export type WelcomeSection = Record<string, unknown>
 
 /**
- * Accept any object section verbatim; a malformed durable value reads as an
- * empty section, so the notice treats it as unacknowledged instead of leaving
- * the scope stuck on its previous value.
- * @param section - the wire section value.
- * @returns the section object, or an empty one for non-object values.
+ * 原样接受任意对象分区；畸形持久化值读取为空分区，使提示把它视为未确认，而不是
+ * 让作用域停留在旧值。
+ * @param section - 线协议分区值。
+ * @returns 分区对象；非对象值返回空对象。
  */
 export function decodeWelcomeSection(section: unknown): WelcomeSection {
   return typeof section === 'object' && section !== null && !Array.isArray(section)
@@ -39,9 +37,9 @@ function assertNever(_value: never): never {
   throw new Error('unexpected welcome settings status')
 }
 
-/** Coordinates durable Host acknowledgement or a process-local remote fallback. */
+/** 协调 Host 持久确认或远程浏览器的进程内 fallback。 */
 export class WelcomeNoticeStore {
-  /** uSES-safe state source shared by the registered welcome step. */
+  /** 由已注册欢迎步骤共享、符合 uSES 要求的状态来源。 */
   readonly store: SnapshotStore<WelcomeNoticeState> = createSnapshotStore<WelcomeNoticeState>({
     status: 'idle', acknowledged: false, error: null,
   })
@@ -51,14 +49,14 @@ export class WelcomeNoticeStore {
   private following: (() => void) | undefined
 
   /**
-   * @param scope - the welcome settings namespace scope; its memory mode is
-   * what keeps a remote browser process-local.
+   * @param scope - welcome settings 命名空间作用域；其 memory 模式使远程浏览器
+   * 状态保持在进程内。
    */
   constructor(private readonly scope: SettingsScope<WelcomeSection>) {}
 
   /**
-   * Begin following the bound scope (idempotent) and publish its current answer.
-   * @returns settlement after the current answer is published.
+   * 开始跟随已绑定作用域（幂等），并发布当前回答。
+   * @returns 当前回答发布后完成。
    */
   load(): Promise<void> {
     this.following ??= this.scope.subscribe(() => { this.derive() })
@@ -67,10 +65,9 @@ export class WelcomeNoticeStore {
   }
 
   /**
-   * Persist this copy version, or advance only this process for a remote
-   * browser. Success is judged against the state the write left behind, so a
-   * refused or failed write reports false after its recovery read settles.
-   * @returns true when the selected persistence mode holds the acknowledgement.
+   * 持久化当前文案版本；远程浏览器则只推进本进程。成功以写入留下的状态判断，
+   * 因此被拒绝或失败的写入在恢复读取完成后返回 false。
+   * @returns 所选持久化模式已保存确认时为 true。
    */
   async acknowledge(): Promise<boolean> {
     if (this.scope.getSnapshot().mode === 'memory') {
@@ -96,7 +93,7 @@ export class WelcomeNoticeStore {
     return acknowledged
   }
 
-  /** Stop following the scope. */
+  /** 停止跟随作用域。 */
   dispose(): void {
     this.following?.()
     this.following = undefined

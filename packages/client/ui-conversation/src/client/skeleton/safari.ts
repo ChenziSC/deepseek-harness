@@ -1,6 +1,6 @@
-/** Safari-specific textarea layout recovery for the conversation composer. */
+/** 会话编辑器针对 Safari 的 textarea 布局恢复。 */
 
-/** Browser identity fields needed to distinguish Safari from other WebKit-based browsers. */
+/** 区分 Safari 与其他 WebKit 浏览器所需的浏览器身份字段。 */
 export interface BrowserIdentity {
   readonly userAgent: string
   readonly vendor: string
@@ -9,9 +9,9 @@ export interface BrowserIdentity {
 const ALTERNATE_IOS_BROWSER = /\b(?:CriOS|FxiOS|EdgiOS|OPiOS|OPT|DuckDuckGo|Brave)(?:\/|\b)/
 
 /**
- * Detect Safari's `Version/... Safari/...` form while excluding known alternate iOS browser tokens.
- * @param identity - Browser user-agent and vendor values.
- * @returns Whether the identity should use the Safari-specific recovery.
+ * 检测 Safari 的 `Version/... Safari/...` 形式，同时排除已知 iOS 替代浏览器词元。
+ * @param identity - 浏览器 user-agent 和 vendor 值。
+ * @returns 该身份是否应使用 Safari 专用恢复。
  */
 export function isSafariBrowser(identity: BrowserIdentity): boolean {
   return identity.vendor === 'Apple Computer, Inc.'
@@ -20,8 +20,8 @@ export function isSafariBrowser(identity: BrowserIdentity): boolean {
 }
 
 /**
- * Repair Safari's stale native textarea layout and the scrollport auto height it can contaminate.
- * @param input - Composer textarea whose own scrollable overflow must stay zero.
+ * 修复 Safari 过期的原生 textarea 布局，以及它可能污染的滚动区自动高度。
+ * @param input - 自身可滚动溢出必须保持为零的编辑器 textarea。
  */
 export function repairSafariTextareaLayout(input: HTMLTextAreaElement | null): void {
   if (input === null || input.scrollHeight <= input.clientHeight) return

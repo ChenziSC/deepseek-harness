@@ -6,6 +6,10 @@
  * @module @deepseek-ai/dsh-code-runtime-python/src/protocol
  */
 
+// 中文学习说明：这些消息由 Node Host 与 CPython 子进程通过 fd 3 交换，字段名、type
+// 判别值和错误分类会被两端程序解析，因此必须保持英文且稳定。修改这里要同步检查
+// Python 镜像、跨语言协议测试、资源预算与异常关闭；中文化只补说明，不改协议帧。
+
 /**
  * The framed-JSON channel's file descriptor from the child's perspective. The
  * host pins it positionally when it spawns the child (`stdio` index 3, i.e.

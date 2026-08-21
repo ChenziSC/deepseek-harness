@@ -9,12 +9,12 @@ import type { InboxState } from './inbox.ts'
 import { chatNode } from './common.ts'
 
 interface ReferencedUserMessageNode extends UserMessageNode {
-  /** Labels cited by the immediately following session-reference context. */
+  /** 紧随其后的 session-reference 上下文所引用的标签。 */
   readonly referenceLabels?: readonly string[]
 }
 
 interface ReferencedSteeringMessageNode extends SteeringMessageNode {
-  /** Labels cited by the immediately following session-reference context. */
+  /** 紧随其后的 session-reference 上下文所引用的标签。 */
   readonly referenceLabels?: readonly string[]
 }
 

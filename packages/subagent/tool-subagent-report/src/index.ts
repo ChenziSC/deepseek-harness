@@ -1,7 +1,6 @@
 /**
- * The child-scoped `report` tool and its usage guidance, installed into every
- * continuable in-process child's unpublished context. Roots, one-shot children,
- * remote providers, and agentless executions never see the registration.
+ * child-scoped `report` Tool 及其使用指引，安装到每个可继续进程内子 Agent 的未发布
+ * context 中。root、one-shot 子 Agent、远程 Provider 和无 Agent 执行都看不到该注册。
  *
  * @module @deepseek-ai/dsh-tool-subagent-report
  */
@@ -12,17 +11,22 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { SubagentReportDelivery } from '@deepseek-ai/dsh-subagent'
 import type {} from '@deepseek-ai/dsh-system-prompt'
+
+// 中文学习说明：报告工具的 description、参数说明和提示词段落都只给子 agent 模型
+// 使用，用于规定何时、以什么内容向父级报告；保留英文运行时文本，避免改变委派行为。
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
 export const name = 'tool-subagent-report'
-// The contribution registers only through childCtx.tools and
-// childCtx.systemPrompt, but declaring both services makes Loader ordering fail
-// at load instead of at the next child materialization.
+// 此贡献只通过 childCtx.tools 和 childCtx.systemPrompt 注册，但显式声明两个服务可让
+// Loader 顺序问题在加载时失败，而不是等到下一个子 Agent 实例化时才失败。
 export const inject = ['subagents', 'tools', 'systemPrompt']
 
-/** Guidance order after every per-tool section a continuable child can carry. */
+/** 指引顺序：位于可继续子 Agent 携带的所有逐 Tool 段之后。 */
 const REPORT_SECTION_ORDER = 117
 
+// 中文：配置父 Agent 如何调度已接受的报告。默认 `next-step` 会唤醒父 Agent，并在最近的
+// 步骤边界进入；`quiet` 添加相同上下文但不唤醒，已停驻的父 Agent 会等待其他唤醒输入。
+// 下方英文 JSDoc 是配置目录的生成来源。
 /** Config: how accepted reports are scheduled on the parent. */
 export interface Config {
   /**
@@ -38,13 +42,12 @@ export const Config: z<Config> = z.object({
 })
 
 /**
- * Install `report` and its usage guidance into one continuable child's scope.
- * Both registrations are owned by that scope and are therefore invisible to the
- * child's parent and siblings.
- * @param childCtx - child-scoped context receiving the tool and the guidance.
- * @param ctx - service context used for delivery.
- * @param delivery - resolved deployment scheduling policy.
- * @returns disposer that attempts both child registrations before reporting cleanup failures.
+ * 把 `report` 及其使用指引安装到一个可继续子 Agent 的 scope。两个注册均归该 scope
+ * 所有，因此父 Agent 和同级 Agent 都不可见。
+ * @param childCtx - 接收 Tool 和指引的 child-scoped context。
+ * @param ctx - 用于交付的服务上下文。
+ * @param delivery - 已解析的部署调度策略。
+ * @returns disposer；报告清理失败前会尝试撤销两个子 Agent 注册。
  */
 export function installReportTool(
   childCtx: Context,

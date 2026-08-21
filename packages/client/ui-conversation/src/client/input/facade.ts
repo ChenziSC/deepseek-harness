@@ -1,10 +1,8 @@
 /**
- * SessionInput shell over the pure input machine: the sole machine caller
- * and effect executor. Owns the InputState store (machine state + the queue
- * overlay), the notice channel, and the submit transaction plumbing
- * (adjudicate via the session's InputTriggerController; claim.submit; default
- * sink). Package-private; the hub alone constructs it and wires the scoped
- * event listeners onto it.
+ * 纯输入状态机之上的 SessionInput 外壳：它是唯一的状态机调用者和 effect 执行者。
+ * 它拥有 InputState 存储（状态机状态加队列叠加层）、提示通道和提交事务接线，
+ * 包括经会话 InputTriggerController 裁决、调用 claim.submit 和进入默认出口。
+ * 此类只在包内可见，仅由 hub 构造并接入限定作用域的事件监听器。
  */
 import type { ClientContext, ObservableSnapshot, SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
@@ -19,50 +17,49 @@ import type {
 import type { InputSubmitMode } from '../contract/composer-submission.ts'
 import { InputMachine, projectClipboard } from './machine.ts'
 
-/** Popup face the shell needs (dismissal only; typed structurally to avoid a value import). */
+/** 外壳需要的弹窗接口；只负责关闭，并以结构类型避免值导入。 */
 export interface PopupDismissFace {
   dismiss(): void
 }
 
 /**
- * Construction dependencies of one facade. The slash/popup faces are THUNKS: the
- * shell is created inside the sessions provide materialization (before the
- * scope record is queryable), where `slash.sessionOf`/`command.popupFor`
- * cannot resolve yet — resolution defers to first interactive use.
+ * 一个门面的构造依赖。slash/popup 接口使用 thunk：外壳在 sessions provide
+ * 实体化期间创建，此时作用域记录尚不可查询，`slash.sessionOf`/`command.popupFor`
+ * 还无法解析，因此延迟到首次交互时再解析。
  */
 export interface SessionInputDeps {
-  /** Session-scope ctx handed to claim.submit transactions. */
+  /** 传给 claim.submit 事务的会话作用域 ctx。 */
   actx: ClientContext
-  /** Enter adjudication face resolver; absent/undefined answer = every '/' line falls to the default sink. */
+  /** 回车裁决接口解析器；缺失或返回 undefined 时，每个 '/' 行都进入默认出口。 */
   inputTriggers?: (() => InputTriggerController | undefined) | undefined
-  /** PopupSelect shell face resolver (dismissal on submit lock / escape). */
+  /** PopupSelect 外壳接口解析器；提交锁定或 Escape 时用于关闭。 */
   popup?: (() => PopupDismissFace | undefined) | undefined
-  /** Queue read face; overlaid onto InputState.queue (absent = empty). */
+  /** 队列读取接口，叠加到 InputState.queue；缺失时为空。 */
   queue?: ObservableSnapshot<readonly QueuedMessage[]> | undefined
   /**
-   * Steer every still-pending queued message into the running turn, in FIFO
-   * order (the empty-draft accelerated-Enter gesture); absent = unsupported.
+   * 按 FIFO 顺序把所有仍待处理的排队消息引导进运行中的轮次，即空草稿加速回车
+   * 手势；缺失表示不支持。
    */
   steerQueue?: (() => void) | undefined
-  /** The plain-message sink (send choreography / materialize fork — the hub owns it). */
+  /** 普通消息出口；发送编排/实体化分支由 hub 拥有。 */
   defaultSink(
     text: string,
     imageIds: readonly DraftAttachmentId[],
     mode: InputSubmitMode,
     signal: AbortSignal,
   ): Promise<SubmitOutcome>
-  /** Command-plane image plumbing (the hub owns the conversation face and the copy). */
+  /** 命令平面的图片接线；会话接口和文案由 hub 拥有。 */
   commandImages: {
-    /** Resolve ordered draft ids to wire payloads without sending them; rejects when an id no longer resolves. */
+    /** 把有序草稿 ID 解析为线协议载荷但不发送；任一 ID 无法解析时拒绝。 */
     serialize(ids: readonly DraftAttachmentId[]): Promise<readonly SubmitImageAttachment[]>
-    /** Free consumed draft images after a successful command submit. */
+    /** 命令提交成功后释放已消费的草稿图片。 */
     release(ids: readonly DraftAttachmentId[]): void
-    /** Localized composer notice for a claimed command that does not accept images. */
+    /** 已认领命令不接受图片时使用的本地化编辑器提示。 */
     unsupportedNotice(token: string): string
   }
 }
 
-/** Guard tier from the machine phase. */
+/** 根据状态机阶段得到保护级别。 */
 function guardOf(phase: InputState['phase']): 'plain' | 'claimed' | 'frozen' {
   switch (phase) {
     case 'plain': return 'plain'
@@ -73,19 +70,19 @@ function guardOf(phase: InputState['phase']): 'plain' | 'claimed' | 'frozen' {
 
 const EMPTY_QUEUE: readonly QueuedMessage[] = []
 
-/** No-pipeline lexicon: zero text-ref decorations. */
+/** 未挂载流水线时的词典，不产生文本引用装饰。 */
 const EMPTY_LEXICON: ReadonlyMap<'/' | '@', readonly string[]> = new Map()
 
 /**
- * The per-session input facade: scoped-event application verbs +
- * setDraft/submit + the published InputState store.
+ * 每会话输入门面：限定作用域事件应用操作、setDraft/submit，以及已发布的
+ * InputState 存储。
  */
 export class SessionInputShell implements SessionInput {
-  /** Published machine state + queue overlay (the InputZone currency source). */
+  /** 已发布的状态机状态和队列叠加层，也是 InputZone 数据来源。 */
   readonly state: SnapshotStore<InputState>
-  /** Latest surfaced notice (null after clear); the bar renders errors as banners and information inline. */
+  /** 最近显示的提示，清除后为 null；输入栏以横幅显示错误、以内联形式显示信息。 */
   readonly notices: SnapshotStore<InputNotice | null> = createSnapshotStore<InputNotice | null>(null)
-  /** The public provide-channel action face (one stable identity per session). */
+  /** 公共 provide 通道操作接口；每个会话拥有一个稳定身份。 */
   readonly actions: InputActions = {
     setDraft: (text) => { this.setDraft(text) },
     addImages: ids => this.addImages(ids),
@@ -94,16 +91,16 @@ export class SessionInputShell implements SessionInput {
     submit: () => { this.submit('queue') },
   }
 
-  // Real wall clock: the typing-run merge window must actually expire in
-  // production (the machine's no-clock default is a constant for pure tests).
+  // 使用真实墙上时钟：生产环境中的连续输入合并窗口必须真正过期；状态机为纯测试
+  // 提供的无时钟默认值是常量。
   private readonly core = new InputMachine({ now: () => Date.now() })
   private noticeSeq = 0
   private lastMirroredDraft = ''
   private imageIds: readonly DraftAttachmentId[] = []
-  /** One image-only send at a time: Enter during the Host round-trip is a no-op. */
+  /** 同时只允许一次纯图片发送；Host 往返期间按回车不产生效果。 */
   private imageSendInFlight = false
   private disposed = false
-  /** Draft persistence mirror (chat store write; receives the clipboard projection, never display-only ranges). */
+  /** 草稿持久化镜像；写入聊天存储，接收剪贴板投影而不是仅供展示的区间。 */
   private mirrorFn: ((text: string) => void) | undefined
 
   constructor(private readonly deps: SessionInputDeps) {
@@ -111,19 +108,19 @@ export class SessionInputShell implements SessionInput {
     deps.queue?.subscribe(() => { this.publish() })
   }
 
-  // ---- SessionInput face ----
+  // ---- SessionInput 接口 ----
 
   /**
-   * Single draft write path (all mutation rides machine events).
-   * @param text - the full next draft.
-   * @param editRange - the DOM-observed edit shape, when the caller knows it
-   * (narrows the machine's occurrence math; absent → diff scan).
+   * 草稿的唯一写入路径，所有变更都经由状态机事件。
+   * @param text - 完整新草稿。
+   * @param editRange - 调用方已知时传入 DOM 观测到的编辑范围，用于缩小状态机
+   * 实例计算范围；缺失时扫描 diff。
    */
   setDraft(text: string, editRange?: EditRange): void {
     this.run(this.core.dispatch({ type: 'draft-changed', draft: text, ...(editRange !== undefined ? { editRange } : {}) }))
   }
 
-  /** Append ordered image ids unless an admission transaction is locked. */
+  /** 准入事务未锁定时追加有序图片 ID。 */
   addImages(ids: readonly DraftAttachmentId[]): boolean {
     if (this.snapshot.phase === 'adjudicating' || this.snapshot.phase === 'submitting') return false
     if (ids.length === 0) return true
@@ -133,9 +130,8 @@ export class SessionInputShell implements SessionInput {
   }
 
   /**
-   * Remove one image id from this draft. Busy admission phases refuse, like
-   * {@link addImages}: a removal landing while a command submit serializes
-   * would otherwise vanish from the rail yet still ride the in-flight send.
+   * 从草稿移除一个图片 ID。与 {@link addImages} 一样，准入繁忙阶段会拒绝；
+   * 否则，命令提交序列化期间到达的移除会让图片从附件栏消失，却仍随在途发送提交。
    */
   removeImage(id: DraftAttachmentId): void {
     if (this.snapshot.phase === 'adjudicating' || this.snapshot.phase === 'submitting') return
@@ -146,8 +142,8 @@ export class SessionInputShell implements SessionInput {
   }
 
   /**
-   * Keep only image ids that still resolve in the browser attachment registry.
-   * @param available - live registry ids.
+   * 只保留仍能在浏览器附件注册表中解析的图片 ID。
+   * @param available - 注册表中的实时 ID。
    */
   pruneImages(available: readonly DraftAttachmentId[]): void {
     const keep = new Set(available)
@@ -158,10 +154,9 @@ export class SessionInputShell implements SessionInput {
   }
 
   /**
-   * Clear the draft as a successful-send commit: no undo unit is recorded and
-   * the undo history is cut, so Ctrl/Cmd-Z cannot resurrect sent content
-   * (the command path gets the same discipline from submit-settled success).
-   * @param imageIds - admitted image ids to remove from this draft.
+   * 把清空草稿作为发送成功提交：不记录撤销单元并切断撤销历史，使 Ctrl/Cmd-Z
+   * 无法复活已发送内容；命令路径在 submit-settled 成功时遵循同一规则。
+   * @param imageIds - 要从草稿移除的已准入图片 ID。
    */
   commitSend(imageIds: readonly DraftAttachmentId[]): void {
     const submitted = new Set(imageIds)
@@ -169,23 +164,22 @@ export class SessionInputShell implements SessionInput {
     this.run(this.core.dispatch({ type: 'send-committed' }))
   }
 
-  /** Undo the latest transaction (InputBar intercepts the platform chord). */
+  /** 撤销最近事务；平台快捷键由 InputBar 拦截。 */
   undo(): void {
     this.run(this.core.dispatch({ type: 'undo' }))
   }
 
-  /** Redo the latest undone transaction. */
+  /** 重做最近被撤销的事务。 */
   redo(): void {
     this.run(this.core.dispatch({ type: 'redo' }))
   }
 
   /**
-   * Paste text over the selection in one transaction, with any hot-snapshot
-   * sync matches componentized inside it.
-   * @param text - pasted plain text.
-   * @param selection - replaced selection in draft coordinates.
-   * @param components - sync-matched reference components (disjoint, inside `text`).
-   * @param generation - projection generation for late async-upgrade guards.
+   * 在一个事务中用粘贴文本覆盖选区，并在其中组件化热快照同步匹配项。
+   * @param text - 粘贴的纯文本。
+   * @param selection - 草稿坐标中被替换的选区。
+   * @param components - 同步匹配的引用组件；互不相交且位于 `text` 内。
+   * @param generation - 用于防止迟到异步升级的投影代次。
    */
   pasteBegin(text: string, selection: EditSelection, components?: readonly PasteComponent[], generation?: number): void {
     this.run(this.core.dispatch({
@@ -195,16 +189,15 @@ export class SessionInputShell implements SessionInput {
     }))
   }
 
-  /** End the live paste-match attempt (caret/selection ops and Slash updates the machine cannot see). */
+  /** 结束实时粘贴匹配尝试，用于状态机看不到的光标/选区操作和 Slash 更新。 */
   invalidatePaste(): void {
     this.run(this.core.dispatch({ type: 'invalidate-paste' }))
   }
 
   /**
-   * Enter adjudication + submit transaction + default sink. Effects fan out
-   * from the machine; this method only feeds the event. Lock entry
-   * (adjudicating/submitting) force-closes the transient layers: the popup
-   * dismisses and the menu tracks frozen.
+   * 回车裁决、提交事务和默认出口。effect 从状态机扇出，此方法只负责送入事件。
+   * 进入锁定阶段（adjudicating/submitting）会强制关闭临时层：关闭弹窗，并让菜单
+   * 以 frozen 状态继续跟踪。
    */
   submit(mode: InputSubmitMode = 'queue'): void {
     if (this.snapshot.draft.trim() === '' && this.imageIds.length > 0) {
@@ -223,10 +216,8 @@ export class SessionInputShell implements SessionInput {
       }
       return
     }
-    // Claimed pre-gate: a claim that does not declare image acceptance never
-    // submits while images are attached — one notice, everything retained.
-    // Enter-time adjudication applies the same policy for unclaimed lines
-    // inside the command source itself.
+    // claimed 前置门：未声明接受图片的认领在仍有图片附件时绝不提交；只显示一次
+    // 提示并保留全部内容。回车裁决时，命令来源自身对未认领文本行应用同一策略。
     const before = this.snapshot
     if (before.phase === 'claimed' && this.imageIds.length > 0 && before.claim?.images !== true) {
       this.notify('error', this.deps.commandImages.unsupportedNotice(before.claim?.token ?? before.draft))
@@ -241,46 +232,42 @@ export class SessionInputShell implements SessionInput {
   }
 
   /**
-   * Feed a draft/caret change through trigger detection (guard derived from
-   * the machine phase).
-   * @param draft - live draft text.
-   * @param caret - caret position in draft coordinates.
+   * 把草稿/光标变化送入触发检测，保护条件由状态机阶段推导。
+   * @param draft - 实时草稿文本。
+   * @param caret - 光标在草稿坐标中的位置。
    */
   track(draft: string, caret: number): void {
     this.deps.inputTriggers?.()?.track(draft, caret, { tier: guardOf(this.snapshot.phase) }, this.snapshot.draftRev)
   }
 
   /**
-   * Keyboard arbitration while the menu is open.
-   * @param key - the intercepted key.
-   * @param composing - IME composition guard state.
-   * @returns the menu's verdict; 'pass' when no pipeline is mounted.
+   * 菜单打开时的键盘裁决。
+   * @param key - 被拦截的按键。
+   * @param composing - IME 组合输入保护状态。
+   * @returns 菜单裁决；未挂载流水线时为 'pass'。
    */
   arbitrate(key: ArbitrateKey, composing: boolean): ArbitrateOutcome {
     return this.deps.inputTriggers?.()?.arbitrate(key, composing) ?? 'pass'
   }
 
   /**
-   * Steer every still-pending queued message into the running turn (the
-   * empty-draft accelerated-Enter gesture). Execution belongs to the hub's
-   * queue choreography; absent dep = the gesture falls back to the machine's
-   * empty-draft no-op.
+   * 把所有仍待处理的排队消息引导进运行中的轮次，即空草稿加速回车手势。执行由
+   * hub 的队列编排负责；缺少依赖时，手势退回状态机的空草稿无操作。
    */
   steerQueue(): void {
     this.deps.steerQueue?.()
   }
 
   /**
-   * Space adjudication over the controller's hot state.
-   * @returns true = a claim/insert was applied — the caller preventDefaults.
+   * 基于控制器热状态执行空格裁决。
+   * @returns true 表示已应用认领/插入，调用方应阻止默认行为。
    */
   space(): boolean {
     const inputTriggers = this.deps.inputTriggers?.()
     if (inputTriggers === undefined) return false
     const consumed = inputTriggers.onSpace()
-    // Machine-driven draft replacement never passes through onChange, so
-    // re-track: the caret lands after the token, where detection sees
-    // whitespace and closes the menu.
+    // 状态机驱动的草稿替换不会经过 onChange，因此重新跟踪；光标落在词元后，
+    // 检测会看到空白并关闭菜单。
     if (consumed) {
       const next = this.snapshot
       inputTriggers.track(next.draft, next.draft.length, { tier: guardOf(next.phase) }, next.draftRev)
@@ -288,18 +275,16 @@ export class SessionInputShell implements SessionInput {
     return consumed
   }
 
-  /** Dismiss the popupSelect shell (any interaction outside the box). */
+  /** 关闭 popupSelect 外壳，用于框外发生的任意交互。 */
   dismissPopup(): void {
     this.deps.popup?.()?.dismiss()
   }
 
   /**
-   * Hot plain-text reference lexicon source for the decoration scan
-   * (the plain-text-reference decision;
-   * see .agents/notes/implemented/architecture/2026-07-25-web-input-machine-and-slash-pipeline.md):
-   * delegates to the controller's aggregated store. Stable
-   * identity per shell; without a pipeline the snapshot is the empty Map and
-   * subscribers never fire.
+   * 装饰扫描使用的热纯文本引用词典来源（决策见
+   * .agents/notes/implemented/architecture/2026-07-25-web-input-machine-and-slash-pipeline.md）。
+   * 它委托给控制器的聚合存储；每个外壳中的身份稳定。没有流水线时，快照为空 Map，
+   * 订阅者永远不会触发。
    */
   readonly lexicon: ObservableSnapshot<ReadonlyMap<'/' | '@', readonly string[]>> = {
     getSnapshot: () => this.deps.inputTriggers?.()?.lexicon.getSnapshot() ?? EMPTY_LEXICON,
@@ -307,10 +292,10 @@ export class SessionInputShell implements SessionInput {
   }
 
   /**
-   * Apply one command claim (scoped begin-command event listener body).
-   * @param claim - the command claim from the pick path.
-   * @param span - pick-time span snapshot.
-   * @returns whether the machine accepted (phase + span CAS passed and the draft mutated).
+   * 应用一次命令认领，即限定作用域 begin-command 事件监听器主体。
+   * @param claim - 选择路径产生的命令认领。
+   * @param span - 选择时的区间快照。
+   * @returns 状态机是否接受，即阶段和区间 CAS 通过且草稿确实变化。
    */
   beginCommand(claim: CommandClaim, span: TokenSpan): boolean {
     const before = this.core.state.draftRev
@@ -319,10 +304,10 @@ export class SessionInputShell implements SessionInput {
   }
 
   /**
-   * Apply one reference insertion (scoped insert-reference event listener body).
-   * @param ref - the reference insertion from the pick path.
-   * @param span - pick-time span snapshot.
-   * @returns whether the machine accepted.
+   * 应用一次引用插入，即限定作用域 insert-reference 事件监听器主体。
+   * @param ref - 选择路径产生的引用插入。
+   * @param span - 选择时的区间快照。
+   * @returns 状态机是否接受。
    */
   insertReference(ref: ReferenceInsert, span: TokenSpan): boolean {
     const before = this.core.state.draftRev
@@ -331,11 +316,10 @@ export class SessionInputShell implements SessionInput {
   }
 
   /**
-   * Consume one command token after business success (scoped consume-token
-   * event listener body). Span guard: revision CAS then splice; bare-token
-   * guard: trimmed-draft equality then clear.
-   * @param guard - exact span or bare-token guard.
-   * @returns whether the token was consumed.
+   * 业务成功后消费一个命令词元，即限定作用域 consume-token 事件监听器主体。
+   * 区间保护先做修订号 CAS 再拼接；裸词元保护先比较去空白草稿再清除。
+   * @param guard - 精确区间或裸词元保护条件。
+   * @returns 是否已消费词元。
    */
   consumeToken(guard: ConsumeTokenRequest['guard']): boolean {
     const snapshot = this.core.state
@@ -351,17 +335,15 @@ export class SessionInputShell implements SessionInput {
   }
 
   /**
-   * Insert plain reference text over the pick-time span (scoped insert-text
-   * event listener body; plain-text-reference decision, web-input-machine
-   * note). Same CAS-then-splice shape as the
-   * consume-token span branch: the machine sees an ordinary draft-changed
-   * transaction (one undo step), no occurrence is minted — the chip look is
-   * a scan-derived decoration, never state.
-   * @param text - the plain reference text to splice in (e.g. `/name `).
-   * @param span - pick-time span snapshot (draftRev CAS).
-   * @param keepCompleting - re-track at the caret after the splice so an open
-   * token (a directory pick's trailing slash) reopens the menu.
-   * @returns whether the text was applied.
+   * 在选择时区间插入纯引用文本，即限定作用域 insert-text 事件监听器主体，对应
+   * web-input-machine 说明中的纯文本引用决策。与 consume-token 区间分支一样，
+   * 先 CAS 再拼接；状态机看到的是普通 draft-changed 事务（一次撤销），不签发实例，
+   * 胶囊外观只是扫描派生的装饰，绝不是状态。
+   * @param text - 要拼入的纯引用文本，如 `/name `。
+   * @param span - 选择时区间快照，用于 draftRev CAS。
+   * @param keepCompleting - 拼接后在光标处重新跟踪，让仍开放的词元（如目录选择
+   * 末尾斜杠）重新打开菜单。
+   * @returns 是否已应用文本。
    */
   insertText(text: string, span: TokenSpan, keepCompleting = false): boolean {
     const snapshot = this.core.state
@@ -369,8 +351,8 @@ export class SessionInputShell implements SessionInput {
     const draft = snapshot.draft
     this.setDraft(draft.slice(0, span.start) + text + draft.slice(span.end))
     if (keepCompleting) {
-      // Machine-driven draft replacement never passes through onChange, so
-      // re-track at the caret inside the still-open token (see space()).
+      // 状态机驱动的草稿替换不会经过 onChange，因此在仍开放词元内的光标处重新
+      // 跟踪，参见 space()。
       const next = this.snapshot
       this.deps.inputTriggers?.()?.track(next.draft, span.start + text.length, { tier: guardOf(next.phase) }, next.draftRev)
     }
@@ -378,35 +360,34 @@ export class SessionInputShell implements SessionInput {
   }
 
   /**
-   * Surface a notice from outside the machine (detached command results).
-   * @param level - severity tier.
-   * @param text - notice body.
+   * 显示来自状态机外部的提示，例如脱离原调用栈的命令结果。
+   * @param level - 严重程度。
+   * @param text - 提示正文。
    */
   notify(level: 'info' | 'error', text: string): void {
     this.noticeSeq += 1
     this.notices.set({ level, text, seq: this.noticeSeq })
   }
 
-  // ---- wiring-layer extras (not on the frozen SessionInput face) ----
+  // ---- 接线层附加能力，不属于冻结的 SessionInput 接口 ----
 
-  /** Teardown: abort any in-flight attempt and stop accepting async settlements. */
+  /** 销毁：取消所有在途尝试，并停止接受异步结算。 */
   dispose(): void {
     this.disposed = true
     this.run(this.core.dispatch({ type: 'release' }))
   }
 
-  /** Read the live machine state (guard derivation reads here). */
+  /** 读取实时状态机状态；保护条件从这里推导。 */
   get snapshot(): InputState {
     return this.state.getSnapshot()
   }
 
   /**
-   * Bind the draft persistence mirror (chat store write). Adopt-on-bind: the
-   * store draft may hold a persisted value from a previous mount; the caller
-   * seeds it via setDraft BEFORE binding, and afterwards every machine-adopted
-   * draft mirrors out.
-   * @param write - store draft write.
-   * @returns the unbind disposer.
+   * 绑定草稿持久化镜像，即聊天存储写入。绑定时接纳：存储草稿可能保存上次挂载的
+   * 持久化值；调用方在绑定前通过 setDraft 初始化，此后每个被状态机接纳的草稿
+   * 都会向外镜像。
+   * @param write - 存储草稿写入函数。
+   * @returns 解绑清理函数。
    */
   bindMirror(write: (text: string) => void): () => void {
     this.mirrorFn = write
@@ -415,7 +396,7 @@ export class SessionInputShell implements SessionInput {
     }
   }
 
-  // ---- effect executor ----
+  // ---- effect 执行器 ----
 
   private run(effects: readonly InputEffect[]): void {
     for (const fx of effects) this.execute(fx)
@@ -442,16 +423,15 @@ export class SessionInputShell implements SessionInput {
         return
       }
       default:
-        return // machine-internal effects (mirror rides publish)
+        return // 状态机内部 effect；镜像随 publish 更新
     }
   }
 
   /**
-   * Prompt serialization before the sink: expand each
-   * inline reference range to its owner's model form via the session controller's
-   * codec routing. Owner missing / serialize failure / disposal blocks the
-   * send — notice + draft and chips retained, never a silent downgrade to
-   * the clipboard text. Chip-free drafts skip the async detour.
+   * 进入出口前进行提示词序列化：通过会话控制器的编解码器路由，把每个行内引用
+   * 区间展开为拥有者定义的模型表示。拥有者缺失、序列化失败或已销毁都会阻止发送，
+   * 同时保留提示、草稿和胶囊，绝不静默降级成剪贴板文本。没有胶囊的草稿跳过
+   * 这段异步路径。
    */
   private sinkSerialized(attempt: SubmitAttempt, draft: string, mode: InputSubmitMode): void {
     const imageIds = [...this.imageIds]
@@ -472,8 +452,8 @@ export class SessionInputShell implements SessionInput {
     })).then(
       (parts) => {
         if (this.disposed) return
-        // Splice model forms over their display ranges (offsets are draft-time;
-        // parts arrive offset-sorted since the table is).
+        // 在展示区间上拼入模型表示；偏移量来自草稿时刻，实例表已排序，因此 parts
+        // 也按偏移量到达。
         let out = ''
         let cursor = 0
         for (const part of parts) {
@@ -492,7 +472,7 @@ export class SessionInputShell implements SessionInput {
     )
   }
 
-  /** Settle one admission attempt; successful sends consume only their captured images. */
+  /** 结算一次准入尝试；成功发送只消费该尝试捕获的图片。 */
   private settleSubmit(
     attempt: SubmitAttempt,
     pending: Promise<SubmitOutcome>,
@@ -524,11 +504,11 @@ export class SessionInputShell implements SessionInput {
     )
   }
 
-  /** Enter adjudication: poll the session controller; failure = notice + draft retained (never a silent downgrade). */
+  /** 回车裁决：轮询会话控制器；失败时显示提示并保留草稿，绝不静默降级。 */
   private adjudicate(attempt: SubmitAttempt, draft: string): void {
     const inputTriggers = this.deps.inputTriggers?.()
     if (inputTriggers === undefined) {
-      // No pipeline mounted: the '/' line is an ordinary message.
+      // 未挂载流水线：把 '/' 开头文本行当作普通消息。
       this.run(this.core.dispatch({ type: 'adjudicated', attempt, outcome: undefined }))
       return
     }
@@ -546,19 +526,17 @@ export class SessionInputShell implements SessionInput {
   }
 
   /**
-   * The submit transaction: claim.submit against the session scope; ok maps
-   * from the outcome kind. An accepting claim receives the serialized draft
-   * images, which are cleared and released only on a success outcome; a
-   * failure (serialize, transport, or handler error) keeps draft and images
-   * for correction.
+   * 提交事务：在会话作用域调用 claim.submit，并由结果 kind 映射 ok。接受图片的
+   * 认领会收到已序列化草稿图片；只有成功结果才清除并释放图片。序列化、传输或
+   * 处理器失败时保留草稿和图片，供用户修正。
    */
   private beginSubmit(attempt: SubmitAttempt, claim: CommandClaim, args: string): void {
     const imageIds = claim.images === true ? [...this.imageIds] : []
     Promise.resolve()
       .then(async () => {
         const images = imageIds.length > 0 ? await this.deps.commandImages.serialize(imageIds) : []
-        // Serialization may outlive the attempt (large files, session
-        // teardown); a dead attempt must not reach the Host executor.
+        // 序列化可能比尝试活得更久，例如大文件或会话销毁；已失效尝试不得到达
+        // Host 执行器。
         if (this.dead(attempt)) return undefined
         return claim.submit(args, this.deps.actx, images)
       })
@@ -583,7 +561,7 @@ export class SessionInputShell implements SessionInput {
       )
   }
 
-  /** Late-settlement guard: superseded attempts and disposed facades drop silently. */
+  /** 迟到结算保护：被取代的尝试和已销毁门面会静默丢弃结果。 */
   private dead(attempt: SubmitAttempt): boolean {
     return this.disposed || attempt.signal.aborted
   }

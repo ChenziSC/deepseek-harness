@@ -6,6 +6,10 @@
  * @module @deepseek-ai/dsh/bin
  */
 
+// 学习入口：本文件只完成四步——解析启动器参数、按 mode 动态加载运行器、把 profile
+// 参数原样交给应用插件、让未知分支快速失败。Profile 的层叠规则在 profile-boot.ts，
+// Cordis 树的创建与结算在 dsh-app-boot；不要从这里寻找 agent 或 Web 业务逻辑。
+
 /* v8 ignore file -- built-bin acceptance exercises this self-executing dispatch. */
 
 import { readFileSync } from 'node:fs'

@@ -13,7 +13,7 @@ import { searchToolview } from './tool/toolviews/search-row.tsx'
 import { todoToolview } from './tool/toolviews/todo-row.tsx'
 import { webToolview } from './tool/toolviews/web-row.tsx'
 
-/** Required services: the slot registry and the Host description used for POSIX `~`. */
+/** 所需服务：Slot 注册表，以及把 POSIX 主目录缩写为 `~` 所需的 Host 描述。 */
 export const inject = ['slots', 'connection']
 
 /**

@@ -48,7 +48,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Development
 
-Start with the [development guide](docs/development.md) and [architecture documentation](docs/architecture.md).
+Start with the [development guide](docs/development.md) and [architecture documentation](docs/architecture.md). To understand the design from code entry points through runtime sequence, use the [source learning path](docs/source-learning-path.md).
 
 For agents, follow [AGENTS.md](AGENTS.md).
 

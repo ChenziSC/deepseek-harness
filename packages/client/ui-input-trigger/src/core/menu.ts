@@ -21,7 +21,7 @@ export const MENU_CLOSED: MenuState = { open: false, hit: null, generation: 0, g
  * Shell-side step before dispatching `hit` on a fresh menu open.
  *
  * @param state - Current menu state.
- * @param sources - Sources registered for the hit trigger, in menu order.
+ * @param sources - 为本次命中触发器注册的来源，按菜单顺序排列。
  * @returns State carrying the new pending roster; highlight cleared.
  */
 export function seedGroups(

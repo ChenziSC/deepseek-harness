@@ -1,12 +1,10 @@
 /**
- * Shared tsdown preset for UI plugin client bundles. Emits a closure-factory
- * artifact: the bundle calls window.__ModuleLoader__.load({id, factory})
- * and resolves externals through the injected require (loader module table —
- * cordis DI entities, no globals, no import map). CSS is compiled by
- * lightningcss inside the bundle: `x.module.css` yields its hashed class map
- * and injects a tagged style at factory execution, while `x.css?inline`
- * exports compiled text for a plugin-owned lifecycle effect. The virtual
- * loaders register each real stylesheet as a watch dependency.
+ * UI 插件客户端 Bundle 共用的 tsdown preset。它发射 closure factory 产物：Bundle 调用
+ * window.__ModuleLoader__.load({id, factory})，并通过注入的 require 解析 external；该
+ * require 连接 Loader 模块表中的 Cordis DI 实体，不依赖全局变量或 import map。CSS 在
+ * Bundle 内由 lightningcss 编译：`x.module.css` 生成带哈希的 class map，并在 factory
+ * 执行时注入带标签的 style；`x.css?inline` 则导出编译文本，交给插件自身的生命周期 effect。
+ * Virtual Loader 会把每个真实样式表注册为 watch 依赖。
  */
 import { readFile } from 'node:fs/promises'
 import { existsSync, globSync, readFileSync } from 'node:fs'
@@ -20,9 +18,8 @@ import { PLATFORM_MODULES, PRELOADED_CLIENT_EXTERNALS } from './web/src/platform
 import { clientBuildEnvironmentDefines } from '../../scripts/client-build-environment.ts'
 
 /**
- * Virtual-id wrapper keeping module CSS away from tsdown's own css pipeline
- * (which requires @tsdown/css). The suffix matters: tsdown's guard matches ids
- * ending in `.css`, so the virtual id must not.
+ * Virtual id 包装用于阻止 Module CSS 进入 tsdown 自身依赖 @tsdown/css 的 CSS pipeline。
+ * 后缀不可省略：tsdown guard 会匹配以 `.css` 结尾的 id，因此 virtual id 不能以它结尾。
  */
 const CSS_VIRTUAL_PREFIX = '\0dsh-css:'
 const GLOBAL_CSS_VIRTUAL_PREFIX = '\0dsh-global-css:'
@@ -30,7 +27,7 @@ const INLINE_CSS_VIRTUAL_PREFIX = '\0dsh-inline-css:'
 const CSS_VIRTUAL_SUFFIX = '.mjs'
 const INLINE_CSS_QUERY = '?inline'
 
-/** Emit one plugin-owned style injector and an optional CSS Modules export. */
+/** 发射一个插件拥有的样式注入器，以及可选的 CSS Modules 导出。 */
 function styleInjectionModule(
   id: string,
   fileId: string,
@@ -53,33 +50,30 @@ function styleInjectionModule(
 }
 
 /**
- * Wire/type layers a client bundle may inline: browser-safe contracts
- * with no runtime identity to share (no Symbol/instanceof/singleton state).
- * Everything else under @deepseek-ai/* is either a module-table entry
- * (external) or a leak the purity gate rejects.
+ * 客户端 Bundle 可以内联的 wire/type 层：browser-safe 约定，没有需要共享的运行时 identity，
+ * 即不含 Symbol、instanceof 或 singleton 状态。@deepseek-ai/* 下的其他内容要么是模块表
+ * 条目（external），要么是由纯度门禁拒绝的泄漏。
  */
 export const INLINE_SAFE = /^@deepseek-ai\/dsh-(host-apiproxy|file-reference|session|llm|tools|brand)(\/|$)/
 
 /**
- * Vendored framework libraries: rescoped into @deepseek-ai, so the gate below
- * would read them as plugin packages. They carry no cross-plugin runtime
- * identity to share — the framework itself is a requested module-table row
- * (external), while these are ordinary libraries a browser bundle inlines.
+ * Vendored 框架库被重新 scope 到 @deepseek-ai，因此下方门禁会把它们误认作插件包。它们
+ * 不携带需要跨插件共享的运行时 identity：框架本身是显式请求的模块表行（external），
+ * 而这些只是由浏览器 Bundle 内联的普通库。
  */
 const VENDORED_LIBRARY = /^@deepseek-ai\/(cosmokit|schemastery)(\/|$)/
 
-/** Generated descriptor/codec contribution with no shared runtime identity. */
+/** 不携带共享运行时 identity 的已生成 descriptor/codec contribution。 */
 const GENERATED_REMOTE = /^@deepseek-ai\/dsh-[a-z0-9]+(?:-[a-z0-9]+)*\/remote$/
 
 /**
- * Workspace mode replaces an empty config array with the root defaults. A
- * falsey entry instead removes this package before entry resolution.
+ * Workspace 模式会用根默认值替换空配置数组；falsey entry 则会在解析入口前移除本包。
  */
 const SKIP_WORKSPACE_BUILD: UserConfig = { entry: '' }
 
 const REPOSITORY_ROOT = fileURLToPath(new URL('../..', import.meta.url))
 
-/** Rebase a physical lib-relative source onto a browser URL that mirrors the repository directories. */
+/** 把物理 lib 相对源码重基到镜像仓库目录结构的浏览器 URL。 */
 function browserSourcePath(source: string, sourcemapPath: string): string {
   if (!source.startsWith('.')) return source
   const physicalSource = resolvePath(dirname(sourcemapPath), source)
@@ -88,20 +82,15 @@ function browserSourcePath(source: string, sourcemapPath: string): string {
 }
 
 /**
- * Build the tsdown config for one UI plugin package: the node-half lib build
- * plus the browser client bundle. Client packages emit both halves during the
- * Client pass by default; packages needed for Host reflection may opt into the
- * earlier Host pass. A package-level tsdown.config.ts REPLACES the root
- * workspace layout, so the lib half must be restated here — dropping it leaves
- * the package without lib/index.js and the host Loader cannot import its node
- * half.
- * @param id - plugin id (package name), stamped into the __ModuleLoader__.load
- * handoff and onto the injected style tags.
- * @param libEntry - node-half entries, spelled at the call site so the
- * package-invariants gate can see `lib/types/invariant.js` in each package's
- * own tsdown.config.ts (a preset-side glob hides it from the mechanical check).
- * @param options - phase placement, lib overrides, and companion Node configs.
- * @returns ENV-selected tsdown config for the current build face.
+ * 为一个 UI 插件包构造 tsdown 配置：Node half lib 构建加浏览器 Client Bundle。客户端包默认
+ * 在 Client pass 同时发射两部分；Host reflection 所需的包可选择提前到 Host pass。
+ * 包级 tsdown.config.ts 会替换根 Workspace 布局，因此这里必须重新声明 lib half；若遗漏，
+ * 包不会生成 lib/index.js，Host Loader 也无法导入其 Node half。
+ * @param id - 插件 id（包名），写入 __ModuleLoader__.load 交接与注入的 style tag。
+ * @param libEntry - Node half 入口，在调用点显式列出，使 package-invariants 门禁能在每个包
+ * 自身的 tsdown.config.ts 中看到 `lib/types/invariant.js`；preset 内 glob 会躲过机械检查。
+ * @param options - 阶段位置、lib 覆盖和伴随 Node 配置。
+ * @returns 按 ENV 选择、用于当前构建 face 的 tsdown 配置。
  */
 export function clientBundle(
   id: string,
@@ -123,36 +112,29 @@ export function clientBundle(
 }
 
 /**
- * Build the tsdown config for a client library the compile shell links
- * statically (the static assembly channel: `apps/web` resolves the package
- * name, bundles the artifact, and owns the chunk layout and the CSS pipeline).
+ * 为由编译 Shell 静态链接的客户端库构造 tsdown 配置。静态组装 channel 中，`apps/web`
+ * 解析包名、打包产物，并拥有 Chunk 布局与 CSS pipeline。
  *
- * Calling this preset is what puts a package in the static assembly channel,
- * so the call sites are the roster: gates read it through
- * {@link isStaticLinkedConfig} rather than a second hand-kept list. A package on
- * this roster must not be a module-table row as well — the browser would take
- * the statically linked copy and a provider's bytes would sit unused in its
- * bundle.
+ * 调用本 preset 就会把包放入静态组装 channel，因此调用点本身就是 roster；门禁通过
+ * {@link isStaticLinkedConfig} 读取它，无需维护第二份手写列表。Roster 中的包不能同时成为
+ * 模块表行，否则浏览器会使用静态链接副本，而 Provider Bundle 中的相同字节永远不会使用。
  *
- * Four artifact contracts:
- * 1. every bare specifier stays an import. The shell attributes chunk bytes by
- *    `node_modules/<pkg>`, so a dependency inlined into a workspace file is
- *    attributed to no npm package and its bytes fall into the index chunk,
- *    which collapses the vendor/index cache split.
- * 2. `esm` on `platform: 'browser'` — the shell is the only consumer.
- * 3. sourcemaps, chained through the tsc maps under `lib/types` to the sources.
- * 4. stylesheets ship with the package: a relative `.css` import survives as a
- *    relative external and the sheet is emitted under `lib/` at its
- *    `src`-relative path, so vite stays the only owner of class hashing.
- * @param id - package name, used in tsdown diagnostics.
- * @param libEntry - emitted JavaScript entries consumed from `lib/types`, one
- * bundle each: a multi-entry build would emit a hash-named shared chunk that
- * the exact `files` list cannot publish.
- * @returns ENV-selected tsdown config for the Client build face.
+ * 四项产物约定：
+ * 1. 每个裸 specifier 保持为 import。Shell 按 `node_modules/<pkg>` 归属 Chunk 字节；若依赖
+ *    被内联到 Workspace 文件，就无法归属任何 npm 包，其字节会落入 index Chunk，破坏
+ *    vendor/index 缓存分割。
+ * 2. 在 `platform: 'browser'` 上输出 `esm`，Shell 是唯一 Consumer。
+ * 3. Sourcemap 通过 `lib/types` 下的 tsc map 链接回源码。
+ * 4. 样式表随包发布：相对 `.css` import 作为相对 external 保留，样式表按相对 `src` 的
+ *    路径发射到 `lib/`，使 Vite 继续成为 class hashing 的唯一所有者。
+ * @param id - 用于 tsdown 诊断的包名。
+ * @param libEntry - 从 `lib/types` 消费的已发射 JavaScript 入口，每个入口单独一个 Bundle；
+ * 多入口构建会发射哈希命名的共享 Chunk，无法由精确 `files` 列表发布。
+ * @returns 按 ENV 选择、用于 Client 构建 face 的 tsdown 配置。
  */
 export function staticLinked(id: string, libEntry: readonly string[]): BuildFaceConfig {
-  // Each entry names its own output file, so two entries with the same basename
-  // would overwrite one artifact instead of emitting two.
+  // 每个 entry 命名自己的输出文件，因此 basename 相同的两个 entry 会互相覆盖，而不是
+  // 发射两个产物。
   const names = new Set(libEntry.map(entry => basename(entry, '.js')))
   if (names.size !== libEntry.length) {
     throw new Error(`tsdown: ${id} entries collide on an output name: ${libEntry.join(', ')}`)
@@ -161,11 +143,10 @@ export function staticLinked(id: string, libEntry: readonly string[]): BuildFace
 }
 
 /**
- * Whether a package's tsdown configs put it in the static assembly channel.
- * The roster has no separate list: gates load each package's own
- * `tsdown.config.ts`, call it for the Client face, and ask this.
- * @param configs - configs a package's build-face function returned.
- * @returns true when at least one config was built by {@link staticLinked}.
+ * 包的 tsdown 配置是否把它放入静态组装 channel。Roster 没有独立列表：门禁加载每个包
+ * 自身的 `tsdown.config.ts`，以 Client face 调用，再查询本函数。
+ * @param configs - 包的 build-face 函数返回的配置。
+ * @returns 至少一个配置由 {@link staticLinked} 构造时为 true。
  */
 export function isStaticLinkedConfig(configs: readonly UserConfig[]): boolean {
   return configs.some(config => (config.plugins as readonly { name?: string }[] | undefined ?? [])
@@ -173,10 +154,10 @@ export function isStaticLinkedConfig(configs: readonly UserConfig[]): boolean {
 }
 
 /**
- * Build a Client-only Node library during the Client pass.
- * @param id - Package name used in tsdown diagnostics.
- * @param libEntry - Emitted JavaScript entries consumed from `lib/types`.
- * @returns ENV-selected tsdown config for the Client build face.
+ * 在 Client pass 构建仅供 Client 使用的 Node 库。
+ * @param id - tsdown 诊断中使用的包名。
+ * @param libEntry - 从 `lib/types` 消费的已发射 JavaScript 入口。
+ * @returns 按 ENV 选择、用于 Client 构建 face 的 tsdown 配置。
  */
 export function clientLibrary(id: string, libEntry: readonly string[]): BuildFaceConfig {
   const lib = clientLibraryConfig(id, libEntry)
@@ -184,9 +165,9 @@ export function clientLibrary(id: string, libEntry: readonly string[]): BuildFac
 }
 
 /**
- * Select arbitrary package-local configs only during the Client pass.
- * @param configs - Node-side configs emitted after Client tsc.
- * @returns ENV-selected tsdown config for the Client build face.
+ * 只在 Client pass 选择任意包内配置。
+ * @param configs - Client tsc 后发射的 Node 侧配置。
+ * @returns 按 ENV 选择、用于 Client 构建 face 的 tsdown 配置。
  */
 export function clientOnly(configs: readonly UserConfig[]): BuildFaceConfig {
   return ({ env }) => buildFace(env?.DSH_BUILD_FACE) === 'host'
@@ -195,11 +176,11 @@ export function clientOnly(configs: readonly UserConfig[]): BuildFaceConfig {
 }
 
 interface ClientBundleOptions {
-  /** Emit the Node-side artifacts during the Host pass instead of the Client pass. */
+  /** 在 Host pass 而非 Client pass 发射 Node 侧产物。 */
   readonly hostPhase?: boolean
-  /** Additional Node-side configs emitted alongside the package library. */
+  /** 随包库一同发射的额外 Node 侧配置。 */
   readonly companions?: readonly UserConfig[]
-  /** Overrides for the package's primary Node-side library config. */
+  /** 包的主要 Node 侧库配置覆盖。 */
   readonly lib?: UserConfig
 }
 
@@ -230,11 +211,9 @@ function clientLibraryConfig(
     dts: false,
     clean: false,
     deps: {
-      // The Node half runs from a real install: a production dependency is on
-      // disk there and stays an import, everything else inlines. Stating both
-      // halves takes the artifact off tsdown's getProductionDeps fallback, where
-      // moving a dependency between npm sections silently re-bundles it.
-      // Builtins keep tsdown's own handling (neither side claims them).
+      // Node half 从真实安装运行：production dependency 位于磁盘上并保持为 import，其他内容
+      // 全部内联。显式声明两部分可避开 tsdown 的 getProductionDeps fallback；否则在 npm
+      // section 之间移动依赖会静默改变打包结果。Builtin 继续由 tsdown 自身处理，两边都不认领。
       neverBundle: isProductionDependency,
       alwaysBundle: (specifier: string) => !isBuiltin(specifier) && !isProductionDependency(specifier),
     },
@@ -242,7 +221,7 @@ function clientLibraryConfig(
   }
 }
 
-/** The slice of the rolldown plugin context the stylesheet plugin uses. */
+/** 样式表插件使用的 Rolldown 插件 Context 子集。 */
 interface AssetEmitter {
   emitFile(file: {
     type: 'asset'
@@ -264,28 +243,26 @@ function staticLinkedConfig(id: string, entry: string, outputName = basename(ent
     fixedExtension: false,
     dts: false,
     clean: false,
-    // The shell compiles this artifact, so its map is the only path from a
-    // browser stack frame back to the TSX (tsc emits the lib/types half).
+    // Shell 会再次编译此产物，因此本 map 是从浏览器 stack frame 返回 TSX 的唯一路径；
+    // lib/types half 由 tsc 发射。
     sourcemap: true,
     plugins: [{
-      // Contract 1. `pre` because tsdown's own deps plugin would otherwise
-      // resolve and inline every specifier missing from the npm production
-      // sections, which is the coupling this preset exists to remove. The name
-      // is also the roster marker {@link isStaticLinkedConfig} reads.
+      // 约定 1。使用 `pre`，否则 tsdown 自身的 deps 插件会解析并内联所有未出现在 npm
+      // production section 的 specifier，而本 preset 正是为了消除该耦合。插件名同时也是
+      // {@link isStaticLinkedConfig} 读取的 roster 标记。
       name: STATIC_LINKED_PLUGIN,
       resolveId: {
         order: 'pre' as const,
         handler(source: string, importer: string | undefined) {
-          // An entry arrives without an importer and must stay internal.
+          // Entry 到达时没有 importer，必须保持 internal。
           if (importer === undefined) return null
           return isBareSpecifier(source) ? { id: source, external: true } : null
         },
       },
     }, {
-      // Contract 3. Rolldown does not read the `//# sourceMappingURL` of its
-      // inputs, so each tsc map is handed over as that module's map and
-      // composed into the bundle map; without it frames stop at the emitted
-      // lib/types JavaScript instead of reaching the TSX.
+      // 约定 3。Rolldown 不读取输入的 `//# sourceMappingURL`，因此把每个 tsc map 作为对应
+      // 模块的 map 交给它，再组合进 Bundle map；否则 Frame 会停在已发射的 lib/types
+      // JavaScript，无法回到 TSX。
       name: 'dsh-tsc-sourcemap',
       async load(id: string) {
         if (!id.includes(TYPES_MARKER) || !id.endsWith('.js') || !existsSync(`${id}.map`)) return null
@@ -293,36 +270,35 @@ function staticLinkedConfig(id: string, entry: string, outputName = basename(ent
         return { code: code.replace(SOURCEMAP_COMMENT, ''), map: await readFile(`${id}.map`, 'utf8') }
       },
     }, {
-      // Contract 4. The import survives verbatim and the sheet lands beside the
-      // JavaScript, so the shell's CSS Modules pipeline sees a real stylesheet.
+      // 约定 4。Import 原样保留，样式表落在 JavaScript 旁，使 Shell 的 CSS Modules
+      // pipeline 能看到真实样式表。
       name: 'dsh-css-asset',
       async resolveId(this: AssetEmitter, source: string, importer: string | undefined) {
         if (!source.endsWith('.css') || importer === undefined) return null
         const { file, fileName } = stylesheetAsset(source, importer)
         if (!emitted.has(fileName)) {
           emitted.add(fileName)
-          // originalFileName also puts the physical sheet in the watch graph.
+          // originalFileName 还会把物理样式表放入 watch 图。
           this.emitFile({ type: 'asset', fileName, source: await readFile(file), originalFileName: file })
         }
-        // Every emitted chunk sits at the lib/ root, so the src-relative name
-        // is what resolves from there. Rolldown keeps relative externals as
-        // written instead of re-normalizing them.
+        // 所有已发射 Chunk 都位于 lib/ 根目录，因此从那里解析的是相对 src 的名称。Rolldown
+        // 会原样保留相对 external，不再规范化。
         return { id: `./${fileName}`, external: true }
       },
     }],
   }
 }
 
-/** Whether a specifier names a package rather than a file next to its importer. */
+/** Specifier 是否命名一个包，而非 importer 旁的文件。 */
 function isBareSpecifier(specifier: string): boolean {
   return !specifier.startsWith('.') && !specifier.startsWith('\0') && !isAbsolute(specifier)
 }
 
 /**
- * Locate a stylesheet import against the package sources and name its emitted position.
- * @param source - relative import specifier as written in the source.
- * @param importer - absolute path of the importing module, emitted or source.
- * @returns the stylesheet on disk plus its `src`-relative name under `lib/`.
+ * 根据包源码定位样式表 import，并命名其发射位置。
+ * @param source - 源码中写出的相对 import specifier。
+ * @param importer - 导入模块的绝对路径，可以是发射产物或源码。
+ * @returns 磁盘样式表，以及它在 `lib/` 下相对 `src` 的名称。
  */
 function stylesheetAsset(source: string, importer: string): { readonly file: string, readonly fileName: string } {
   const file = sourceAssetPath(source, importer)
@@ -331,10 +307,10 @@ function stylesheetAsset(source: string, importer: string): { readonly file: str
   return { file, fileName: file.slice(boundary + SOURCE_MARKER.length).split(sep).join('/') }
 }
 
-/** The manifest fields the build faces read to state their own module edges. */
+/** 构建 face 为声明自身模块边而读取的 manifest 字段。 */
 interface WorkspaceManifest {
   readonly name?: string
-  /** Sections a real install materializes on disk next to the built package. */
+  /** 真实安装会在已构建包旁落盘的 section。 */
   readonly dependencies?: Record<string, string>
   readonly peerDependencies?: Record<string, string>
   readonly optionalDependencies?: Record<string, string>
@@ -346,14 +322,12 @@ const productionExternalCache = new Map<string, readonly RegExp[]>()
 const clientExternalCache = new Map<string, ReadonlySet<string>>()
 
 /**
- * Read one workspace package's manifest. Located by package name rather than by
- * cwd, because tsdown evaluates every package config with the repository root as
- * `process.cwd()` during a workspace build. Callers read it on the first
- * resolveId of a build, not while a config is built, so selecting a build face
- * never touches a manifest.
- * @param id - package name, as spelled at the preset call site.
- * @returns the parsed manifest.
- * @throws {Error} when no workspace package declares that name.
+ * 读取一个 Workspace 包的 manifest。按包名而非 cwd 定位，因为 Workspace 构建期间 tsdown
+ * 会以仓库根目录作为 `process.cwd()` 评估每个包配置。调用方在构建的首次 resolveId 时
+ * 读取，而不是在构造配置时读取，所以选择 build face 不会接触 manifest。
+ * @param id - preset 调用点写出的包名。
+ * @returns 已解析 manifest。
+ * @throws {Error} 没有 Workspace 包声明该名称时抛出。
  */
 function workspaceManifest(id: string): WorkspaceManifest {
   const cached = manifestCache.get(id)
@@ -370,10 +344,9 @@ function workspaceManifest(id: string): WorkspaceManifest {
 }
 
 /**
- * External patterns for one package's Node half: its own production sections,
- * subpaths included.
- * @param id - package name, as spelled at the preset call site.
- * @returns one `^name(/|$)` pattern per production dependency, name-sorted.
+ * 一个包 Node half 的 external pattern：包自身的 production section，包括子路径。
+ * @param id - preset 调用点写出的包名。
+ * @returns 每个 production dependency 对应一个 `^name(/|$)` pattern，并按名称排序。
  */
 function productionExternals(id: string): readonly RegExp[] {
   const cached = productionExternalCache.get(id)
@@ -390,13 +363,12 @@ function productionExternals(id: string): readonly RegExp[] {
 }
 
 /**
- * Module-table specifiers one `dsh.client` declaration requests. Matching is
- * exact, never normalized: a package declares the specifier its own code
- * imports, and the loader keys static entries the same way.
- * @param subject - package name, used in diagnostics.
- * @param declaration - the package's `dsh.client` object.
- * @returns the requested specifiers, empty when the package declares none.
- * @throws {Error} when `external` is not a string array.
+ * 一个 `dsh.client` 声明请求的模块表 specifier。匹配严格按原值进行，不做规范化：包声明
+ * 自身代码实际 import 的 specifier，Loader 也以相同方式索引静态条目。
+ * @param subject - 用于诊断的包名。
+ * @param declaration - 包的 `dsh.client` 对象。
+ * @returns 已请求 specifier；包未声明时为空。
+ * @throws {Error} `external` 不是字符串数组时抛出。
  */
 export function requestedExternals(
   subject: string,
@@ -406,11 +378,10 @@ export function requestedExternals(
 }
 
 /**
- * Module-table specifiers one package requests. The shell baseline is implicit
- * for every dynamic bundle; `dsh.client.external` only adds package-specific
- * dynamic rows or subpaths.
- * @param id - package name, as spelled at the preset call site.
- * @returns the baseline plus the package's explicit requests.
+ * 一个包请求的模块表 specifier。Shell baseline 对所有动态 Bundle 都是隐式的；
+ * `dsh.client.external` 只增加包特有的动态行或子路径。
+ * @param id - preset 调用点写出的包名。
+ * @returns baseline 加包的显式请求。
  */
 function clientExternals(id: string): ReadonlySet<string> {
   const cached = clientExternalCache.get(id)
@@ -424,12 +395,12 @@ function clientExternals(id: string): ReadonlySet<string> {
   return externals
 }
 
-/** Escape a package name for literal use inside a RegExp source. */
+/** 转义包名，使其可在 RegExp source 中按 literal 使用。 */
 function escapeSpecifier(name: string): string {
   return name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-/** Whether an import specifier is the package a pattern names, or one of its subpaths. */
+/** Import specifier 是否为 pattern 命名的包或其子路径。 */
 function matchesSpecifier(patterns: readonly RegExp[], specifier: string): boolean {
   return patterns.some(pattern => pattern.test(specifier))
 }
@@ -439,37 +410,31 @@ function clientConfig(id: string, entry: string): UserConfig {
   return {
     name: `${id}/client`,
     entry: { client: entry },
-    // Browser bundle lands next to the node half (single lib/ artifact dir;
-    // the entryFileNames pin keeps it exactly lib/client.js). clean must stay
-    // off — a default clean would wipe the node-half output emitted above.
+    // Browser Bundle 落在 Node half 旁边；两者共用一个 lib/ 产物目录，entryFileNames pin
+    // 保证路径精确为 lib/client.js。clean 必须关闭，否则默认清理会删除上方发射的 Node half。
     outDir: 'lib',
     format: 'cjs',
     platform: 'browser',
-    // Types ship from lib/types (tsc); dts here would wrap the banner/footer into .d.cts and break parsing.
+    // 类型由 tsc 从 lib/types 发布；此处启用 dts 会把 banner/footer 包入 .d.cts 并破坏解析。
     dts: false,
-    // Plugin code is fetched outside Vite's module graph, so its own bundle
-    // must carry the TS/TSX mapping consumed by browser profiling tools.
+    // 插件代码在 Vite 模块图之外获取，因此自身 Bundle 必须携带浏览器分析工具消费的
+    // TS/TSX 映射。
     sourcemap: true,
     clean: false,
     deps: {
       neverBundle: isRequested,
-      // Anything NOT requested from the loader module table must inline
-      // (wire/type layers, zod, clsx — every non-shared dep). A require() the
-      // table cannot answer is a guaranteed runtime throw, so the rule is the
-      // package's own request list: requested specifiers stay imports,
-      // everything else is bundled.
+      // 未从 Loader 模块表请求的内容都必须内联，包括 wire/type 层、zod、clsx 和所有非共享
+      // 依赖。模块表无法回答的 require() 一定会在运行时抛错，因此规则以包自身请求列表
+      // 为准：已请求 specifier 保持 import，其他内容全部打入 Bundle。
       alwaysBundle: (specifier: string) => !isRequested(specifier),
     },
-    // Browser bundles inline node-idiom deps (zustand/immer read
-    // process.env.NODE_ENV; zustand's esm build also probes
-    // import.meta.env.MODE, which a CJS output cannot carry — rolldown flags
-    // EMPTY_IMPORT_META). vite defined both on the seed path; tsdown inlining
-    // needs the substitutions here or the factory throws ReferenceError at
-    // boot / the build gate reds. Both keys honor the build's NODE_ENV so a
-    // dev build keeps the dev-branch semantics; artifacts default to production.
-    // The bare `import.meta.env` key is required alongside the precise MODE
-    // key: zustand probes `import.meta.env ? import.meta.env.MODE : ...`, and
-    // the truthiness probe would otherwise survive as an empty import.meta.
+    // Browser Bundle 会内联使用 Node idiom 的依赖：zustand/immer 读取
+    // process.env.NODE_ENV，zustand 的 ESM 构建还探测 import.meta.env.MODE，而 CJS 输出
+    // 无法携带后者，Rolldown 会报告 EMPTY_IMPORT_META。Vite 已在 seed 路径定义二者；tsdown
+    // 内联也必须在此替换，否则 factory 会在启动时抛 ReferenceError，构建门禁也会失败。
+    // 两个键都遵循构建的 NODE_ENV，使开发构建保留开发分支语义，产物默认使用 production。
+    // 精确 MODE 键之外还需要裸 `import.meta.env`：zustand 会探测
+    // `import.meta.env ? import.meta.env.MODE : ...`，否则真值探测会以空 import.meta 残留。
     define: {
       ...clientBuildEnvironmentDefines(process.env),
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'),
@@ -477,12 +442,10 @@ function clientConfig(id: string, entry: string): UserConfig {
       'import.meta.env': JSON.stringify({ MODE: process.env.NODE_ENV ?? 'production' }),
     },
     plugins: [{
-      // Bundle purity gate (build-time mirror of the module-edge rules): the
-      // baseline and package-specific requests stay external, inline-safe wire layers
-      // inline, and every other @deepseek-ai value import is a build error — a
-      // cross-plugin value import either inlines a duplicate runtime instance
-      // or requires a specifier the module table cannot answer for this package.
-      // Cross-plugin collaboration goes through cordis services instead.
+      // Bundle 纯度门禁是模块边规则的构建时镜像：baseline 与包特有请求保持 external，
+      // inline-safe wire 层内联，其他 @deepseek-ai 值 import 都是构建错误。跨插件值 import
+      // 要么内联重复运行时实例，要么 require 本包模块表无法回答的 specifier。跨插件协作
+      // 必须改走 Cordis 服务。
       name: 'dsh-client-bundle-purity',
       resolveId(source: string) {
         if (!source.startsWith('@deepseek-ai/')) return null
@@ -505,7 +468,7 @@ function clientConfig(id: string, entry: string): UserConfig {
       async load(virtualId: string) {
         if (!virtualId.startsWith(CSS_VIRTUAL_PREFIX)) return null
         const fileId = virtualId.slice(CSS_VIRTUAL_PREFIX.length, -CSS_VIRTUAL_SUFFIX.length)
-        // The virtual id otherwise hides the physical stylesheet from Rolldown's watch graph.
+        // 若不显式添加，virtual id 会让物理样式表从 Rolldown watch 图中消失。
         this.addWatchFile(fileId)
         const source = await readFile(fileId)
         const { code, exports: cssExports } = transform({
@@ -554,10 +517,9 @@ function clientConfig(id: string, entry: string): UserConfig {
     }],
     outputOptions: {
       entryFileNames: 'client.js',
-      // The map is served from /plugins/<scoped-package>/client.js.map. The
-      // browser resolves its local sources back into URLs that mirror the
-      // /packages/<group>/<package>/src directories; sourcesContent keeps them usable
-      // without exposing that tree as an HTTP route.
+      // Map 从 /plugins/<scoped-package>/client.js.map 提供。浏览器把其中本地源码解析为镜像
+      // /packages/<group>/<package>/src 目录的 URL；sourcesContent 使源码可用，无需把该目录
+      // tree 暴露为 HTTP route。
       sourcemapPathTransform: browserSourcePath,
       banner: `window.__ModuleLoader__.load({ id: ${JSON.stringify(id)}, factory: (require) => {`,
       footer: 'return module.exports; } });',
@@ -566,19 +528,19 @@ function clientConfig(id: string, entry: string): UserConfig {
   }
 }
 
-/** Path segment separating a package's tsc output from the sources it was emitted from. */
+/** 分隔包 tsc 输出与其来源源码的路径片段。 */
 const TYPES_MARKER = `${sep}lib${sep}types${sep}`
 
-/** Plugin name carrying contract 1, and the marker that identifies a statically linked config. */
+/** 承载约定 1 的插件名，也是识别静态链接配置的标记。 */
 const STATIC_LINKED_PLUGIN = 'dsh-static-linked-external'
 
-/** Path segment a package's sources hang under, and the root emitted assets mirror. */
+/** 包源码所在的路径片段，也是已发射资源镜像的根。 */
 const SOURCE_MARKER = `${sep}src${sep}`
 
-/** Trailing sourcemap reference tsc appends to every emitted module. */
+/** tsc 附加到每个已发射模块末尾的 sourcemap 引用。 */
 const SOURCEMAP_COMMENT = /\n\/\/# sourceMappingURL=.*\s*$/
 
-/** Resolve an emitted JS asset import against its source-tree counterpart. */
+/** 根据源码 tree 中的对应文件解析已发射 JS 资源 import。 */
 function sourceAssetPath(source: string, importer: string): string {
   const emitted = resolvePath(dirname(importer), source)
   if (existsSync(emitted)) return emitted
