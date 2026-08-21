@@ -1,191 +1,207 @@
-/** slot 宿主与已安装渲染器之间不依赖 React 的约定。 */
+/** React-free contracts between the slot host and an installed renderer. */
 import type { ReactNode } from 'react'
 import type { SlotEntryDef, SlotSpec, StoredEntry, Translate } from './index.ts'
 
 /**
- * 渲染基础设施消费的 locale 接口：包含命名空间绑定和可观察 revision，即
- * getSnapshot/subscribe 对，与其他标准工具包数据源使用相同 HostObservable 形式。
- * 当前 locale 或注册表每次变化都会推进 revision；渲染器依据“命名空间、revision”
- * 重新推导各配置项的 `t`，因此切换 locale 会产生新的函数引用，让记忆化组件自然
- * 重渲染。接口由 locale 插件实现，并通过 runtime SlotRegistry 的 installLocale
- * 安装。
- *
- * 必须在首次需要该 seat 的渲染前安装。outlet 在挂载时绑定 revision 订阅，较晚出现的
- * 接口没有通道通知已经挂载的 outlet。locale 插件属于 immediately 层基础设施，正常
- * 组合会在启动期间完成安装。
+ * The locale face the render machinery consumes: namespace binding plus an
+ * observable revision (getSnapshot/subscribe pair — the same HostObservable
+ * currency as every other standard-kit source). The revision moves on every
+ * active-locale or registry change; the renderer re-derives each entry's `t`
+ * from (namespace, revision), so a locale switch hands out NEW function
+ * references and memoized components re-render naturally. Implemented by the
+ * locale plugin, installed through the runtime SlotRegistry (installLocale).
+ * Install before the first render that needs the seat: outlets bind their
+ * revision subscription at mount, and a face appearing later has no channel
+ * to notify already-mounted outlets (the locale plugin is immediately-tier
+ * infrastructure, so normal compositions install during boot).
  */
 export interface LocaleFace extends HostObservable<{ revision: number }> {
   /**
-   * 把命名空间绑定到调用时读取当前 locale 的翻译函数。函数标识可以在每个命名空间内
-   * 保持稳定；渲染文案的新鲜度由渲染器的“ns、revision”seat 推导保证，而不是本绑定。
-   * @param ns - 字典命名空间。
-   * @returns 绑定该命名空间的翻译函数。
+   * Bind a namespace to a translate function reading the active locale at
+   * call time. Identity may be stable per namespace — freshness of rendered
+   * text is carried by the renderer's (ns, revision) seat derivation, not by
+   * this binding.
+   * @param ns - dictionary namespace.
+   * @returns the namespace-bound translate function.
    */
   bind(ns: string): Translate
 }
 
-/** 宿主提供的标准工具包数据源所需的最小可观察 API。 */
+/** Minimal observable API for host-provided standard-kit data sources. */
 export interface HostObservable<T> {
   getSnapshot(): T
   subscribe(fn: () => void): () => void
 }
 
 /**
- * 渲染边界上类型擦除的存储实例接口，类型化对应项为 {@link StoreInstance}：包含裸快照
- * 数据源和已移除 draft 参数的 action 回调。React 钩子不会跨越该边界；渲染基础设施
- * 在自身一侧从数据源绑定 `useStore`，并按实例缓存；类型通过 {@link PropsStore}
- * 落在组件边界。
+ * Type-erased store instance face at the render boundary (the typed twin is
+ * {@link StoreInstance}): a bare snapshot source plus the draft-stripped
+ * action callbacks. No React hook crosses this boundary — the render machinery
+ * binds `useStore` from the source at its own side (cached per instance);
+ * typing lands at the component boundary via {@link PropsStore}.
  */
 export interface StoreInstanceLike {
   getSnapshot(): unknown
   /**
-   * 订阅状态变化，即 uSES 的 subscribe 侧。
-   * @param fn - 变更回调。
-   * @returns 取消订阅函数。
+   * Subscribe to state changes (uSES subscribe side).
+   * @param fn - change callback.
+   * @returns unsubscribe.
    */
   subscribe(fn: () => void): () => void
   readonly actions: Record<string, (...params: never[]) => void>
 }
 
 /**
- * 按会话 id 解析的每会话标准属性。在同一会话作用域内标识稳定；重建作用域会产生新的
- * info。插件通过 runtime `sessions.provide` 约定贡献成员；渲染侧把每个 `hooks`
- * 数据源绑定为 `use<Name>` 选择器钩子，钩子本身不会出现在宿主约定中，并原样展开
- * `props`。runtime 自身提供第一项：`session` → `useSession`。
+ * Per-session standard props resolved per session id (identity-stable per
+ * session scope; a recreated scope yields a new info). Plugins contribute
+ * members through the runtime `sessions.provide` contract; the render side binds
+ * every `hooks` source into a `use<Name>` selector hook (hooks never appear
+ * on the host contract) and spreads `props` verbatim. The runtime itself
+ * contributes the first entry (`'session'` → `useSession`).
  */
 export interface SessionMaybeProvideInfo {
-  /** 当前会话 id；应用处于无会话模式时不存在。 */
+  /** Current session id, absent while the application is in no-session mode. */
   sessionId: string | undefined
   /**
-   * 静态钩子名单。没有会话时每个值都不存在，但键继续保留，使 session-maybe 配置项
-   * 始终接收相同钩子结构的标准工具包。
+   * Static hook roster. Each value is absent with the session; keys remain so
+   * session-maybe entries always receive the same hook-shaped standard kit.
    */
   hooks: Record<string, HostObservable<unknown> | undefined>
-  /** 静态普通成员名单；没有会话时值为 undefined。 */
+  /** Static plain-member roster; values are undefined with the session. */
   props: Record<string, unknown>
   /**
-   * 按键寻址的投影值数据源，即 useProjection 框架 seat；参见
-   * docs/subsystems/session-projection.md。与 `hooks` 不同，其键空间开放，值来自
-   * 宿主计算的推送帧，因此渲染侧按已解析键而不是静态名单成员绑定。每个键始终具有
-   * 接口，缺失用 `undefined` 快照表示；没有会话时整个成员不存在。
+   * Key-addressed projection value sources (the useProjection framework seat;
+   * session-projection subsystem page: docs/subsystems/session-projection.md).
+   * Unlike `hooks`, the key space is open — values
+   * arrive from host-computed push frames — so the render side binds per
+   * resolved key instead of per static roster member. Faces are always
+   * defined per key (absence is an `undefined` snapshot); the whole member is
+   * absent with the session.
    */
   projections?: { faceOf(key: string): HostObservable<unknown> } | undefined
 }
 
-/** 为严格会话 slot 解析的确定每会话标准属性。 */
+/** Definite per-session standard props resolved for strict session slots. */
 export interface SessionProvideInfo extends SessionMaybeProvideInfo {
   sessionId: string
-  /** 按钩子基础名称索引的裸可观察数据源，例如 `session` → useSession。 */
+  /** Bare observable sources, keyed by hook base name ('session' → useSession). */
   hooks: Record<string, HostObservable<unknown>>
 }
 
-/** 基础设施层的 renderSlot 分发选项。 */
+/** renderSlot dispatch options at the machinery level. */
 export interface RenderOpts {
   entryKey?: string
   only?: string
   fallback?: ReactNode
-  /** 仅由函数值注入 Hook 消费的单次调用不透明上下文。 */
+  /** Opaque occurrence context consumed only by function-valued injected Hooks. */
   hookContext?: unknown
 }
 
-/** runtime SlotRegistry 提供给已安装渲染器的宿主 API。 */
+/** Host API the runtime SlotRegistry presents to the installed renderer. */
 export interface SlotRendererHost {
   /**
-   * 订阅某键的注册变更，通知按微任务批处理。
-   * @param key - slot 键。
-   * @param fn - 变更回调。
-   * @returns 取消订阅函数。
+   * Subscribe to a key's registration changes (microtask-batched).
+   * @param key - slot key.
+   * @param fn - change callback.
+   * @returns unsubscribe.
    */
   subscribe(key: string, fn: () => void): () => void
   /**
-   * 用于 uSES 配对的单调 version。
-   * @param key - slot 键。
-   * @returns 当前 version。
+   * Monotonic version for uSES pairing.
+   * @param key - slot key.
+   * @returns current version.
    */
   getVersion(key: string): number
   /**
-   * 获取某键注册项的快照；变更之间引用保持稳定。
-   * @param key - slot 键。
-   * @returns 按注册顺序排列的配置项；list 按 order 排列。
+   * Snapshot the registered entries for a key (stable reference between mutations).
+   * @param key - slot key.
+   * @returns entries in registration (list: order) sequence.
    */
   entriesOf(key: string): readonly StoredEntry[]
   /**
-   * 某键每个单元格的遮蔽胜出项，也是 single、keyed、list 分发的渲染读取：按优先级
-   * 取每格首个实时且未退出的配置项。chain 键原样透传，因为选举会消费全部配置项。
-   * 每次调用返回新数组，用于渲染体读取，不能作为 uSES getSnapshot 数据源。
-   * @param key - slot 键。
-   * @returns 每个已占用单元格的胜出配置项。
+   * Shadowing winners per cell for a key — the render read for single/keyed/
+   * list dispatch: the first live (non-abdicated) entry of each cell in
+   * priority order; chain keys pass through unchanged (election consumes
+   * every entry). Fresh array per call — a render-body read, not a uSES
+   * getSnapshot source.
+   * @param key - slot key.
+   * @returns the winning entry per occupied cell.
    */
   entriesOfSlot(key: string): readonly StoredEntry[]
   /**
-   * 报告配置项边界崩溃。对于支持遮蔽的 kind，`info.abdicate` 会把配置项一次性移出
-   * 单元格，使下一个存活项渲染；chain 崩溃只报告而不退出。两种情况下注册都继续
-   * 留在 ledger 上。
-   * @param key - 配置项所在的 slot 键。
-   * @param entry - 崩溃的配置项。
-   * @param error - 崩溃原因。
-   * @param info - `abdicate` 表示是否将配置项移出单元格。
+   * Report an entry boundary crash. With `info.abdicate` (shadowing kinds)
+   * the entry retires from its cell, one-shot, so the next survivor renders;
+   * chain crashes report without abdicating. The registration stays on the
+   * ledger either way.
+   * @param key - slot key the entry rendered under.
+   * @param entry - the crashed entry.
+   * @param error - the crash cause.
+   * @param info - `abdicate`: whether the crash retires the entry from its cell.
    */
   reportEntryError(key: string, entry: StoredEntry, error: unknown, info: { abdicate: boolean }): void
   /**
-   * 从声明 ledger 读取运行时规格。
-   * @param key - slot 键。
-   * @returns 规格；键未声明时返回 undefined，outlet 渲染为空。
+   * Declared runtime spec from the declarations ledger.
+   * @param key - slot key.
+   * @returns the spec, or undefined while the key is undeclared (outlets render empty).
    */
   specOf(key: string): SlotSpec<SlotEntryDef> | undefined
   /**
-   * 陈旧授权检查：配置项是否仍在 ledger 中。
-   * @param entry - 先前渲染过的配置项。
-   * @returns 配置项注册被 dispose 后返回 false。
+   * Stale-authorization check: whether the entry is still in the ledger.
+   * @param entry - a previously rendered entry.
+   * @returns false once the entry's registration was disposed.
    */
   isLive(entry: StoredEntry): boolean
   /**
-   * 在作用域键下解析配置项已声明句柄的存储实例，必要时创建，否则返回缓存。生命周期
-   * 沿 ledger 轴管理。
-   * @param entry - 声明中携带句柄的配置项。
-   * @param scopeKey - 会话作用域 slot 使用会话 id；根作用域使用 undefined。
-   * @returns 存储实例；配置项未声明存储时返回 undefined。
+   * Resolve (create or return cached) the store instance for an entry's
+   * declared handle under a scope key; lifecycle rides the ledger axis.
+   * @param entry - entry whose declaration carries the handle.
+   * @param scopeKey - session id for session-scope slots, undefined for root scope.
+   * @returns the instance, or undefined when the entry declares no store.
    */
   storeOf(entry: StoredEntry, scopeKey: string | undefined): StoreInstanceLike | undefined
-  /** 会话侧标准工具包数据源。 */
+  /** Session-side standard-kit sources. */
   sessions: {
-    /** 支撑 useSessions 标准钩子的会话列表数据源。 */
+    /** Session list source backing the useSessions standard hook. */
     list: HostObservable<unknown>
     /**
-     * SessionProvider 使用的原子当前会话 provide 投影。选择变化与提供方名单变化均通过
-     * 同一数据源发布，因此即使当前 id 稳定，也不会让已挂载配置项停留在陈旧钩子或属性
-     * schema 上。无法解析当前会话时仍携带静态名单，但 sessionId 为 undefined。
+     * Atomic current-session provide projection used by SessionProvider:
+     * selection changes and provider-roster changes publish through this one
+     * source, so a stable current id cannot strand mounted entries on an
+     * obsolete hook/prop schema. Carries the static roster with sessionId
+     * undefined while no current session resolves.
      */
     provideInfo: HostObservable<SessionMaybeProvideInfo>
   }
-  /** 工作区侧标准工具包数据源。 */
+  /** Workspace-side standard-kit sources. */
   workspaces: {
-    /** 支撑 useWorkspaces 标准钩子的工作区列表数据源。 */
+    /** Workspace list source backing the useWorkspaces standard hook. */
     list: HostObservable<unknown>
   }
   /**
-   * 支撑 `t` 标准 seat 的已安装 locale 接口。locale 插件安装前不存在；缺少接口时
-   * 渲染声明了 `locale:` 的配置项属于装配失败。
+   * Installed locale face backing the `t` standard seat (absent until the
+   * locale plugin installs one; rendering an entry that declared `locale:`
+   * without it is an assembly failure).
    */
   locale?: LocaleFace | undefined
 }
 
-/** 安装约定：runtime 所有 install()/renderSlot()，web-react 实现渲染。 */
+/** The installation contract: runtime owns install()/renderSlot(); ui-renderer implements rendering. */
 export interface SlotRenderer {
   /**
-   * 基于宿主 API 渲染根 slot 树，也是唯一的 ctx 级入口。
-   * @param host - 安装服务的宿主 API。
-   * @param ownerProps - shell 调用 renderSlot('root', ...) 时传入的所有方属性。
-   * @returns 渲染后的树。
+   * Render the root slot tree over the host API (the only ctx-level entry).
+   * @param host - the installing service's host API.
+   * @param ownerProps - owner props from the shell's renderSlot('root', ...) call.
+   * @returns the rendered tree.
    */
   renderRoot(host: SlotRendererHost, ownerProps: object): ReactNode
 }
 
-/** 保留的 renderSlot 绑定在声明它的配置项已 dispose 后仍被调用时抛出。 */
+/** Thrown when a retained renderSlot binding is invoked after its declaring entry was disposed. */
 export class StaleAuthorizationError extends Error {}
 
 /**
- * renderSlot 绑定收到配置项 children 声明之外的键时抛出。这是普通 JavaScript 的
- * 后备保护；类型化调用方已经静态收窄。
+ * Thrown when a renderSlot binding is invoked for a key outside its entry's
+ * children declaration (plain-JS backstop; typed callers are narrowed
+ * statically).
  */
 export class SlotOwnershipError extends Error {}

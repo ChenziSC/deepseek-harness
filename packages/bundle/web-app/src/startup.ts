@@ -1,7 +1,8 @@
 /**
- * Web 应用的命令行提供方：解析 `dsh --profile web` 的 flag 组（`--host`、
- * `--port`、`--trusted-host`）和 `--help` 文本，再通过
- * {@link WEB_STARTUP_SERVICE} 提供不可变取值。普通行会先注入该服务，再从惰性配置读取。
+ * The web app's command-line provider: it parses the `dsh --profile web` flag
+ * family (`--host`, `--port`, `--trusted-host`, `--no-open`) and its `--help`
+ * text, then provides the immutable values as {@link WEB_STARTUP_SERVICE}.
+ * Ordinary rows inject that service before reading it from lazy config.
  * @module @deepseek-ai/dsh-web-app/startup
  */
 
@@ -9,68 +10,75 @@ import { Command } from 'commander'
 import type { Context } from '@deepseek-ai/cordis'
 import { parseCmdline } from '@deepseek-ai/dsh-cmdline'
 
-/** 稳定的 Cordis 插件名。 */
+/** Stable Cordis plugin name. */
 export const name = 'web-startup'
 
-/** 解析 flag 前必须就绪的服务。 */
+/** Services required before the flags can be resolved. */
 export const inject = ['cmdlineArgs']
 
-/** 本普通插件提供、由 flag 配置行注入的服务。 */
+/** Service provided by this ordinary plugin and injected by flag-configured rows. */
 export const WEB_STARTUP_SERVICE = 'webStartup'
 
-/** Web 行从 {@link WEB_STARTUP_SERVICE} 读取的值。 */
+/** What the web rows read from {@link WEB_STARTUP_SERVICE}. */
 export interface WebStartupValues {
-  /** `--host`；本次调用未指定时缺省。 */
+  /** Whether this invocation opens the default browser after startup. */
+  openBrowser: boolean
+  /** `--host`, absent when the invocation did not name one. */
   host?: string
-  /** `--port`；本次调用未指定时缺省。 */
+  /** `--port`, absent when the invocation did not name one. */
   port?: number
-  /** 显式指定的 `--trusted-host` authority，按参数顺序排列。 */
+  /** Explicit `--trusted-host` authorities, in argument order. */
   trustedHosts: string[]
 }
 
-/** Commander 解析后的 Web flag 组。 */
+/** The web flag family, as commander parsed it. */
 interface WebOptions {
   host?: string
+  open: boolean
   port?: string
   trustedHost?: string[]
 }
 
 /**
- * 本应用的命令定义，包括 flag、说明和帮助文本。
- * @returns 全新的 program，使同一进程可以多次解析（供测试使用）。
+ * This app's command: its flags, its description, and its help text.
+ * @returns a fresh program, so one process can parse more than once (tests).
  */
 function webCommand(): Command {
   return new Command()
     .name('dsh --profile web')
-    .description('提供 DeepSeek Harness 浏览器 UI。')
-    .helpOption('-h, --help', '显示此帮助')
-    .option('--host <host>', '绑定的 host')
-    .option('--port <port>', '监听端口；传入 0 让操作系统选择空闲端口')
-    .option('--trusted-host <authority...>', '/api 浏览器信任栅栏额外接受的 authority（host 或 host:port；可重复）')
+    .description('Serve the DeepSeek Harness browser UI.')
+    .helpOption('-h, --help', 'show this help')
+    .option('--host <host>', 'bind host')
+    .option('--no-open', 'do not open the Web UI in the default browser')
+    .option('--port <port>', 'listen port; pass 0 to let the OS pick a free one')
+    .option('--trusted-host <authority...>', 'extra authority the /api browser-trust fence accepts (host or host:port; repeatable)')
     .addHelpText('after', `
-示例：
-  dsh --profile web                          使用组合后的 host 与端口提供服务
-  dsh --profile web --port 8080              改用其他端口提供服务
+Examples:
+  dsh --profile web                          serve on the composed host and port
+  dsh --profile web --no-open                serve without opening a browser
+  dsh --profile web --port 8080              serve on another port
 `)
 }
 
 /**
- * 解析 Web 调用，并将其作为普通 Cordis 服务提供。命令 action 发布本次调用指定的 flag；
- * `--host 0.0.0.0` 或非数字 `--port` 属于用法错误，因此拒绝时（以及处理 `--help` 时）
- * 不会提供任何服务。
- * @param ctx - 携带命令行的插件上下文。
+ * Parse and provide the Web invocation as an ordinary Cordis service. The
+ * command's action publishes the flags this invocation named; `--host 0.0.0.0`
+ * or a non-numeric `--port` is a usage error, so on rejection (and on `--help`)
+ * nothing is provided.
+ * @param ctx - plugin context carrying the command line.
  */
 export function apply(ctx: Context): void {
   const program = webCommand()
   program.action(() => {
     const options = program.opts<WebOptions>()
     if (options.host === '0.0.0.0') {
-      program.error('error: 出于安全考虑，目前有意不支持 --host 0.0.0.0；该地址会向网络暴露远程代码执行能力，请改用 127.0.0.1')
+      program.error('error: --host 0.0.0.0 is intentionally not supported yet for safety: it would expose remote code execution to the network; use 127.0.0.1 instead')
     }
     if (options.port !== undefined && !/^\d+$/.test(options.port)) {
-      program.error(`error: --port 必须是数字，收到 ${JSON.stringify(options.port)}`)
+      program.error(`error: --port must be a number, got ${JSON.stringify(options.port)}`)
     }
     ctx.provide(WEB_STARTUP_SERVICE, {
+      openBrowser: options.open,
       ...options.host !== undefined && { host: options.host },
       ...options.port !== undefined && { port: Number(options.port) },
       trustedHosts: options.trustedHost ?? [],

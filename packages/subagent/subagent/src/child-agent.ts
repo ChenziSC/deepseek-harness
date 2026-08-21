@@ -132,10 +132,6 @@ export interface ChildComposition {
  * runtime-context contribution rather than a system-prompt section, so the
  * deployment's system prompt stays uniform across parents and children.
  */
-// 下方英文作为动态 user-role 上下文发送给每个进程内子 Agent。中文译文：你是被委派的
-// 子 Agent；权限范围在启动时已固定，无法在当前 Session 内扩大，需要审批的操作会自动
-// 拒绝。任务需要超出该范围的访问时，不要重试被拒操作；在回复中说明限制，由委派你的
-// Agent 处理。运行时原文保持不变，以维持权限引导和回放一致性。
 export const SUBAGENT_DELEGATION_CONTEXT
   = 'You are a delegated subagent: your permission scope was fixed when you were started and cannot be '
     + 'widened from inside this session — operations that require approval are rejected automatically. '
@@ -170,7 +166,7 @@ export function applyChildComposition(
   composition: ChildComposition,
 ): void {
   childCtx.get('agentPresets')?.composeFrom(childCtx, parent.ctx)
-  // order 120：位于 sandbox:policy（110）和 approval:policy（115）说明之后。
+  // Order 120: after the sandbox:policy (110) and approval:policy (115) sentences.
   childCtx.systemPrompt.context({ name: 'subagent:delegation', order: 120, text: SUBAGENT_DELEGATION_CONTEXT })
   if (composition.persona !== undefined) {
     childCtx.systemPrompt.section({ name: 'deployment:persona', order: 0, text: composition.persona })

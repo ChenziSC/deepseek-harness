@@ -58,8 +58,6 @@ export const Config: z<Config> = z.object({
  * @param config - the persona text and complete-prompt policy.
  */
 export function apply(ctx: Context, config: Config): void {
-  // config.text 是部署或 Agent preset 提供的 persona，作为 system prompt 原样发送给模型。
-  // 它不是本模块可静态翻译的固定英文；每个实际配置点应在运行时原文旁维护中文译文。
   ctx.effect(() => ctx.systemPrompt.section({
     name: PERSONA_SECTION,
     order: PERSONA_ORDER,

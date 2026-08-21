@@ -10,7 +10,7 @@ interface ProjectedBlock {
   value: ToolCallBlock
 }
 
-/** 所有递归 Tool 调用消费者共用的固定传输安全深度上限。 */
+/** Fixed wire-safety ceiling for every recursive Tool call consumer. */
 export const MAX_TOOL_CALL_TREE_DEPTH = 256
 
 function sameReferences<T>(
@@ -22,7 +22,8 @@ function sameReferences<T>(
 }
 
 /**
- * 负责 Code Dispatch 配对，并把私有父级索引投影为对话快照公开的递归 Tool 调用结构。
+ * Owns Code Dispatch pairing and projects its private parent index into the
+ * recursive Tool call contract exposed by conversation snapshots.
  */
 export class ToolCallTree {
   private readonly childrenByParent = new Map<string, readonly ToolCallBlock[]>()
@@ -40,7 +41,7 @@ export class ToolCallTree {
     value: readonly RunningToolCall[]
   } | null = null
 
-  /** 重放新窗口前清除所有由事件得出的子调用。 */
+  /** Forget all event-derived child calls before replaying a new window. */
   reset(): void {
     this.childrenByParent.clear()
     this.depthByCall.clear()
@@ -49,9 +50,9 @@ export class ToolCallTree {
   }
 
   /**
-   * 事件属于 Code Dispatch 生命周期时将其折叠。
-   * @param event - 当前实时或历史窗口中的 Session 事件。
-   * @returns 该事件是否作为子调用生命周期事件被消费。
+   * Fold one event when it belongs to the Code Dispatch lifecycle.
+   * @param event - Session event from the current live or history window.
+   * @returns Whether the event was consumed as a child-call lifecycle event.
    */
   apply(event: SessionEvent): boolean {
     if (event.type === 'tool/code-dispatch-start') {
@@ -102,9 +103,9 @@ export class ToolCallTree {
   }
 
   /**
-   * 为 Node 列表中所有已完成根节点附加递归投影的子节点。
-   * @param nodes - 缓存稳定的基础对话 Nodes。
-   * @returns 没有根变化时返回原列表，否则返回结构共享的新列表。
+   * Attach recursively projected children to all settled roots in a node list.
+   * @param nodes - Cache-stable base conversation nodes.
+   * @returns The original list when no root changed, otherwise a structurally shared list.
    */
   projectNodes(nodes: readonly ConversationNode[]): readonly ConversationNode[] {
     if (this.nodesCache?.source === nodes && this.nodesCache.revision === this.revision) {
@@ -120,9 +121,9 @@ export class ToolCallTree {
   }
 
   /**
-   * 为所有运行中根调用附加递归投影的子节点。
-   * @param calls - 缓存稳定的基础运行中调用。
-   * @returns 没有根变化时返回原列表，否则返回结构共享的新列表。
+   * Attach recursively projected children to all running root calls.
+   * @param calls - Cache-stable base running calls.
+   * @returns The original list when no root changed, otherwise a structurally shared list.
    */
   projectRunningCalls(calls: readonly RunningToolCall[]): readonly RunningToolCall[] {
     if (this.runningCache?.source === calls && this.runningCache.revision === this.revision) {
@@ -156,8 +157,9 @@ export class ToolCallTree {
   }
 
   /**
-   * 仅当所有递归消费者都能安全遍历时接受依赖边。Host 生成的 ID 会排除循环，当前
-   * binding 也只生成一层；格式错误的传输/历史边会被消费，但不会隐藏 session 其余内容。
+   * Accept an edge only when every recursive consumer can traverse it safely.
+   * Host-minted ids exclude cycles and current bindings emit one level; a
+   * malformed wire/history edge is consumed without hiding the rest of the session.
    */
   private acceptEdge(parentCallId: string, subCallId: string): boolean {
     if (this.wouldCreateCycle(parentCallId, subCallId)) return false

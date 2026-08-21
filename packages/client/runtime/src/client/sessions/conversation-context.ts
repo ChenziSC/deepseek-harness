@@ -1,23 +1,23 @@
 import type { ConversationNode } from './conversation.ts'
 import type { ConversationPromptSnapshot } from './request-inspection.ts'
 
-/** 启动新追加式模型上下文的操作。 */
+/** Operation that started a new append-only model context. */
 export type ConversationContextOriginKind = 'compaction' | 'rewind' | 'rewrite'
 
-/** 根据界面替换事件重建的一代不可变模型上下文。 */
+/** One immutable model-context generation reconstructed from surface replacements. */
 export interface ConversationContext {
-  /** Session 内从零开始的代次；后续追加不会改变。 */
+  /** Zero-based generation within the session; stable across later appends. */
   id: number
-  /** 本 session 的上一代；初始上下文不存在。 */
+  /** Previous generation in this session; absent for the initial context. */
   parentId?: number
-  /** 本代产生原因；初始上下文不存在。 */
+  /** Why this generation exists; absent for the initial context. */
   origin?: ConversationContextOriginKind
-  /** 创建本代的替换事件 seq。 */
+  /** Event seq of the replacement that created this generation. */
   originSeq?: number
-  /** 创建本代的替换事件时间，单位 Unix epoch 毫秒。 */
+  /** Unix epoch ms of the replacement that created this generation. */
   createdAt?: number
-  /** 本代观察到的最新请求头；后续请求头替换前持续继承。 */
+  /** Latest request header observed in this generation, inherited until a later header replaces it. */
   prompt?: ConversationPromptSnapshot
-  /** 历史代的最终冻结 Nodes，或尾部当前折叠出的 Nodes。 */
+  /** Final frozen nodes for historical generations, or current folded nodes for the tail. */
   nodes: readonly ConversationNode[]
 }

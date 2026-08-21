@@ -1,29 +1,62 @@
 /**
- * 浏览器端（标准 `./client` 导出）：提供模块系统类、传输约定和注册插件入口。模块
- * 系统本身由 shell 内核在 cordis 创建前构建；这是启动特例，因为加载插件的机制
- * 不能由自身加载。插件入口只把已有实例注册为 `ctx.modules`。内核会静态注册本模块，
- * 因此本包的图条目不会触发真实获取，对已注册条目执行到达操作等同于无操作。
+ * Browser half (the standard `./client` export): the module-system class and
+ * wire contract, plus the enrollment plugin face. The module system itself is
+ * built by the shell kernel BEFORE cordis exists (the bootstrap exception —
+ * the mechanism that loads plugins cannot arrive through itself). The host
+ * parser-preloads this ordinary client bundle into the pending registration
+ * queue. The HTML-installed loader facade materializes this bundle and calls
+ * its bootstrap export, which constructs the system and retains the same
+ * exports for this package's graph row. The plugin face only enrolls that
+ * pre-existing instance by providing it as `ctx.modules`.
  * @module @deepseek-ai/dsh-client-modules/client
  */
 import type { Context } from '@deepseek-ai/cordis'
-import type { DshWindow } from './manifest.ts'
-
-export { ClientModuleSystem } from './system.ts'
-export { parseBootManifest } from './manifest.ts'
-export type {
-  BootManifest, BootModuleRow, BootPluginRow, ClientModuleLoader, ClientModuleRecord,
-  ClientModuleSystemOptions, ClientPluginHandoff, DshWindow, WebBootEntry, WebBootGraph,
+import { ClientModuleSystem } from './system.ts'
+import { parseBootManifest } from './manifest.ts'
+import type {
+  ClientBootstrapModule, ClientModuleCreateOptions, ClientModuleLoaderTarget,
 } from './manifest.ts'
 
+export { ClientModuleSystem }
+export { parseBootManifest, stripClientSuffix } from './manifest.ts'
+export type {
+  BootManifest, BootModuleRow, BootPluginRow, ClientBootstrapModule, ClientBundleRegistration,
+  ClientModuleCreateOptions, ClientModuleLoader, ClientModuleLoaderTarget, ClientModuleRecord,
+  ClientModuleSystemOptions, DshWindow,
+  WebBootEntry, WebBootGraph,
+} from './manifest.ts'
+
+let moduleSystem: ClientModuleSystem | undefined
+
 /**
- * 将内核构建的模块系统注册为 `ctx.modules`。
- * @param ctx - 客户端根上下文。
+ * Build the live module system from the HTML facade's materialized modules bundle.
+ * @param target - Stable registration facade whose pending queue becomes the live sink.
+ * @param bootstrapModule - This bundle's id and already-materialized exports.
+ * @param options - Raw boot graph, platform seed, and optional bundle transport.
+ * @returns The created module system, also published for this package's Cordis plugin face.
+ */
+export function createClientModuleSystem(
+  target: ClientModuleLoaderTarget,
+  bootstrapModule: ClientBootstrapModule,
+  options: ClientModuleCreateOptions,
+): ClientModuleSystem {
+  moduleSystem = new ClientModuleSystem({
+    manifest: parseBootManifest(options.boot),
+    staticModules: options.staticModules,
+    registrationTarget: target,
+    bootstrapModule,
+    ...(options.loadBundle === undefined ? {} : { loadBundle: options.loadBundle }),
+  })
+  return moduleSystem
+}
+
+/**
+ * Enroll the kernel-built module system as `ctx.modules`.
+ * @param ctx - client root context.
  */
 export function apply(ctx: Context): void {
-  const modules = (globalThis as DshWindow).__DSH_MODULES__
-  // 内核构造实例后、任何 cordis 条目出现前就会写入槽位；槽位缺失表示内核时序错误。
-  if (modules === undefined) {
-    throw new Error('client-modules: window.__DSH_MODULES__ missing — the shell kernel must construct the module system before plugin boot')
+  if (moduleSystem === undefined) {
+    throw new Error('client-modules: createClientModuleSystem must run before plugin boot')
   }
-  ctx.reflect.provide('modules', modules)
+  ctx.reflect.provide('modules', moduleSystem)
 }

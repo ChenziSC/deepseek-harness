@@ -259,10 +259,7 @@ export function apply(ctx: Context, config: Config): void {
   // Producers may start work only while a controller is attached.
   ctx.jobs.attachController('tool-jobs')
 
-  // 跨调用指引排在 bash 段之后、产品段之前。下方运行时英文的中文译文：记录启动的每个
-  // 后台 Job id。Job 完成时 Session 内会收到通知，不要 busy-poll 或 sleep 等待；继续执行
-  // 独立步骤，也不要重复正在运行的 Job 工作。最终回答前，用 job_output 收集仍相关的 Job
-  //（只有确实被它阻塞时才设置 wait: true），并用 job_kill 停止已无意义的 Job。
+  // Cross-call guidance follows the bash section and precedes product sections.
   ctx.systemPrompt.section({
     name: 'tool:jobs',
     order: 106,

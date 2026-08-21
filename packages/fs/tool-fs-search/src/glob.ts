@@ -295,10 +295,6 @@ export function presentGlobResult(_args: { pattern: string; path?: string }, res
  * @param caps - the deployment's resolved glob caps (plugin config after defaulting).
  */
 export function applyGlobTool(ctx: Context, caps: GlobToolCaps): void {
-  // 下方英文片段会根据配置拼成 glob Tool 的 system prompt 指引。中文译文：按路径模式
-  // 查找文件时使用 glob，不要调用 shell find。没有“/”的模式会匹配任意深度的 basename，
-  // 所以“*”匹配整棵树中的每个文件，而不只顶层。小结果集按修改时间排序；较大结果集
-  // 则按配置跨顶层目录采样，或保留按修改时间排序的头部。运行时原文保持不变。
   const overCapGuidance = caps.sampleOverCapGlobResults
     ? 'while a larger one is sampled across top-level entries, so it spans the tree instead of one subtree.'
     : 'while a larger one keeps the modification-time-ordered head.'

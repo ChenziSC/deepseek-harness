@@ -1,42 +1,46 @@
-// Context 来源投影：仅从持久 `source` 读取一条已记录、非用户 `user/message` 的角色和
-// 面向人的生产者名称。客户端不维护已知插件 ID 表；生产者重命名或新挂载后不应要求
-// 发布新客户端才能识别，恢复或外部日志也必须与实时日志采用相同投影方式。
+// Context source projection: the role and the human-facing producer name
+// of one logged non-user `user/message`, read from its durable `source` alone.
+// The client keeps no table of known plugin ids — a renamed or newly mounted
+// producer must never need a client release to stay identifiable, and a resumed
+// or foreign log must project the same way as a live one.
 
 /**
- * 一条已记录非用户消息在模型侧扮演的角色。
+ * Which model-facing role a logged non-user message plays.
  *
- * `recall` 表示从另一 session 日志取出的材料；`inject` 表示其他生产者提供的上下文。
- * turn 中途 steering 是记录中区分的第三种角色，但它有自己的事件和 Node 类型
- * （`steering/message` / `SteeringMessageNode`），不会进入这里。
+ * `recall` marks material lifted out of another session's log; `inject` marks
+ * every other producer-supplied context. Mid-turn steering is the third role
+ * the transcript distinguishes, but it has its own event and node kind
+ * (`steering/message` / `SteeringMessageNode`) and never reaches here.
  */
 export type ContextRole = 'inject' | 'recall'
 
-/** 一条已记录非用户消息所展示的角色和生产者名称。 */
+/** Role and producer name presented for one logged non-user message. */
 export interface ContextProvenanceView {
-  /** 该上下文在面向模型的对话中扮演的角色。 */
+  /** The role this context plays in the model-facing conversation. */
   role: ContextRole
   /**
-   * 行标题使用的生产者名称，取自持久来源：指令路径、被引用 session 标题、插件 ID，
-   * 或本 UI 版本不认识的生产者所携带的原始 source kind。仅当来源完全没有可读 kind
-   * 时为 null。
+   * Producer name for the row header, taken from the durable source: the
+   * instruction paths, the referenced session titles, the plugin id, or the
+   * bare source kind for a producer this UI version does not know. Null only
+   * when the source carries no readable kind at all.
    */
   label: string | null
 }
 
-/** 将持久来源收窄为可读记录结构；其他值返回 null。 */
+/** One durable source narrowed to the readable-record shape; null for anything else. */
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? value as Record<string, unknown>
     : null
 }
 
-/** 将记录字段读取为非空字符串；否则返回 null。 */
+/** A record field read as a non-empty string, or null. */
 function readString(record: Record<string, unknown>, key: string): string | null {
   const value = record[key]
   return typeof value === 'string' && value.length > 0 ? value : null
 }
 
-/** 按首次出现顺序收集数组来源成员中不重复的非空 `field` 值。 */
+/** Distinct non-empty `field` values of an array-valued source member, in first-seen order. */
 function collect(source: Record<string, unknown>, member: string, field: string): string[] {
   const list = source[member]
   if (!Array.isArray(list)) return []
@@ -49,57 +53,75 @@ function collect(source: Record<string, unknown>, member: string, field: string)
   return seen
 }
 
-/** 将收集的名称列表渲染为一个标签；列表为空时返回 null。 */
+/** A collected name list rendered as one label; null when the list is empty. */
 function joined(names: string[]): string | null {
   return names.length > 0 ? names.join(', ') : null
 }
 
 /**
- * 将一个持久消息来源投影为记录角色和生产者名称。
+ * The referenced-session labels of one durable `session-reference` recall
+ * source, in first-seen order; empty for every other source shape, including
+ * a foreign or older log whose reference entries carry no readable label.
+ * @param source - the logged `user/message` source, exactly as recorded.
+ * @returns distinct non-empty reference labels.
+ */
+export function sessionRecallLabels(source: unknown): string[] {
+  const record = asRecord(source)
+  if (record === null || readString(record, 'kind') !== 'session-reference') return []
+  return collect(record, 'references', 'label')
+}
+
+/**
+ * Project one durable message source onto its transcript role and producer name.
  *
- * 来源以不透明 JSON 经传输到达。`MessageSource` 可通过声明合并扩展，因此客户端联合
- * 类型无法穷举；持久日志也可能早于或晚于本 UI。任何无法识别的结构都降级为
- * `inject`，并尽量使用记录仍携带的名称。
- * @param source - 已记录 `user/message` 的原始 source。
- * @returns 本上下文要展示的角色和生产者名称。
+ * The source arrives over the wire as opaque JSON (`MessageSource` is
+ * merge-extensible, so no client-side union can be exhaustive), and a durable
+ * log may predate or postdate this UI; every unreadable shape therefore
+ * degrades to `inject` with whatever name the record still carries.
+ * @param source - the logged `user/message` source, exactly as recorded.
+ * @returns the role and producer name to present for this context.
  */
 export function contextProvenance(source: unknown): ContextProvenanceView {
   const record = asRecord(source)
   const kind = record === null ? null : readString(record, 'kind')
   if (record === null || kind === null) return { role: 'inject', label: null }
   switch (kind) {
-    // 跨 session 快照是唯一携带其他 session 材料的持久来源；references 指明材料
-    // 来自哪些 session。
+    // Cross-session snapshots are the one durable source that carries another
+    // session's material; its references name the sessions they were read from.
     case 'session-reference':
       return { role: 'recall', label: joined(collect(record, 'references', 'label')) ?? kind }
-    // Workspace 指令列出其协调来源文件，这比插件 ID 更能说明生产者。
+    // Workspace instructions name the files they were reconciled from, which
+    // identifies the producer far better than the plugin id would.
     case 'agent-instructions':
       return { role: 'inject', label: joined(collect(record, 'changes', 'path')) ?? kind }
     case 'plugin':
       return { role: 'inject', label: readString(record, 'plugin') ?? kind }
-    // 用户显式调用 skill 时，来源会给出所注入 skill 的名称。
+    // A user-explicit skill invocation names the skill it injected.
     case 'skill-invocation':
       return { role: 'inject', label: readString(record, 'name') ?? kind }
-    // 可通过声明合并扩展的来源映射采用此默认分支；未知生产者仍以自身持久 kind 标识。
+    // Documented default arm of the merge-extensible source map: an unknown
+    // producer still identifies itself by its own durable kind.
     default:
       return { role: 'inject', label: kind }
   }
 }
 
 /**
- * 本 UI 版本提供专门展示方式的 Context form。持久词汇表（dsh-llm 中的
- * `ContextForm`）可能已经更宽；无法识别或缺失的值会降级为不透明展示，而不是丢弃
- * 该行，从而仍能渲染较新或外部生产者写入的日志。
+ * Context forms this UI version renders with a dedicated presentation. The
+ * durable vocabulary (`ContextForm` in `dsh-llm`) may already be wider — an
+ * unrecognized or absent value degrades to the opaque presentation rather than
+ * dropping the row, so a log written by a newer or foreign producer still
+ * renders.
  */
 const KNOWN_FORMS = ['instructions', 'catalog', 'snapshot', 'notice', 'relay', 'recall'] as const
 
-/** 本 UI 版本知道如何展示的一种持久 Context form。 */
+/** One durable context form this UI version knows how to present. */
 export type KnownContextForm = typeof KNOWN_FORMS[number]
 
 /**
- * 从一个持久消息来源读取生产者声明的 form。
- * @param source - 已记录 `user/message` 的原始 source。
- * @returns 本 UI 版本支持的 form；否则返回 null，按不透明内容展示。
+ * Read the producer-declared form off one durable message source.
+ * @param source - the logged `user/message` source, exactly as recorded.
+ * @returns the form when this UI version presents it, otherwise null (opaque).
  */
 export function contextForm(source: unknown): KnownContextForm | null {
   const record = asRecord(source)

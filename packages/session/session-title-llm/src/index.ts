@@ -1,5 +1,6 @@
 /**
- * 模型驱动的 Session 标题 Provider 共用的路由、封装、超时、组装与校验策略。
+ * Shared route, framing, timeout, assembly, and validation policy for
+ * model-backed session-title providers.
  * @module @deepseek-ai/dsh-session-title-llm
  */
 
@@ -20,8 +21,6 @@ import type {
   SessionTitleUserMessage,
 } from '@deepseek-ai/dsh-session-title'
 
-// 中文说明：一次辅助标题请求发出前记录的完整模型可见请求，包括 Provider、消息 seq、
-// 路由、system prompt、消息列表和输出 token 上限。
 /** Exact model-visible request recorded before one auxiliary title dispatch. */
 export interface SessionTitleLlmRequestEventData {
   /** Registered title-provider identity responsible for the request. */
@@ -40,37 +39,36 @@ export interface SessionTitleLlmRequestEventData {
 
 declare module '@deepseek-ai/dsh-session/types' {
   interface SessionEventMap {
-    // 中文说明：一次 Session 标题模型请求的仅日志、发送前记录。
     /** Log-only pre-dispatch record of one session-title model request. */
     'session/title-llm-request': SessionTitleLlmRequestEventData
   }
 }
 
-/** 标题能力为辅助标题请求定义的超时原因码。 */
+/** Capability-owned timeout reason code for auxiliary title requests. */
 export const SESSION_TITLE_TIMEOUT_CODE = 'SESSION_TITLE_TIMEOUT'
 
-/** 一个模型驱动标题插件所需的部署策略。 */
+/** Required deployment policy for one model-backed title plugin. */
 export interface SessionTitleLlmConfig {
-  /** 非 CJK 标题的目标词数。 */
+  /** Target word count for non-CJK titles. */
   readonly targetWords: number
-  /** 中文、日文或韩文标题的目标字符数。 */
+  /** Target character count for Chinese, Japanese, or Korean titles. */
   readonly targetCjkCharacters: number
-  /** 最终 JSON 封装 user prompt 的最大 UTF-8 字节数。 */
+  /** Maximum UTF-8 bytes in the final JSON-framed user prompt. */
   readonly maxInputBytes: number
-  /** 辅助生成的输出 token 上限。 */
+  /** Auxiliary generation output-token cap. */
   readonly maxOutputTokens: number
-  /** 辅助请求端到端期限，单位为毫秒。 */
+  /** End-to-end auxiliary request deadline in milliseconds. */
   readonly timeoutMs: number
-  /** 可选的显式 Provider 路由；必须与 `model` 同时提供。 */
+  /** Optional explicit provider route; must be paired with `model`. */
   readonly provider?: string
-  /** 可选的显式模型 id；必须与 `provider` 同时提供。 */
+  /** Optional explicit model id; must be paired with `provider`. */
   readonly model?: string
 }
 
-/** 已校验且不可变的模型 Provider 策略。 */
+/** Validated immutable model-provider policy. */
 export interface ResolvedSessionTitleLlmConfig extends SessionTitleLlmConfig {}
 
-/** 不带库默认值的共用 Loader 字段 schema。 */
+/** Shared Loader field schemas with no library defaults. */
 export const SessionTitleLlmConfigFields = {
   targetWords: z.number().step(1).min(1).required(),
   targetCjkCharacters: z.number().step(1).min(1).required(),
@@ -81,10 +79,10 @@ export const SessionTitleLlmConfigFields = {
   model: z.string(),
 }
 
-/** 不带库默认值的共用 Loader schema。 */
+/** Shared Loader schema with no library defaults. */
 export const SessionTitleLlmConfigSchema: z<SessionTitleLlmConfig> = z.object(SessionTitleLlmConfigFields)
 
-/** 用于直接构造校验的完整配置键集合。 */
+/** Complete configuration key set for direct construction validation. */
 const CONFIG_KEYS: ReadonlySet<string> = new Set([
   'targetWords',
   'targetCjkCharacters',
@@ -95,7 +93,7 @@ const CONFIG_KEYS: ReadonlySet<string> = new Set([
   'model',
 ])
 
-/** 校验一个正整数限制。 */
+/** Validate one positive integer limit. */
 function assertPositiveInteger(name: string, value: number): void {
   if (!Number.isInteger(value) || value <= 0) {
     throw new Error(`session-title-llm: ${name} must be a positive integer`)
@@ -103,9 +101,9 @@ function assertPositiveInteger(name: string, value: number): void {
 }
 
 /**
- * 校验并分离所需的模型 Provider 配置。
- * @param config - 不受信任的插件配置。
- * @returns 不可变策略，并保留可选路由的缺省状态。
+ * Validate and detach required model-provider configuration.
+ * @param config - untrusted plugin configuration.
+ * @returns immutable policy with optional route absence preserved.
  */
 export function resolveSessionTitleLlmConfig(
   config: SessionTitleLlmConfig,
@@ -139,18 +137,18 @@ export function resolveSessionTitleLlmConfig(
   return deepFreeze({ ...value })
 }
 
-/** 从固定服务 revision 中选择 Provider 拥有的消息子集。 */
+/** Select the provider-owned message subset from one fixed service revision. */
 export type SessionTitleLlmMessageSelector = (
   messages: readonly SessionTitleUserMessage[],
 ) => readonly SessionTitleUserMessage[]
 
 /**
- * 通过共用配置与调用策略注册一个模型驱动的 Provider。
- * @param ctx - 暴露标题与 LLM 服务的上下文。
- * @param config - 不受信任的必要部署策略。
- * @param id - 随生成标题记录的稳定插件 id。
- * @param automatic - Provider 拥有的自动生成时机策略。
- * @param selectMessages - 一个 revision 对源消息的精确选择。
+ * Register one model-backed provider through the shared configuration and call policy.
+ * @param ctx - context exposing the title and LLM services.
+ * @param config - untrusted required deployment policy.
+ * @param id - stable plugin id recorded with generated titles.
+ * @param automatic - provider-owned automatic generation cadence.
+ * @param selectMessages - exact source-message selection for one revision.
  */
 export function registerSessionTitleLlmProvider(
   ctx: Context,
@@ -170,7 +168,7 @@ export function registerSessionTitleLlmProvider(
   })
 }
 
-/** 解析显式 Provider/model 对，或从 `request/header` 捕获的精确路由。 */
+/** Resolve the explicit pair or the exact route captured from `request/header`. */
 function resolveRoute(
   config: ResolvedSessionTitleLlmConfig,
   request: SessionTitleProviderRequest,
@@ -184,14 +182,7 @@ function resolveRoute(
   return request.route
 }
 
-// 该英文系统指令只发送给生成 Session 标题的辅助模型，不会展示给最终用户。
-// 它在每次自动命名时约束单行纯文本输出，并要求沿用消息语言；翻译原文可能改变
-// 标题格式、长度与解析结果，因此保留英文，并通过下方参数控制中英文目标长度。
-// 中文译文：根据提供的人类消息，为 AI 编码助手 Session 创建简洁标题。只返回单行标题，
-// 使用自然语言纯文本；不得包含引号、前缀、解释、Markdown、XML 或终端控制码，也不得
-// 包含代码。使用消息本身的语言。非 CJK 语言以约 targetWords 个词为目标；中文、日文、
-// 韩文以约 targetCjkCharacters 个字符为目标。
-/** 两个 Provider 插件共用、可感知语言的稳定 system 指令。 */
+/** Stable language-aware system instruction shared by both provider plugins. */
 function systemPrompt(config: ResolvedSessionTitleLlmConfig): string {
   return [
     'Create a concise title for an AI coding-assistant session from the supplied human messages.',
@@ -201,14 +192,12 @@ function systemPrompt(config: ResolvedSessionTitleLlmConfig): string {
   ].join('\n')
 }
 
-// 下方英文 user prompt 的中文含义是“根据这个人类消息 JSON 数组生成 Session 标题”。
-// JSON.stringify 保证用户文本无法突破结构分隔；运行时英文前缀保持不变。
-/** 将精确消息封装为 JSON，防止用户文本破坏结构分隔。 */
+/** Frame exact messages as JSON so user text cannot break structural delimiters. */
 function frameMessages(messages: readonly SessionTitleUserMessage[]): string {
   return `Generate the session title from this JSON array of human messages:\n${JSON.stringify(messages)}`
 }
 
-/** 将终止原因转换为辅助调用失败。 */
+/** Translate terminal finish reasons into an auxiliary-call failure. */
 function finishError(finish: FinishReason): Error | undefined {
   switch (finish.kind) {
     case 'stop':
@@ -229,13 +218,13 @@ function finishError(finish: FinishReason): Error | undefined {
 }
 
 /**
- * 通过共用辅助 LLM 调用生成一个标题。
- * @param ctx - 暴露已注册 LLM 服务的上下文。
- * @param config - 已校验的模型 Provider 策略。
- * @param request - 服务拥有的 Session、路由、消息快照与取消信号。
- * @param selectedMessages - Provider 精确选择、用于封装和归因的消息子集。
- * @param titleProvider - 随请求记录的已注册标题 Provider 标识。
- * @returns 规范化的非空标题、精确源 seq 和实际使用的模型路由。
+ * Generate one title through the shared auxiliary LLM call.
+ * @param ctx - context exposing the registered LLM service.
+ * @param config - validated model-provider policy.
+ * @param request - service-owned session, route, message snapshot, and cancellation.
+ * @param selectedMessages - exact provider-selected subset to frame and attribute.
+ * @param titleProvider - registered title-provider identity recorded with the request.
+ * @returns normalized non-empty title, exact source seqs, and used model route.
  */
 export async function generateSessionTitleWithLlm(
   ctx: Context,

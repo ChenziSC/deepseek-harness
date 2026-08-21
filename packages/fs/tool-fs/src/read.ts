@@ -67,9 +67,6 @@ export function parseReadArgs(args: { file_path: string; offset?: number; limit?
  * @param caps - the deployment's resolved read caps (plugin config after defaulting).
  */
 export function applyReadTool(ctx: Context, caps: ReadToolCaps): void {
-  // 下方英文会作为 read Tool 的 system prompt 指引发送给模型：检查文本文件时应使用
-  // read 而不是 cat 等 shell 命令；结果包含行号，大文件可用 offset 与 limit 续读。
-  // 运行时原文保持不变，以免改变模型选用 Tool 的行为和既有快照。
   ctx.systemPrompt.section({
     name: 'tool:read',
     order: 100,

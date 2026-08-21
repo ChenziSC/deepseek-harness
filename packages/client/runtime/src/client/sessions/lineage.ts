@@ -1,48 +1,50 @@
-// flattenLineage：summaries → 带谱系缩进的扁平列表（纯函数）。输入顺序是权威顺序；
-// 谱系只负责让子项紧邻父项。孤立谱系降级为根级，循环则软失败并按根项输出。
+// flattenLineage: summaries -> flat list with lineage indentation (pure function).
+// The input order is authoritative; lineage only makes each child adjacent to its parent.
+// Orphaned lineage degrades to root level; cycles fail soft and emit as roots.
 
 import type { SessionId, SessionSummary } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SessionProjectionMap } from '@deepseek-ai/dsh-session-projection/types'
 import type { PendingInteractionStatus } from './pending.ts'
 
-/** 补充了最新 mux 投影持久标题的 Host 列表摘要。 */
+/** Host list summary enriched with the latest mux-projected durable title. */
 export interface TitledSessionSummary extends SessionSummary {
   title?: string
-  /** Host 当前为列表消费者计算的投影值。 */
+  /** Current host-computed projection values for list consumers. */
   projectionValues?: Readonly<Partial<SessionProjectionMap>>
 }
 
-/** 一条扁平 session 列表行，包含谱系深度和实时等待交互。 */
+/** One flattened session-list row with lineage depth and live pending interaction. */
 export interface SessionListEntry {
   sessionId: SessionId
   title?: string
   updatedAt: number
   running: boolean
-  /** 从摘要镜像的空日志标记；列表会隐藏空白 session，筛选由消费者负责。 */
+  /** Empty-log bit mirrored from the summary; lists hide blank sessions (filtering stays with the consumer). */
   blank: boolean
   parentSessionId?: SessionId
-  /** 供导航筛选的粗粒度持久来源；不表示 continuation 能力。 */
+  /** Coarse durable origin for navigation filtering; not a continuation capability. */
   origin?: 'subagent'
   cwd?: string
-  /** 组装本 session Agent 时使用的 Agent preset；从摘要透传。 */
+  /** Agent preset the session's agent was composed from (summary passthrough). */
   agentPreset?: string
-  /** Host 当前为列表消费者计算的投影值。 */
+  /** Current host-computed projection values for list consumers. */
   projectionValues?: Readonly<Partial<SessionProjectionMap>>
-  /** 当前阻塞本 session 的用户交互，由实时 mux 帧得出。 */
+  /** User interaction currently blocking this session, derived from live mux frames. */
   pendingInteraction?: PendingInteractionStatus
-  /** 未选中且尚未打开时运行完成；对应侧边栏绿色“完成”提醒，选中或下次运行时清除。 */
+  /** Finished running while not selected and not yet opened — the sidebar's green "done" reminder (clears on select or the next run). */
   completed: boolean
-  /** 谱系缩进深度：根为 0；UI 只需乘以缩进宽度。 */
+  /** Lineage indent depth: root = 0; the UI just multiplies by the indent width. */
   depth: number
 }
 
 /**
- * 将摘要转换为带谱系缩进的扁平列表。根项和同级项遵循既有输入顺序，本投影不会根据
- * 可变时间戳重新排序已注水列表。
- * @param summaries - Host 的 session.list 条目。
- * @param pendingInteractions - manager 按 session 保存的当前交互状态。
- * @param completed - 仍有完成提醒的 sessions；由 manager 持有的实时事实，缺失视为 false。
- * @returns 按渲染顺序排列的展示行。
+ * Summaries -> flat list with lineage indentation. Root and sibling order
+ * follows the established input order; this projection never re-sorts a
+ * hydrated list from mutable timestamps.
+ * @param summaries - the host's session.list items.
+ * @param pendingInteractions - current manager-owned interaction status by session.
+ * @param completed - sessions with a pending completion reminder (manager-owned live fact; absent = false).
+ * @returns display rows in render order.
  */
 export function flattenLineage(
   summaries: readonly TitledSessionSummary[],
@@ -60,7 +62,7 @@ export function flattenLineage(
       list.push(s)
       children.set(s.parentSessionId, list)
     } else {
-      roots.push(s) // 根项，或父级不在摘要中的孤立项；降级为根项但绝不丢弃。
+      roots.push(s) // root, or an orphan whose parent is absent from summaries (degrade to root, never drop)
     }
   }
 
@@ -84,7 +86,7 @@ export function flattenLineage(
     for (const kid of kids) walk(kid, depth + 1)
   }
   for (const root of roots) walk(root, 0)
-  // 循环成员无法从任何根到达；按根项输出，确保不丢失条目。
+  // Cycle members (unreachable from any root): emit as roots so no entry is lost.
   for (const s of summaries) {
     if (!visited.has(s.sessionId)) walk(s, 0)
   }

@@ -60,9 +60,6 @@ interface WriteToolArgs {
  * @param sandbox - the shared sandbox-escalation API (advertisement, mode stamping, denial mapping).
  */
 export function applyWriteTool(ctx: Context, sandbox: FsSandboxController): void {
-  // 下方英文会作为 write Tool 的 system prompt 指引发送给模型。中文译文：使用 write
-  // 创建文件或完整替换文件内容；现有文件会被覆盖，因此应先 read（默认 fs observation
-  // policy 要求如此），局部修改则优先使用 edit。运行时原文保持不变。
   ctx.systemPrompt.section({
     name: 'tool:write',
     order: 101,

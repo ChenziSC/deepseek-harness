@@ -1,14 +1,19 @@
 /**
- * SlotRegistry 是构建在纯 SlotCore 之上的槽位系统 cordis Service 层。ui-slots 负责
- * 注册语义、声明账本、加载时校验和卸载级联；本层负责需要 runtime 参与的部分：
- * 'slots/changed' 事件桥、通过调用方 ctx.effect 执行注册和声明注入（fiber 卸载时两者
- * 一并回收）、渲染器安装约定（install()/renderSlot('root') 与 SlotRendererHost 接口），
- * 以及 store 实例轴：handle × scope key → 创建/缓存。最后一个持有条目卸载时删除记录，
- * scope 销毁时清除 session 实例及其持久状态。
+ * SlotRegistry: the cordis Service layer of the slot system over the pure
+ * SlotCore (ui-slots owns registration semantics, the declaration ledger,
+ * the load-time validations, and the unload cascade). This layer owns what
+ * needs the runtime: the 'slots/changed' event bridge, register and
+ * declaration injection through the caller's ctx.effect (fiber unload
+ * collects both), the renderer installation contract (install()/renderSlot('root') +
+ * the SlotRendererHost face), and the store INSTANCE axis — handle x scope
+ * key -> create/cache, dropped with the last holding entry, session instances
+ * cleared (with persisted state) on scope death.
  */
 /* oxlint-disable typescript/no-redundant-type-constituents --
- * `keyof SlotMap & string` 是声明合并的键模式。本编译单元中的 SlotMap 只含本包的
- * 'root' 行，但消费者会合并更多键；规则命中的是窄映射视图，并非真实冗余。 */
+ * `keyof SlotMap & string` is the declare-merge key pattern: SlotMap only
+ * holds this package's 'root' row in this compilation unit, but consumers
+ * merge keys in; the rule fires on the narrow-map view, not on real
+ * redundancy. */
 import { Service } from '@deepseek-ai/cordis'
 import type { Context } from '@deepseek-ai/cordis'
 import { SlotCore } from '@deepseek-ai/dsh-client-ui-slots'
@@ -19,9 +24,6 @@ import type {
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
-    // 中文说明：root 是 shell 唯一直接渲染的 single 槽位，由 AppFrame 占用。不要
-    // 向此处追加条目，否则会遮蔽整个框架；全局浮层应注册到 `shell.overlay`。下方英文
-    // JSDoc 会生成到客户端运行时槽位目录，故保留原文。
     /**
      * The built-in render-tree root hole (seeded by SlotCore): the one slot the
      * shell itself renders, and the ancestor of every other seat. OCCUPIED by
@@ -40,30 +42,29 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 }
 
-// 中文：root owner 不提供共享值，frame 由 inject 完成组装。
 /** Root owner share: the shell supplies nothing — the frame is inject-assembled. */
 export interface RootOwnerProps { children?: never }
 
-/** Root scope store 记录的实例键；session 记录以 session ID 为键，因此不会冲突。 */
+/** Instance key for root-scoped store records (session records key by session id, so the literal cannot collide). */
 const ROOT_INSTANCE_KEY = 'root'
 
-/** Runtime 生命周期映射使用的规范化类型擦除 store handle。 */
+/** Canonical type-erased store handle used by the runtime lifecycle map. */
 type EngineStoreHandle = Exclude<StoreDecl, StoreFactory>
 
-/** 根据 handle create 接口得出的规范化引擎实例。 */
+/** Canonical engine instance derived from the handle's create contract. */
 type EngineStoreInstance = ReturnType<EngineStoreHandle['create']>
 
-/** Store 轴记录：每个活跃 handle 一条；最后一个持有条目卸载时删除。 */
+/** Store axis record: one per live handle, dropped when the last holding entry unloads. */
 interface StoreAxisRecord {
-  /** Handle 所挂载槽位的 scope；core 已校验跨 scope 冲突。 */
+  /** Scope of the slot the handle mounted under (the core validated cross-scope conflicts). */
   scope: SlotScope
-  /** 当前持有 handle 的活跃注册数。 */
+  /** Live registrations holding the handle. */
   refs: number
-  /** Root scope 在 {@link ROOT_INSTANCE_KEY} 下只有一个实例；session scope 每个 session ID 一个。 */
+  /** Root scope: the single instance under {@link ROOT_INSTANCE_KEY}; session scope: one per session id. */
   instances: Map<string, EngineStoreInstance>
 }
 
-/** 实现使用的类型擦除选项视图；类型化重载已验证共享数据。 */
+/** Type-erased options view the implementation works with (the typed overloads proved the shares). */
 interface ErasedRegisterOptions {
   name: string
   children?: Record<string, SlotSpec<SlotEntryDef>>
@@ -73,32 +74,32 @@ interface ErasedRegisterOptions {
   id?: string
   order?: number
   label?: string
-  /** Chain 槽位路由 selector；纯函数，core 会校验 chain target 是否提供。 */
+  /** Chain-slot routing selector (pure; the core validates presence for chain targets). */
   select?: (owner: never) => unknown
-  /** Chain 槽位显式顺序覆盖；升序排列，未提供时按注册顺序。 */
+  /** Chain-slot explicit ordering override (ascending; registration order otherwise). */
   priority?: number
-  /** 声明的词典命名空间；渲染器据此生成 `t` 席位。 */
+  /** Declared dictionary namespace (the renderer synthesizes the `t` seat from it). */
   locale?: string
   registrant?: string
 }
 
-/** 类型擦除的 core 调用接口；服务在自身边界重新擦除，core 类型化接口面向最终调用方。 */
+/** Erased core call face (the service re-erases at its own boundary; the core's typed face targets end callers). */
 interface ErasedCore { register(options: object, component: unknown): () => void }
 
-/** 注入槽位声明存活期间安装的一个同步 effect。 */
+/** One synchronous effect installed while an injected slot declaration is live. */
 type SlotInjectionEffect = (() => void) | Iterable<() => void, void, void>
 
-/** 槽位系统的 cordis Service 层；与 SlotCore 的职责划分见模块注释。 */
+/** cordis Service layer of the slot system; see the module doc for the split with SlotCore. */
 export class SlotRegistry extends Service {
   private readonly _core = new SlotCore()
-  /** Store 实例轴：handle → 挂载 scope、引用计数、已解析实例。 */
+  /** Store-instance axis: handle -> mounted scope, refcount, resolved instances. */
   private readonly _stores = new Map<EngineStoreHandle, StoreAxisRecord>()
   private _renderer: SlotRenderer | undefined
   private _locale: LocaleFace | undefined
   private _host: SlotRendererHost | undefined
 
   /**
-   * @param ctx - 所属根上下文。
+   * @param ctx - owning root context.
    */
   constructor(ctx: Context) {
     super(ctx, 'slots')
@@ -106,29 +107,38 @@ export class SlotRegistry extends Service {
   }
 
   /**
-   * 唯一注册 API。类型化接口直接复用 core 的 register 两个重载，保持唯一权威而不
-   * 复制结构。children 声明、store 席位、inject 接口、加载时校验和卸载级联见
-   * SlotCore.register。本层补充：通过调用方 ctx.effect 销毁（fiber 卸载即级联）、
-   * 创建独占 factory（`store: createXxxStore` 转为逐条目 handle）、registrant 诊断
-   * 标记，以及条目轴上的 store 实例生命周期。
+   * The single registration API. The typed face IS the core's register
+   * (both overloads reused verbatim — one authority, no structural copy;
+   * see SlotCore.register for children declaration, store seat, inject
+   * face, load-time validation, and the unload cascade). This layer adds:
+   * disposal through the caller's ctx.effect (fiber unload = cascade),
+   * exclusive-factory minting (`store: createXxxStore` becomes a per-entry
+   * handle), the registrant diagnostics stamp, and store-instance lifecycle
+   * on the entry axis.
    *
-   * 此处声明，类后通过 prototype 赋值实现。它必须保持 prototype 方法，不能改为实例
-   * 箭头函数：cordis 服务代理会在调用时把 `this.ctx` 绑定到调用方上下文，从而将
-   * effect 及卸载级联路由到调用方 fiber。箭头属性会把 `this` 固定为服务自身根 ctx，
-   * 并静默破坏逐插件销毁。
+   * Declared here, implemented by prototype assignment below the class: it
+   * MUST stay a prototype method (never an instance arrow) — the cordis
+   * service proxy binds `this.ctx` to the CALLER's context at call time,
+   * which is what routes the effect (and the unload cascade) into the
+   * caller's fiber. An arrow property would freeze `this` to the service's
+   * own root ctx and silently break per-plugin disposal.
    */
   declare readonly register: SlotCore['register']
 
   /**
-   * 为槽位的每个声明生命周期安装 effect。声明已存在时同步执行 callback；否则在
-   * 声明完成提交后，于相应 `register()` 调用内部执行。声明折叠时销毁 effect，之后
-   * 再次声明会重新执行。callback effect 可以是同步 disposer；可迭代 effects 按事务
-   * 安装并逆序销毁。控制器属于调用方 fiber，因此插件卸载会取消等待并移除活跃贡献。
+   * Install an effect for each declaration lifetime of a slot. The callback
+   * runs synchronously when the declaration already exists; otherwise it runs
+   * inside the declaring `register()` call after the declaration is committed.
+   * Collapse disposes the effect and a later declaration runs it again.
+   * Callback effects are synchronous disposers; iterable effects install
+   * transactionally and dispose in reverse order. The controller belongs to
+   * the caller's fiber, so plugin unload cancels a pending wait and removes any
+   * active contribution.
    *
-   * @param key - 要依赖的已声明 SlotMap 键。
-   * @param callback - 创建一个 disposer 或一组可迭代 disposers。
-   * @returns 同时清理等待和活跃 effect 的幂等 disposer。
-   * @throws 槽位已声明时，callback 初始化失败会同步抛出。
+   * @param key - declared SlotMap key to depend on.
+   * @param callback - creates one disposer or an iterable of disposers.
+   * @returns idempotent disposer for the wait and active effect.
+   * @throws callback setup failures synchronously when the slot is already declared.
    */
   inject(key: keyof SlotMap & string, callback: () => SlotInjectionEffect): () => void {
     const ctx = this.ctx
@@ -140,7 +150,8 @@ export class SlotRegistry extends Service {
 
       const stop = (): void => {
         if (stopped) return
-        // 失败会永久终止本次注入；延迟初始化失败不会在之后的声明上重试。
+        // Failure callers retire the injection permanently: a delayed setup
+        // failure never retries on a later declaration.
         stopped = true
         unsubscribe()
         const dispose = active
@@ -159,8 +170,9 @@ export class SlotRegistry extends Service {
         activeEpoch = undefined
         dispose?.()
         if (spec === undefined) return
-        // 声明生命周期是嵌套 Cordis effect，使 generator callback 与其他插件 effect
-        // 一样获得事务化初始化、逆序拆除、诊断树和幂等性。
+        // A declaration lifetime is a nested Cordis effect. This gives
+        // generator callbacks the same transactional setup, reverse teardown,
+        // diagnostics tree, and idempotence as every other plugin effect.
         const disposeEffect = ctx.effect(callback, `slots.inject(${JSON.stringify(key)}): declaration`)
         active = () => { void disposeEffect() }
         activeEpoch = epoch
@@ -193,9 +205,10 @@ export class SlotRegistry extends Service {
   }
 
   /**
-   * 安装 shell 渲染器，即 web-react 的 createSlotRenderer 产物。每次启动只能安装一次，
-   * 再次安装会抛错。通过调用方 ctx.effect 运行，因此 shell fiber 卸载会卸载渲染器。
-   * @param renderer - 实现 SlotRenderer 的 outlet 机制。
+   * Install the shell's renderer (ui-renderer's createSlotRenderer product).
+   * Boot-once: a second install throws. Runs through the caller's ctx.effect,
+   * so shell fiber unload uninstalls the renderer.
+   * @param renderer - the outlet machinery implementing SlotRenderer.
    */
   install(renderer: SlotRenderer): void {
     if (this._renderer !== undefined) throw new Error('slot renderer already installed (install() is boot-once)')
@@ -208,9 +221,11 @@ export class SlotRegistry extends Service {
   }
 
   /**
-   * 安装支撑 `t` 标准席位的 locale 接口，即 locale 插件产物；与渲染器一样每次启动
-   * 只能安装一次。通过调用方 ctx.effect 运行，因此安装方 fiber 卸载会卸载该接口。
-   * @param face - 命名空间 binder 和 revision observable。
+   * Install the locale face backing the `t` standard seat (the locale
+   * plugin's product; same boot-once discipline as the renderer install).
+   * Runs through the caller's ctx.effect, so the installing fiber's unload
+   * uninstalls the face.
+   * @param face - namespace binder + revision observable.
    */
   installLocale(face: LocaleFace): void {
     if (this._locale !== undefined) throw new Error('locale face already installed (installLocale() is boot-once)')
@@ -223,15 +238,17 @@ export class SlotRegistry extends Service {
   }
 
   /**
-   * 唯一 ctx 级渲染入口：shell 渲染 'root'；其他键都在组件内部通过 props renderSlot
-   * 接口渲染。三个保护条件都是明确失败的启动顺序检查，不提供 fallback。
-   * @param key - 必须为 'root'；runtime 会为动态组装调用方强制检查。
-   * @param owner - root 条目的 owner 共享数据；shell 传入 {}。
-   * @returns 已渲染根树。
+   * The single ctx-level render entry: the shell renders 'root'; every other
+   * key renders inside components through the props renderSlot face. All
+   * three guards are fail-loud boot-order checks, no fallback.
+   * @param key - must be 'root' (runtime-enforced for dynamically composed callers).
+   * @param owner - owner share for the root entry (the shell supplies {}).
+   * @returns the rendered root tree.
    */
   renderSlot<K extends keyof SlotMap & string>(key: K, owner: OwnerOf<K>): ReturnType<SlotRenderer['renderRoot']> {
-    // 在本包自身程序中 SlotMap 只有 'root'，类型收窄会让此保护折叠为恒 false；保留
-    // 检查是为了普通 JavaScript 和 K 更宽的跨程序调用方。
+    // Widened: in this package's own program SlotMap holds only 'root', which
+    // would fold the guard to constant-false; the check exists for plain-JS
+    // and cross-program callers where K is wider.
     if ((key as string) !== 'root') {
       throw new Error(`ctx-level renderSlot only renders 'root' (got "${key}"); child slots render through the component props face`)
     }
@@ -245,11 +262,12 @@ export class SlotRegistry extends Service {
   }
 
   /**
-   * 删除已结束 session 的逐 session store 实例。sessions 服务在拆除 scope 时调用，
-   * root scope 记录不受影响。持久状态随 session 一同删除；从未渲染的已结束 session
-   * 仍可能拥有上次页面加载留下的键，因此会临时实例化，仅用于清理存储；未持久化
-   * store 上此操作无效。
-   * @param sessionId - 已拆除的 session。
+   * Drop the per-session store instances of a dead session (the sessions
+   * service calls this on scope teardown; root-scoped records are untouched).
+   * Persisted state goes with the session — a never-rendered dead session can
+   * still own keys from an earlier page load, so the instance is materialized
+   * transiently just to clear storage (no-op for unpersisted stores).
+   * @param sessionId - the torn-down session.
    */
   pruneStoreScope(sessionId: string): void {
     for (const [handle, record] of this._stores) {
@@ -261,80 +279,84 @@ export class SlotRegistry extends Service {
   }
 
   /**
-   * 获取某键的条目快照；这是擦除渲染类型的视图，变化之间引用稳定。
-   * @param key - SlotMap 键。
-   * @returns 已注册条目。
+   * Snapshot entries for a key (render-erased view; stable reference between mutations).
+   * @param key - SlotMap key.
+   * @returns registered entries.
    */
   entries(key: keyof SlotMap & string): readonly StoredEntry[] {
     return this._core.entries(key)
   }
 
   /**
-   * 某键每个 cell 的遮蔽获胜者：按优先级排列的首个活跃且未放弃条目，也是 outlet
-   * 实际渲染内容。chain 键原样透传，因为选举会消费全部条目。原始
-   * {@link SlotsService.entries} 视图继续作为检查接口。每次调用返回新数组，不能作为
-   * uSES getSnapshot 源。
-   * @param key - SlotMap 键。
-   * @returns 每个已占用 cell 的获胜条目。
+   * Shadowing winners per cell for a key: the first live (non-abdicated)
+   * entry of each cell in priority order — what outlets render; chain keys
+   * pass through unchanged (election consumes every entry). The raw
+   * {@link SlotsService.entries} view stays the inspection surface. Fresh
+   * array per call, not a uSES getSnapshot source.
+   * @param key - SlotMap key.
+   * @returns the winning entry per occupied cell.
    */
   entriesOfSlot(key: keyof SlotMap & string): readonly StoredEntry[] {
     return this._core.entriesOfSlot(key)
   }
 
   /**
-   * 导出当前可安全序列化为 JSON 的 Slot 声明树，供只读检查。
-   * @param root - 准确的活跃 Slot 根；省略时返回全部根。
-   * @returns 所选 Slot 树。
+   * Export the current JSON-safe Slot declaration tree for read-only inspection.
+   * @param root - exact live Slot root; omitted returns all roots.
+   * @returns selected Slot trees.
    */
   snapshot(root?: string): LiveSlotNode[] {
     return this._core.snapshot(root)
   }
 
   /**
-   * 观察条目边界崩溃，包括边界包住的每次渲染期失败，无论条目是否放弃。插件可通过
-   * 此监督接口镜像贡献健康状态。每次报告同步触发；若崩溃导致放弃，则在注册表变更
-   * 后触发。调用方拥有 disposer，应像 {@link SlotsService.subscribe} 一样通过
-   * ctx.effect 接入，以便随 fiber 生命周期清理。
-   * @param fn - 接收槽位键、崩溃条目、原因和 `abdicated`；后者表示崩溃是否使条目
-   * 从其 cell 退出。
-   * @returns 取消订阅函数。
+   * Observe entry boundary crashes (every render-time entry failure the
+   * boundaries contain, abdicating or not) — the supervision seam for
+   * plugins mirroring contribution health. Fires synchronously per report,
+   * after the registry mutated for abdicating crashes. Callers own the
+   * disposer (wire it through ctx.effect for fiber-lifetime cleanup, as with
+   * {@link SlotsService.subscribe}).
+   * @param fn - called with the slot key, the crashed entry, the crash
+   * cause, and `abdicated`: whether the crash retired the entry from its cell.
+   * @returns unsubscribe.
    */
   onEntryError(fn: (key: string, entry: StoredEntry, error: unknown, info: { abdicated: boolean }) => void): () => void {
     return this._core.onEntryError(fn)
   }
 
   /**
-   * 查询已声明 spec，来源可以是 register 声明或内置 'root'。
-   * @param key - SlotMap 键。
-   * @returns spec；不存在时返回 undefined。
+   * Look up a declared spec (register-declared or the built-in 'root').
+   * @param key - SlotMap key.
+   * @returns spec or undefined.
    */
   spec<K extends keyof SlotMap & string>(key: K): SlotSpec<SlotMap[K]> | undefined {
     return this._core.spec(key)
   }
 
   /**
-   * 订阅某键的注册变化；通知按微任务合并。
-   * @param key - SlotMap 键。
-   * @param fn - 变化回调。
-   * @returns 取消订阅函数。
+   * Subscribe to a key's registration changes (microtask-batched).
+   * @param key - SlotMap key.
+   * @param fn - change callback.
+   * @returns unsubscribe.
    */
   subscribe(key: keyof SlotMap & string, fn: () => void): () => void {
     return this._core.subscribe(key, fn)
   }
 
   /**
-   * 供 uSES 配对使用的版本计数器。
-   * @param key - SlotMap 键。
-   * @returns 当前版本。
+   * Version counter for uSES pairing.
+   * @param key - SlotMap key.
+   * @returns current version.
    */
   getVersion(key: keyof SlotMap & string): number {
     return this._core.getVersion(key)
   }
 
-  /** 委托注册路径：创建 factory、添加 registrant 标记、写入 core、记录实例轴。 */
+  /** Delegating registration path: factory minting + registrant stamp + core write + instance-axis bookkeeping. */
   private _register(options: ErasedRegisterOptions, component: unknown): () => void {
-    // 独占 store 直接传入 factory；这里将其创建为逐条目 handle，使存储条目始终携带
-    // 可解析 handle。core 的共享 handle scope 固定规则对它同样适用且无害。
+    // Exclusive stores pass the factory itself: minted here into a per-entry
+    // handle so the stored entry always carries a resolvable handle (the
+    // core's shared-handle scope pinning applies to it harmlessly).
     const store = typeof options.store === 'function' ? options.store() : options.store
     const registrant = options.registrant ?? (this.ctx.fiber as { name?: string } | undefined)?.name
     const erased: ErasedRegisterOptions = {
@@ -342,11 +364,12 @@ export class SlotRegistry extends Service {
       ...(store !== undefined ? { store } : {}),
       ...(registrant !== undefined ? { registrant } : {}),
     }
-    // 先写 core：所有加载时校验（未声明 target、重复声明、kind 冲突、跨 scope handle）
-    // 都会在本层提交任何内容前由 core 抛出。
+    // Core write first: all load-time validation (undeclared target,
+    // duplicate declaration, kind conflicts, cross-scope handle) throws
+    // there before this layer commits anything.
     const dispose = (this._core as unknown as ErasedCore).register(erased, component)
     if (store !== undefined) {
-      // 注册已成功，因此 target spec 已写入账本。
+      // Register succeeded, so the target's spec is on the ledger.
       const scope = (this._core.specDynamic(options.name) as SlotSpec<SlotEntryDef>).scope
       this._acquire(store, scope)
     }
@@ -359,7 +382,7 @@ export class SlotRegistry extends Service {
     }
   }
 
-  /** 两个对象层服务都挂载后只构建一次；逐 session provide bundles 仍延迟解析。 */
+  /** Build once after both object-layer services mount; per-session provide bundles still resolve lazily. */
   private hostFace(): SlotRendererHost {
     if (this._host !== undefined) return this._host
     const sessions = this.ctx.get('sessions')
@@ -370,9 +393,10 @@ export class SlotRegistry extends Service {
     if (workspaces === undefined) {
       throw new Error("renderSlot('root') before the workspaces service mounted — boot order puts runtime apply first")
     }
-    // `locale` 是实时 getter：接口随 locale 插件自身 fiber 生命周期安装，并在 HMR 下
-    // 替换，而本 host 对象只构建一次。若捕获固定值，渲染会停留在已失效接口上。这里
-    // 必须使用别名，因为 getter 内的 `this` 指向 host 字面量。
+    // `locale` is a live getter: the face installs (and, under HMR, swaps)
+    // on the locale plugin's own fiber lifetime, while this host object is
+    // built once — a captured value would strand renders on a dead face. The
+    // alias is required: `this` inside the getter is the host literal.
     // oxlint-disable-next-line typescript/no-this-alias
     const service = this
     this._host = {
@@ -395,7 +419,7 @@ export class SlotRegistry extends Service {
     return this._host
   }
 
-  /** 在 scope key 下解析已注册 handle 的 store 实例：创建或复用。 */
+  /** Resolve (create or reuse) the store instance for a registered handle under a scope key. */
   private resolveStore(handle: EngineStoreHandle, sessionId: string | undefined): StoreInstanceLike {
     const record = this._stores.get(handle)
     if (record === undefined) throw new Error('store handle is not registered (entry unloaded, or the handle never went through register)')
@@ -403,15 +427,15 @@ export class SlotRegistry extends Service {
     if (key === undefined) throw new Error(`${record.scope} store resolution requires a session id`)
     let instance = record.instances.get(key)
     if (instance === undefined) {
-      // Session 实例接收 scope key，引擎会按 session 为 persist key 添加后缀；root
-      // 实例不传键。
+      // Session instances get the scope key (the engine suffixes the persist
+      // key per session); root instances stay keyless.
       instance = record.scope === 'root' ? handle.create() : handle.create(key)
       record.instances.set(key, instance)
     }
     return instance
   }
 
-  /** 在实例轴上绑定或再次引用 handle；跨 scope 冲突已由 core 抛出。 */
+  /** Bind (or re-reference) a handle on the axis; cross-scope conflicts already threw in the core. */
   private _acquire(handle: EngineStoreHandle, scope: SlotScope): void {
     const record = this._stores.get(handle)
     if (record === undefined) {
@@ -421,22 +445,26 @@ export class SlotRegistry extends Service {
     record.refs += 1
   }
 
-  /** 删除一个引用；最后持有者卸载时删除记录及其实例，引擎 store 无需显式 dispose。 */
+  /** Drop one reference; the last holder's unload drops the record (instances go with it — engine stores need no explicit dispose). */
   private _release(handle: EngineStoreHandle): void {
     const record = this._stores.get(handle)
-    /* v8 ignore next -- 防御性保护：release 只会由注册同一 handle 的 disposer 调用，
-     * 因此记录必然存在；保留检查可防止未来调用点使实例轴下溢。 */
+    /* v8 ignore next -- defensive: release only runs from a disposer whose
+     * register acquired the same handle, so the record must exist; kept so a
+     * future call site cannot underflow the axis. */
     if (record === undefined) return
     record.refs -= 1
     if (record.refs === 0) this._stores.delete(handle)
   }
 }
 
-// register 的实现：prototype 赋值与类内 `declare` 配对。它必须位于 prototype 的原因
-// 见对应 JSDoc。元素访问可合法调用私有 _register，并让 TypeScript 将其视为可见读取。
+// register's implementation (prototype assignment pairs with the `declare`
+// inside the class — see its JSDoc for why it must live on the prototype).
+// Element access reaches the private _register legally and keeps it a
+// TS-visible read.
 ;(SlotRegistry.prototype as { register: (options: object, component: unknown) => () => void }).register
   = function register(this: SlotRegistry, rawOptions: object, component: unknown): () => void {
-    // core 重载已验证共享类型；实现使用擦除视图，与 core 自身实现分支采用同一模式。
+    // The core's overloads proved the shares; the implementation works on
+    // the erased view (same pattern as the core's own implementation arm).
     const options = rawOptions as ErasedRegisterOptions
     // oxlint-disable-next-line typescript/no-misused-promises -- synchronous cleanup; direct return preserves disposer identity
     return this.ctx.effect(() => this['_register'](options, component), 'slots.register()')

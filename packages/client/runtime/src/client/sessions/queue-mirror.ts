@@ -20,21 +20,21 @@ function textOf(content: readonly ContentBlock[]): string | null {
 
 type QueueItems = Extract<MuxFrame, { type: 'session/queue' }>['items']
 
-/** 权威临时队列投影和持久 steering 交接。 */
+/** Authoritative transient queue projection and durable steering handoff. */
 export class SessionQueueMirror {
   private current: readonly QueuedMessage[] = []
 
   /**
-   * 返回当前不可变队列投影。
-   * @returns 当前队列行。
+   * Return the current immutable queue projection.
+   * @returns current queue rows.
    */
   snapshot(): readonly QueuedMessage[] {
     return this.current
   }
 
   /**
-   * 在替代队列基线到达前丢弃旧连接代次。
-   * @returns 是否删除了任何已投影队列行。
+   * Drop the stale generation before its replacement queue baseline arrives.
+   * @returns whether any projected queue row was removed.
    */
   reset(): boolean {
     if (this.current.length === 0) return false
@@ -43,8 +43,8 @@ export class SessionQueueMirror {
   }
 
   /**
-   * 根据一帧权威流队列数据整体替换。
-   * @param items - 完整 Host 队列快照。
+   * Replace from one authoritative stream queue frame.
+   * @param items - complete host queue snapshot.
    */
   replace(items: QueueItems): void {
     this.current = items.map(item => ({
@@ -58,9 +58,9 @@ export class SessionQueueMirror {
   }
 
   /**
-   * 临时 steering 行对应的持久消息进入日志后，移除该临时行。
-   * @param event - 新进入连续区间的持久 Session 事件。
-   * @returns 投影是否变化。
+   * Retire a transient steering row once its durable message enters the log.
+   * @param event - newly contiguous durable Session event.
+   * @returns whether the projection changed.
    */
   acceptDurable(event: SessionEvent): boolean {
     if (event.type !== 'user/message') return false

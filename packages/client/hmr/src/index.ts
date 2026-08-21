@@ -1,15 +1,18 @@
 /**
- * HMR 插件的 Node 端，即开发环境重载链的宿主端。一个定时器通过 stat 轮询图中
- * 每个条目的客户端 bundle；这里有意使用轮询，因为网络挂载不会发送 inotify 事件。
- * 内容变化通过 `clientModuleHost.rebuilt(id)` 上报，并由 `/plugins/events` SSE 通道
- * 向浏览器端（src/client/）广播 graph/rebuilt 帧。Web bundle 无条件挂载本条目；若
- * 没有重建监听器改写客户端 bundle，轮询就观察不到变化，整条链保持空闲。
+ * HMR plugin, node half: the host end of the dev reload chain. One interval
+ * stat-polls every graph row's client bundle (polling by design: network
+ * mounts deliver no inotify events), reports content changes through
+ * `clientModuleHost.rebuilt(id)`, and serves the `/plugins/events` SSE channel
+ * broadcasting graph/rebuilt frames to the browser half (src/client/).
+ * The web bundle mounts this row unconditionally: without a rebuild
+ * watcher rewriting client bundles, the poll observes no changes and the
+ * chain stays idle.
  */
 import { statSync } from 'node:fs'
 import type { ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-// 空类型导入用于带入 clientModuleHost/webServer 的 Context 合并声明。
+// Empty type imports carry the clientModuleHost/webServer Context merges.
 import type {} from '@deepseek-ai/dsh-client-modules'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type { PluginsEventFrame } from './events.ts'
@@ -18,14 +21,12 @@ import { EVENTS_ENDPOINT } from './events.ts'
 export type { PluginsEventFrame } from './events.ts'
 export { EVENTS_ENDPOINT } from './events.ts'
 
-/** Cordis 插件名称。 */
+/** Cordis plugin name. */
 export const name = 'client-hmr'
 
-/** 必需服务：Web 插件表和路由注册表。 */
+/** Required services: the web plugin table and the route registry. */
 export const inject = ['clientModules', 'webServer']
 
-// 中文：插件配置由下方同名 schemastery schema 校验；英文 JSDoc 会投影到英文配置目录。
-// pollIntervalMs 是 bundle stat 轮询间隔，单位毫秒；默认值与构建端监听器一致。
 /** Plugin config, validated by the same-named schemastery schema. */
 export interface Config {
   /** Bundle stat-poll interval in milliseconds (default 500, the build-side watcher's polling default). */
@@ -36,7 +37,7 @@ export const Config: z<Config> = z.object({
   pollIntervalMs: z.number().step(1).min(1).default(500),
 })
 
-/** 将一帧序列化为 SSE data 行。 */
+/** Serialize one frame as an SSE data line. */
 function sseData(frame: PluginsEventFrame): string {
   return `data: ${JSON.stringify(frame)}\n\n`
 }
@@ -49,21 +50,21 @@ interface WatchedBundle {
 }
 
 /**
- * 挂载开发环境链路：bundle 监听、重建上报和 SSE 通道。
- * @param ctx - 提供 clientModuleHost 和 webServer 的宿主插件上下文。
- * @param config - 已校验的 {@link Config}。
+ * Mount the dev chain: bundle watches, rebuilt reporting, and the SSE channel.
+ * @param ctx - host plugin context carrying clientModuleHost and webServer.
+ * @param config - validated {@link Config}.
  */
 export function apply(ctx: Context, config: Config): void {
-  // schemastery 的 .default() 保证校验后该字段一定存在。
+  // schemastery's .default() guarantees the field is set after validation.
   const pollIntervalMs = config.pollIntervalMs as number
 
-  // --- bundle 监听：由 HMR 独占的一次 stat 轮询 ---------------------------
+  // --- bundle watch: one HMR-owned stat poll ------------------------------
   const watched = new Map<string, WatchedBundle>()
 
   const rehash = (id: string, watch: WatchedBundle, current: { mtimeMs: number; size: number }): void => {
     try {
-      // rebuilt() 会重新计算哈希；哈希未变时保持静默，clientModuleHost 只在 rev
-      // 确实变化时触发 onRebuilt。
+      // rebuilt() re-hashes; an unchanged hash stays silent (clientModuleHost
+      // fires onRebuilt only on a real rev change).
       ctx.clientModules.rebuilt(id)
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code
@@ -89,8 +90,9 @@ export function apply(ctx: Context, config: Config): void {
     }
     const watch = { path, mtimeMs: baseline.mtimeMs, size: baseline.size, dirty: false }
     watched.set(id, watch)
-    // 模块宿主在发布图之前已计算哈希。取得基线后立即再计算一次，避免中间发生的写入
-    // 变成“最新基线却搭配旧图 rev”的不一致状态。
+    // The module host hashed before publishing the graph. Re-hash immediately
+    // after capturing this baseline so a write in between cannot become an
+    // already-current baseline paired with a stale graph rev.
     rehash(id, watch, baseline)
   }
 
@@ -105,14 +107,14 @@ export function apply(ctx: Context, config: Config): void {
         continue
       }
       if (!watch.dirty && current.mtimeMs === watch.mtimeMs && current.size === watch.size) continue
-      // 先 stat 再计算哈希，可为哈希期间发生的写入保留一个可检测的旧基线；后续 stat
-      // 再次变化时会修复撕裂读取。
+      // Stat-before-hash preserves a detectable older baseline for writes that
+      // land during hashing. Repeated stat changes heal a torn read.
       rehash(id, watch, current)
     }
   }
 
-  // 将监听集合与当前图做差异比较：删除已移除条目或 bundle 路径已变条目的监听，
-  // 并为新条目添加监听。
+  // Diff the watch set against the current graph: drop watches for removed
+  // rows (or rows whose bundle path moved), add watches for new rows.
   const syncWatches = (): void => {
     const rows = new Map<string, string>()
     for (const row of ctx.clientModules.graph().entries) {
@@ -129,8 +131,9 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   ctx.effect(() => {
-    // 首次同步覆盖图中已有条目；订阅覆盖之后到达的条目，包括启动窗口内激活的本插件
-    // 自身条目。本插件没有自我豁免，modules/hmr 重建也走同一条链。
+    // Initial sync covers rows already in the graph; the subscription covers
+    // rows arriving later (boot-window activations, including this plugin's
+    // own row — no self-exemption, a modules/hmr rebuild rides the same chain).
     syncWatches()
     const unsubscribe = ctx.clientModules.onGraphChanged(syncWatches)
     const timer = setInterval(pollWatches, pollIntervalMs)
@@ -142,7 +145,7 @@ export function apply(ctx: Context, config: Config): void {
     }
   }, 'client-hmr: bundle watches')
 
-  // --- /plugins/events SSE 通道 -------------------------------------------
+  // --- /plugins/events SSE channel ----------------------------------------
   const connections = new Set<ServerResponse>()
 
   const connect = (res: ServerResponse): void => {
@@ -151,8 +154,8 @@ export function apply(ctx: Context, config: Config): void {
       'cache-control': 'no-cache',
       'connection': 'keep-alive',
     })
-    // 打开时先写一行注释，使客户端和代理即便从未发生重建也能看到活跃通道；
-    // EventSource 解析帧时会自然跳过该行。
+    // Comment line on open so clients/proxies see a live channel even when
+    // no rebuild ever happens; EventSource frame parsing skips it naturally.
     res.write(': connected\n\n')
     res.write(sseData({ type: 'graph', graph: ctx.clientModules.graph() }))
     connections.add(res)
@@ -164,8 +167,8 @@ export function apply(ctx: Context, config: Config): void {
       kind: 'exact',
       path: EVENTS_ENDPOINT,
       handler: (req, res) => {
-        // 命名路由会在载体的方法门禁前匹配；对该端点的非 GET 请求仍保持原有全局
-        // 405 语义。
+        // Named routes match ahead of the carrier's method gate; keep the old
+        // global 405 semantics for non-GET hits on this endpoint.
         if (req.method !== 'GET' && req.method !== 'HEAD') {
           res.writeHead(405)
           res.end()

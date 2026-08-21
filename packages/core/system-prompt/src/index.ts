@@ -1,5 +1,5 @@
 /**
- * 有序 system 段、动态上下文、Tool schema 与 Prompt 变量的注册表。
+ * Registry for ordered system sections, dynamic context, tool schemas, and prompt variables.
  *
  * @module @deepseek-ai/dsh-system-prompt
  */
@@ -16,8 +16,6 @@ declare module '@deepseek-ai/cordis' {
   }
 
   interface Events {
-    // 中文说明：对已组装段、上下文、Tool 和变量执行专家 waterfall；分发按 scope 过滤，
-    // 返回值具有最终权威。signal 只控制本次组装；complete 段会在 waterfall 后恢复。
     /**
      * Expert waterfall over the assembled sections, contexts, tools, and variables.
      * Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): scoped listeners
@@ -31,7 +29,6 @@ declare module '@deepseek-ai/cordis' {
      * @mode waterfall
      */
     'system-prompt/assemble'(this: Scoped<SystemPrompt>, assembly: PromptAssembly, context: AssembleContext, next: () => Promise<PromptAssembly>): Promise<PromptAssembly>
-    // 中文说明：任一 Prompt Provider 变化时发出；全局变化影响所有 scope，因此不做过滤。
     /**
      * Emitted when any prompt provider changes. This registry notification is
      * unfiltered because a global change affects every scope.
@@ -41,7 +38,6 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-// 中文说明：一次 Prompt assembly 使用的可合并扩展上下文；scope 选择参与者，signal 控制请求。
 /** Merge-extensible context for one prompt assembly. */
 export interface AssembleContext {
   /**
@@ -53,8 +49,6 @@ export interface AssembleContext {
   signal?: AbortSignal
 }
 
-// 中文说明：一个贡献给 system prompt 的注册表输入；按 order 排序，可动态求值，complete
-// 会把该段作为唯一 system prompt。
 /** One contributed section of the system prompt (registry input). */
 export interface PromptSection {
   /** Unique name — a duplicate registration throws (see {@link SystemPrompt.section}). */
@@ -80,7 +74,6 @@ export interface PromptSection {
   readonly complete?: boolean
 }
 
-// 中文说明：动态模型上下文会物化为持久 user-role 快照，按 order 排序，空文本不贡献内容。
 /** Dynamic model context materialized as a durable user-role snapshot. */
 export interface PromptContext {
   /** Unique name — a duplicate registration throws (see {@link SystemPrompt.context}). */
@@ -91,7 +84,6 @@ export interface PromptContext {
   readonly text: string | ((context: AssembleContext) => string)
 }
 
-// 中文说明：assembly 中已经解析文本、但尚未插值的 PromptSection。
 /** One section of an assembly: {@link PromptSection} with its text resolved. */
 export interface AssembledSection {
   /** The contributing section's unique name. */
@@ -100,7 +92,6 @@ export interface AssembledSection {
   text: string
 }
 
-// 中文说明：一项已解析、尚未进行变量插值的动态上下文贡献。
 /** One resolved dynamic context contribution. */
 export interface AssembledContext {
   /** The contributing context's unique name. */
@@ -109,7 +100,6 @@ export interface AssembledContext {
   text: string
 }
 
-// 中文说明：一次 assembly 可见的 Tool schema，以及配置校验使用的限制前名称集合。
 /** Tool schemas visible in one assembly and their pre-restriction name set. */
 export interface ToolProviderResult {
   /** The schemas this provider contributes to THIS assembly. */
@@ -118,7 +108,6 @@ export interface ToolProviderResult {
   readonly knownNames?: readonly string[]
 }
 
-// 中文说明：可合并扩展的模型输入；段和上下文渲染时再插值，Tool 已规范排序。
 /**
  * Merge-extensible assembled model input. Sections and contexts remain
  * uninterpolated until rendered; tools are already in canonical order.
@@ -131,25 +120,28 @@ export interface PromptAssembly {
 }
 
 /**
- * 部署 persona 的段名与顺序。组合可以替换这个槽位：Agent preset 用自己的 persona 遮蔽
- * 部署 persona。两侧使用同一个段名才能实现替换而不是产生重复，因此这里导出该名称。
+ * The deployment persona's section name and order. Exported because a
+ * composition can replace this slot — an agent preset shadows the
+ * deployment's persona with its own — and both sides naming the same section
+ * is what makes the replacement work rather than duplicate.
  */
 export const PERSONA_SECTION = 'deployment:persona'
 
-/** persona 槽位的 Prompt 顺序；这是模型读取的第一个部署段。 */
+/** Prompt order of the persona slot; the first section a model reads. */
 export const PERSONA_ORDER = 0
 
-/** 合法变量名，即花括号之间允许的写法。 */
+/** Valid variable names: how they are written between the braces. */
 const VARIABLE_NAME = /^[a-z][a-z0-9_]*$/
 
-/** 扫描位置处完整的 `{{...}}` 引用组，内容稍后校验。 */
+/** A complete `{{...}}` reference group at the scan position (validated after). */
 const GROUP_AT = /^\{\{([^{}]*)\}\}/
 
-/** {@link Config.toolOrder} 为未列出 Tool 保留的标记。 */
+/** Reserved {@link Config.toolOrder} marker for unlisted tools. */
 export const TOOL_ORDER_REST = '<unlisted-tools>'
 
 /**
- * 校验重复名称和必需的 {@link TOOL_ORDER_REST} 标记。插件尚未加载，因此已注册名称稍后校验。
+ * Validate duplicate names and the required {@link TOOL_ORDER_REST} marker.
+ * Registered names are checked later because plugins have not loaded yet.
  */
 function validateToolOrder(toolOrder: string[] | undefined): string[] | undefined {
   if (toolOrder === undefined) return undefined
@@ -165,8 +157,9 @@ function validateToolOrder(toolOrder: string[] | undefined): string[] | undefine
 }
 
 /**
- * 应用配置的 Tool 顺序，并在 {@link TOOL_ORDER_REST} 处按字典序插入未列出的 Tool。
- * 配置中的未知名称会失败；已知但受限制的名称可以缺省。
+ * Apply configured tool order, inserting unlisted tools lexicographically at
+ * {@link TOOL_ORDER_REST}. Unknown configured names fail; known but restricted
+ * names may be absent.
  */
 function orderTools(tools: ToolSchema[], toolOrder: string[] | undefined, knownNames: ReadonlySet<string>): ToolSchema[] {
   const reserved = tools.find(tool => tool.name === TOOL_ORDER_REST)
@@ -184,13 +177,11 @@ function orderTools(tools: ToolSchema[], toolOrder: string[] | undefined, knownN
     name === TOOL_ORDER_REST ? rest : tools.filter(tool => tool.name === name))
 }
 
-/** 按 code unit 比较名称，与 locale 无关，因此所有机器上的顺序一致。 */
+/** Lexicographic (code-unit) name comparison — locale-independent, so the order is identical on every machine. */
 function compareToolNames(a: ToolSchema, b: ToolSchema): number {
   return a.name < b.name ? -1 : a.name > b.name ? 1 : 0
 }
 
-// 中文说明：插件配置定义部署方编写的 system prompt 片段。下方公共 JSDoc 保持英文，
-// 因为配置目录生成器会逐字抽取它；中文配置参考页通过文档配对维护。
 /** Plugin config: the deployment-authored fragment of the system prompt (see {@link Config.persona} for its contract). */
 export interface Config {
   /** Include the fixed DeepSeek Harness identity before the deployment persona (default true). */
@@ -211,10 +202,12 @@ export interface Config {
 }
 
 /**
- * 插值严格的 `{{variable}}` 引用，删除空段，并用空行连接其余段。格式错误、未知或值为
- * undefined 的引用会抛错；后面没有 `}}` 的孤立 `{{` 按普通文本处理；替换后的值不再扫描。
- * @param assembly - 要渲染其段和变量的 assembly。
- * @returns 渲染后的 Prompt；全部段为空时返回 `''`。
+ * Interpolate strict `{{variable}}` references, drop empty sections, and join
+ * the rest with blank lines. Malformed, unknown, or undefined references throw;
+ * a lone `{{` without any later `}}` is literal prose, and substituted values
+ * are not scanned again.
+ * @param assembly - the assembly whose sections and variables to render.
+ * @returns the rendered prompt, or `''` when all sections are empty.
  */
 export function renderPrompt(assembly: PromptAssembly): string {
   return assembly.sections
@@ -224,36 +217,36 @@ export function renderPrompt(assembly: PromptAssembly): string {
 }
 
 /**
- * 渲染完整动态上下文快照。
- * @param assembly - 要渲染其上下文和变量的 assembly。
- * @returns 当前完整快照；没有活动上下文时返回 `''`。
+ * Render the complete dynamic context snapshot.
+ * @param assembly - the assembly whose contexts and variables to render.
+ * @returns the current full snapshot, or `''` when no context is active.
  */
 export function renderContextSnapshot(assembly: PromptAssembly): string {
   return joinContextSections(renderContextSections(assembly))
 }
 
 /**
- * 已渲染段列表对应的模型可见快照文本。
+ * The model-facing snapshot text for an already-rendered section list.
  *
- * 同时需要各段的调用方只渲染一次，再在这里连接，避免一次请求对每个上下文插值两遍。
- * @param sections - {@link renderContextSections} 返回的段。
- * @returns 当前完整快照；没有活动上下文时返回 `''`。
+ * A caller that also needs the sections renders them once and joins here, so a
+ * request does not interpolate every context twice.
+ * @param sections - sections from {@link renderContextSections}.
+ * @returns the current full snapshot, or `''` when no context is active.
  */
 export function joinContextSections(sections: readonly ContextSnapshotSection[]): string {
   const body = sections.map(section => section.text).join('\n\n')
   if (body.length === 0) return ''
-  // 下方英文会作为动态 user-role 快照前言发送给模型。中文译文：“当前运行时上下文。
-  // 此快照取代之前的运行时上下文快照。”运行时原文保持不变，以维持已记录的模型行为。
   return `Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\n${body}`
 }
 
 /**
- * 同一份快照，但保留组装它的具名贡献。
+ * The same snapshot, kept as the named contributions it was assembled from.
  *
- * {@link renderContextSnapshot} 将这些贡献连接后交给模型；展示快照的消费者使用这些名称
- * 把各部分归因到贡献它的子系统，无需重新拆分已连接文本。
- * @param assembly - 要渲染其上下文和变量的 assembly。
- * @returns 每个渲染为非空文本的贡献上下文对应一个条目。
+ * {@link renderContextSnapshot} joins these for the model; a consumer that
+ * presents the snapshot uses them to attribute each part to the subsystem that
+ * contributed it, without re-splitting the joined prose.
+ * @param assembly - the assembly whose contexts and variables to render.
+ * @returns one entry per contributing context that rendered to non-empty text.
  */
 export function renderContextSections(assembly: PromptAssembly): ContextSnapshotSection[] {
   return assembly.contexts
@@ -261,7 +254,7 @@ export function renderContextSections(assembly: PromptAssembly): ContextSnapshot
     .filter(section => section.text.length > 0)
 }
 
-/** 插值一个段或上下文，并把诊断归因到拥有它的输入。 */
+/** Interpolate one section or context and attribute diagnostics to its owning input. */
 function interpolate(
   input: AssembledSection | AssembledContext,
   variables: Record<string, string | undefined>,
@@ -273,7 +266,7 @@ function interpolate(
   for (let open = text.indexOf('{{'); open >= 0; open = text.indexOf('{{', last)) {
     const group = GROUP_AT.exec(text.slice(open))
     if (group === null) {
-      // 后面存在闭合花括号时属于格式错误；否则按普通文本处理。
+      // A later closing brace makes this malformed; otherwise it is literal prose.
       if (text.indexOf('}}', open + 2) >= 0) {
         throw new Error(`malformed prompt variable reference at "${text.slice(open, open + 16)}…" in ${kind} "${input.name}" (references are complete simple {{name}} groups)`)
       }
@@ -281,12 +274,12 @@ function interpolate(
       last = open + 2
       continue
     }
-    // `{{}}` 产生空名称，按引用格式错误处理。
+    // `{{}}` yields an empty name and follows the malformed-reference path.
     const name = group[0].slice(2, -2)
     if (!VARIABLE_NAME.test(name)) {
       throw new Error(`malformed prompt variable reference "{{${name}}}" in ${kind} "${input.name}" (variable names match ${String(VARIABLE_NAME)})`)
     }
-    // 不通过 Object.prototype 解析未注册名称。
+    // Do not resolve unregistered names through Object.prototype.
     if (!Object.hasOwn(variables, name)) {
       const known = Object.keys(variables)
       throw new Error(`unknown prompt variable "{{${name}}}" in ${kind} "${input.name}"; registered variables: ${known.length > 0 ? known.join(', ') : '(none)'}`)
@@ -301,13 +294,13 @@ function interpolate(
   return result + text.slice(last)
 }
 
-/** 存储在一个 Prompt layer 中的 Tool schema Provider。 */
+/** One tool-schema provider stored in a prompt layer. */
 type ToolProvider = (context: AssembleContext) => ToolProviderResult
 
-/** 存储在一个 Prompt layer 中的 Prompt 变量 Provider。 */
+/** One prompt-variable provider stored in a prompt layer. */
 type VariableProvider = (context: AssembleContext) => string | undefined
 
-/** 一个全局或 scoped layer 拥有的全部 Prompt 注册。 */
+/** All prompt registrations owned by one global or scoped layer. */
 class PromptLayer implements ScopeLayer {
   readonly sections: NamedEntries<PromptSection>
   readonly contexts: NamedEntries<PromptContext>
@@ -316,8 +309,8 @@ class PromptLayer implements ScopeLayer {
   readonly variables: NamedEntries<VariableProvider>
 
   /**
-   * 创建一个 Prompt layer，并使用与其所有权 scope 对应的诊断。
-   * @param scope - scoped owner；全局注册时为 `undefined`。
+   * Create one prompt layer with diagnostics specific to its ownership scope.
+   * @param scope - the scoped owner, or `undefined` for global registrations.
    */
   constructor(scope: ScopeKey | undefined) {
     this.sections = new NamedEntries(name => new Error(scope === undefined
@@ -331,7 +324,7 @@ class PromptLayer implements ScopeLayer {
       : `prompt variable "${name}" is already registered in this scope`))
   }
 
-  /** @returns 此 layer 是否不拥有任何 Prompt 注册。 */
+  /** @returns whether this layer owns no prompt registrations. */
   isEmpty(): boolean {
     return this.sections.isEmpty()
       && this.contexts.isEmpty()
@@ -341,14 +334,13 @@ class PromptLayer implements ScopeLayer {
   }
 }
 
-// 中文说明：每个模型 step 前组装 Prompt 输入的注册表服务。
 /** Registry service for the prompt inputs assembled before each model step. */
 export class SystemPrompt extends Service {
   static Config: z<Config> = z.object({
     includeHarnessIdentity: z.boolean().default(true),
     includeRuntimeContext: z.boolean().default(true),
     persona: z.string().default(''),
-    // 保留缺省状态，因为显式空顺序不含 rest 标记。
+    // Preserve omission because an explicit empty order lacks the rest marker.
     toolOrder: z.array(z.string()).default(undefined as unknown as string[]),
   })
 
@@ -361,12 +353,8 @@ export class SystemPrompt extends Service {
   constructor(ctx: Context, config: Config) {
     super(ctx, 'systemPrompt')
     this.toolOrder = validateToolOrder(config.toolOrder)
-    // 让 Harness 拥有的开场文本不依赖所选 loop 插件。
+    // Keep harness-owned openers independent of the selected loop plugin.
     if (config.includeHarnessIdentity ?? true) {
-      // 该英文身份文本位于默认系统提示词开头，每次模型请求都会消费它。
-      // 它是已记录的模型可见稳定文本；翻译会改变默认行为、token 与 KV Cache 前缀，
-      // 因此中文说明放在源码和包 README 中，运行时原文保持不变。中文译文：
-      // “你是由 DeepSeek Harness 驱动的 AI Agent。”
       this.section({
         name: 'harness:identity',
         order: -100,
@@ -376,15 +364,12 @@ export class SystemPrompt extends Service {
     this.section({
       name: PERSONA_SECTION,
       order: PERSONA_ORDER,
-      // fallback 只用于收窄可选输入类型；schema 已提供默认值。persona 是部署方动态文本，
-      // 没有可在源码中固定翻译的英文原文。
+      // The fallback narrows the optional input type; the schema already defaults it.
       text: config.persona ?? '',
     })
     if (!(config.includeRuntimeContext ?? true)) this.suppressRuntimeContext()
   }
 
-  // 中文说明：在调用 scope 注册有序 Prompt 段；scoped 段遮蔽同名全局段，重复名称或
-  // 非有限 order 会抛错，注册与释放均发出 change 事件。
   /**
    * Register an ordered prompt section in the calling context's scope. A scoped
    * section shadows a global section with the same name; duplicates within one
@@ -404,7 +389,6 @@ export class SystemPrompt extends Service {
     )
   }
 
-  // 中文说明：在调用 scope 注册有序动态上下文；scoped 条目遮蔽同名全局条目。
   /**
    * Register ordered dynamic context in the calling context's scope. Scoped
    * entries shadow global entries with the same name.
@@ -422,8 +406,6 @@ export class SystemPrompt extends Service {
     )
   }
 
-  // 中文说明：抑制当前 scope 的全部动态运行时上下文，但不改变事实拥有方或强制方；
-  // 多个 suppressor 可独立释放。
   /**
    * Suppress every dynamic runtime-context contribution in the calling
    * context's scope without changing the services that own or enforce those
@@ -438,8 +420,6 @@ export class SystemPrompt extends Service {
     )
   }
 
-  // 中文说明：在调用 scope 注册 Tool schema Provider；全局和匹配的 scoped Provider 都会
-  // 贡献，返回保留名称 TOOL_ORDER_REST 会导致 assembly 失败。
   /**
    * Register a tool-schema provider in the calling context's scope. Global and
    * matching scoped providers both contribute; returning the reserved
@@ -455,8 +435,6 @@ export class SystemPrompt extends Service {
     )
   }
 
-  // 中文说明：在调用 scope 注册 Prompt 变量；scoped 值遮蔽全局值，无效或重复名称抛错；
-  // Provider 可返回 undefined，但引用该值的段随后会渲染失败。
   /**
    * Register a prompt variable in the calling context's scope. Scoped values
    * shadow globals; invalid or duplicate names throw. A provider may return
@@ -476,8 +454,6 @@ export class SystemPrompt extends Service {
     )
   }
 
-  // 中文说明：组装全局与 scoped Provider、分离 Tool 参数并排序，再执行 waterfall；
-  // scoped 段和变量遮蔽全局值，complete 段最终恢复为唯一 Prompt 段。
   /**
    * Assemble global and scoped providers, detach tool parameters, apply
    * canonical ordering, then run the assembly waterfall. Scoped sections and
@@ -487,27 +463,27 @@ export class SystemPrompt extends Service {
    * @param context - the optional scope and plugin-defined assembly fields.
    * @returns the post-waterfall assembly with any complete prompt enforced.
    */
-  // 让配置失败继续位于已声明的异步错误路径上。
+  // Keep configuration failures on the declared asynchronous error path.
   async assemble(context: AssembleContext = {}): Promise<PromptAssembly> {
     const scope = context.scope
     const scopeLayers = this.layers.chainLayers(scope)
     const runtimeContextSuppressed = !this.layers.global.runtimeContextSuppressors.isEmpty()
       || scopeLayers.some(layer => !layer.runtimeContextSuppressors.isEmpty())
-    // scoped 变量遮蔽全局变量。
+    // Scoped variables shadow globals.
     const variables: Record<string, string | undefined> = {}
     for (const [name, provider] of this.layers.global.variables.entries()) {
       variables[name] = provider(context)
     }
-    // scope 链变量从最远端开始处理，使最近的 scope 最终取得同名变量。
+    // Scope-chain variables, farthest first, so the nearest scope wins a name.
     for (const layer of scopeLayers) {
       for (const [name, provider] of layer.variables.entries()) {
         variables[name] = provider(context)
       }
     }
-    // 在稳定 order 排序前让 scoped 段遮蔽全局段。
+    // Scoped sections shadow globals before the stable order sort.
     const sectionByName = this.layers.merge(scope, layer => layer.sections)
     const contextByName = this.layers.merge(scope, layer => layer.contexts)
-    // 收集可见 schema 时，使用限制前名称校验顺序。
+    // Validate order against pre-restriction names while collecting visible schemas.
     const providers = [
       ...this.layers.global.toolProviders.values(),
       ...scopeLayers.flatMap(layer => [...layer.toolProviders.values()]),

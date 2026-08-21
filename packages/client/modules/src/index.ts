@@ -1,16 +1,23 @@
 /**
- * 客户端模块系统的 Node 端（`dsh.client` 双端包）：扫描宿主 Loader 中声明了
- * `dsh.client` 的条目，组装 `window.__DSH_BOOT__` 条目图（传输格式的唯一来源是
- * `./client/manifest.ts` 中的 {@link WebBootEntry}），提供
- * `/plugins/<id>/client.js` 及其 source map，在渲染首页时注入启动清单，并提供
- * `clientModuleHost` 服务（供 HMR 的 Node 端注册和发送通知）。
+ * Node half of the client module system (`dsh.client` dual-face package): scans
+ * the host Loader's entries for packages declaring `dsh.client`, composes the
+ * `window.__DSH_BOOT__` entry graph (wire single source: {@link WebBootEntry}
+ * in `./client/manifest.ts`) in module-graph order, serves
+ * `/plugins/<id>/client.js` and its source map, contributes the boot manifest
+ * plus the parser-blocking bootstrap preloads to the webserver's index
+ * injection table, and provides the `clientModuleHost` service (the HMR node
+ * half's registration/notification face).
  *
- * 扫描以包为单位增量进行，不存在全量重扫路径。cordis 每次发出
- * `internal/plugin` 事件（fiber 创建或销毁）时，都会把该 fiber 的条目名标为待处理；
- * 随后的微任务会将各待处理名称与 Loader 的实时条目对齐。激活阶段把所有当前条目
- * 放入同一个集合并同步刷新，因此首次扫描与稳定运行共用同一套实现。包元数据
- * （包括“不是客户端包”的否定结果）按名称缓存且永不过期：插件集合变更要重启后
- * 才生效；bundle 内容变更只能通过 {@link ClientModuleRegistry.rebuilt} 写回条目图。
+ * Scanning is incremental per package — there is no full-rescan code path.
+ * Every cordis `internal/plugin` emission (fiber construction/disposal) marks
+ * the fiber's entry name dirty; a microtask flush reconciles each dirty name
+ * against the live loader entries. The activation pass seeds the same dirty
+ * set with all current entries and flushes synchronously, so first scan and
+ * steady state share one implementation. Package metadata (including the
+ * negative "not a client package" verdict) is cached per name and never
+ * expires — plugin-set changes take effect on restart; bundle content
+ * changes reach the graph only through
+ * {@link ClientModuleRegistry.rebuilt}.
  * @module @deepseek-ai/dsh-client-modules
  */
 
@@ -23,39 +30,55 @@ import { dirname, join } from 'node:path'
 import { Service } from '@deepseek-ai/cordis'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
-import type {} from '@deepseek-ai/dsh-host-webserver'
+import type { IndexInjection } from '@deepseek-ai/dsh-host-webserver'
+import { optionalStringArray, stripClientSuffix } from './client/manifest.ts'
 import type { WebBootEntry, WebBootGraph } from './client/manifest.ts'
 
+export { stripClientSuffix } from './client/manifest.ts'
 export type {
   BootManifest, BootModuleRow, BootPluginRow, WebBootEntry, WebBootGraph,
 } from './client/manifest.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
-    /** Web 插件表，由 client-modules 的 Node 端提供。 */
+    /** The web plugin table (provided by the client-modules node half). */
     clientModules: ClientModuleRegistry
   }
 }
 
-/** package.json 中 `dsh.client` 的声明字段；读取文件后逐项校验。 */
+/** package.json `dsh.client` declaration fields, validated one by one after reading the file. */
 interface DshClientDeclaration {
   inject?: string[]
   platform: string
-  /** 启动第一阶段的预取标记；未提供时按需延迟获取。 */
+  /** Boot phase-one prefetch mark; absent means lazy (fetched on demand). */
   immediately?: boolean
+  /**
+   * Exact module-table requests beyond the implicit client baseline. Any
+   * specifier is valid, including subpaths such as `<pkg>/client`; each
+   * importing package declares its own exceptional requests. A type-only
+   * import is not a request because the transform erases it before resolution.
+   * Absent means the package uses only the baseline externals.
+   */
+  external?: string[]
 }
 
-/** 一个 `dsh.client` 包解析后的元数据；按名称缓存且永不过期。 */
-interface PkgMeta {
-  clientPath: string
+/** The declared fields a graph row carries, normalized (absent array declarations become empty). */
+interface WebBootRowFields {
   inject?: string[]
+  /** Module specifiers the package requests from the module table. */
+  external: string[]
   immediately: boolean
 }
 
-/** 启动聚合诊断与稳定运行期 bundle 诊断共用的恢复说明。 */
+/** Resolved package metadata for one `dsh.client` package (cached per name, never expires). */
+interface PkgMeta extends WebBootRowFields {
+  clientPath: string
+}
+
+/** Recovery instruction shared by grouped startup and steady-state bundle diagnostics. */
 const CLIENT_BUNDLE_BUILD_INSTRUCTION = 'run `pnpm run build` before launch'
 
-/** 缺少已构建客户端导出；保留结构化字段，以便激活错误按类聚合。 */
+/** Missing built client export, retained as structured data for activation-error grouping. */
 class MissingClientBundleError extends Error {
   constructor(
     readonly packageName: string,
@@ -73,7 +96,7 @@ class MissingClientBundleError extends Error {
   }
 }
 
-/** 激活失败：把可处理的包构建错误与其他失败分组展示。 */
+/** Activation failures grouped by actionable package-build errors and unrelated failures. */
 class ClientPackageCompositionError extends AggregateError {
   constructor(failures: Error[]) {
     const missingBundles = failures.filter((error): error is MissingClientBundleError => error instanceof MissingClientBundleError)
@@ -93,13 +116,13 @@ class ClientPackageCompositionError extends AggregateError {
   }
 }
 
-/** 组装表中的一行：传输条目及其 bundle 路径。 */
+/** One composed table row: the wire entry plus the resolved package metadata behind it. */
 interface WebPluginRecord {
   entry: WebBootEntry
-  clientPath: string
+  meta: PkgMeta
 }
 
-/** 将解析后的未知 JSON 值收窄为 `dsh.client` 声明；字段格式错误时抛出异常。 */
+/** Narrow an unknown parsed JSON value to the `dsh.client` declaration, throwing on malformed fields. */
 function parseDshClient(pkgName: string, value: unknown): DshClientDeclaration | undefined {
   if (value === undefined) return undefined
   if (typeof value !== 'object' || value === null) {
@@ -109,20 +132,20 @@ function parseDshClient(pkgName: string, value: unknown): DshClientDeclaration |
   if (typeof decl.platform !== 'string') {
     throw new Error(`client-modules: ${pkgName} dsh.client.platform must be a string`)
   }
-  if (decl.inject !== undefined && (!Array.isArray(decl.inject) || decl.inject.some(i => typeof i !== 'string'))) {
-    throw new Error(`client-modules: ${pkgName} dsh.client.inject must be a string array`)
-  }
+  const inject = optionalStringArray(pkgName, 'dsh.client.inject', decl.inject)
+  const external = optionalStringArray(pkgName, 'dsh.client.external', decl.external)
   if (decl.immediately !== undefined && typeof decl.immediately !== 'boolean') {
     throw new Error(`client-modules: ${pkgName} dsh.client.immediately must be a boolean`)
   }
   return {
     platform: decl.platform,
-    ...(decl.inject !== undefined ? { inject: decl.inject as string[] } : {}),
+    ...(inject !== undefined ? { inject } : {}),
+    ...(external !== undefined ? { external } : {}),
     ...(decl.immediately !== undefined ? { immediately: decl.immediately } : {}),
   }
 }
 
-/** 将 `exports["./client"]` 解析为相对路径，接受字符串或一层条件导出对象。 */
+/** Resolve `exports["./client"]` to a relative path, accepting the string and one-level conditional forms. */
 function clientExportOf(pkgName: string, exportsField: unknown): string | undefined {
   if (typeof exportsField !== 'object' || exportsField === null) return undefined
   const client = (exportsField as Record<string, unknown>)['./client']
@@ -135,44 +158,123 @@ function clientExportOf(pkgName: string, exportsField: unknown): string | undefi
   throw new Error(`client-modules: ${pkgName} exports["./client"] must be a string or an object with a string default`)
 }
 
-/** 截取为 12 位十六进制字符的 sha1 内容哈希，用作 bundle rev 或 graph rev。 */
+/** sha1 content hash shortened to 12 hex chars (bundle rev / graph rev). */
 function shortHash(input: string | Buffer): string {
   return createHash('sha1').update(input).digest('hex').slice(0, 12)
 }
 
-/** 某个 bundle rev 对应的图条目；URL 以查询参数携带 rev，用于使旧缓存失效。 */
-function graphRow(id: string, rev: string, injectEdges: string[] | undefined, immediately: boolean): WebBootEntry {
+/** Graph row for one bundle rev (url carries the rev as its cache-busting query). */
+function graphRow(id: string, rev: string, fields: WebBootRowFields): WebBootEntry {
   return {
     id,
     url: `/plugins/${id}/client.js?rev=${rev}`,
     rev,
-    ...(injectEdges !== undefined ? { inject: injectEdges } : {}),
-    ...(immediately ? { immediately: true } : {}),
+    ...(fields.inject !== undefined ? { inject: fields.inject } : {}),
+    ...(fields.immediately ? { immediately: true } : {}),
+    ...(fields.external.length > 0 ? { external: fields.external } : {}),
   }
 }
 
 /**
- * 把启动条目图注入 index.html：将 `window.__DSH_BOOT__` 放在 <head> 的第一个
- * script 中，确保 shell bundle 读取前已经存在。JSON 中会转义 `<`，避免插件可控
- * 字符串越出 script 元素。
- * @param html - index.html 源文本。
- * @param graph - 已组装的条目图。
- * @returns 已注入条目图脚本的 HTML。
+ * Order composed rows so every requested dynamic package precedes its
+ * consumers. An `external` specifier is either the package row it names
+ * (`<pkg>/client` aliases the bare package) or a static-table name that adds no
+ * graph edge.
+ * @param entries - composed rows in scan order.
+ * @returns the same rows reordered; scan order breaks every tie.
+ * @throws {Error} when a row requests itself or when the module graph has a
+ * cycle; the message lists the packages on it.
  */
-export function injectBootManifest(html: string, graph: WebBootGraph): string {
-  const json = JSON.stringify(graph).replaceAll('<', '\\u003c')
-  const script = `<script>window.__DSH_BOOT__ = ${json}</script>`
-  const head = html.indexOf('<head>')
-  if (head !== -1) return `${html.slice(0, head + 6)}${script}${html.slice(head + 6)}`
-  // 无界面测试页面可能没有 <head>；直接前置仍能保证 shell 先读到清单。
-  return `${script}${html}`
+export function orderByModuleGraph(entries: readonly WebBootEntry[]): WebBootEntry[] {
+  const rowsById = new Map<string, WebBootEntry>()
+  for (const entry of entries) rowsById.set(entry.id, entry)
+  const ordered: WebBootEntry[] = []
+  const placed = new Set<string>()
+  const open: string[] = []
+  const visit = (entry: WebBootEntry): void => {
+    if (placed.has(entry.id)) return
+    const cycleStart = open.indexOf(entry.id)
+    if (cycleStart !== -1) {
+      throw new Error(
+        `client-modules: module graph cycle ${[...open.slice(cycleStart), entry.id].join(' -> ')} `
+        + '— a requested package row must precede its consumers, and factory-form CJS cannot deliver partial exports',
+      )
+    }
+    open.push(entry.id)
+    for (const name of entry.external ?? []) {
+      const dependency = rowsById.get(name) ?? rowsById.get(stripClientSuffix(name))
+      if (dependency === entry) {
+        throw new Error(
+          `client-modules: "${entry.id}" requests module "${name}" that it answers itself `
+          + '— a row must not declare its own package in dsh.client.external',
+        )
+      }
+      if (dependency !== undefined) visit(dependency)
+    }
+    open.pop()
+    placed.add(entry.id)
+    ordered.push(entry)
+  }
+  for (const entry of entries) visit(entry)
+  return ordered
 }
 
-// 中文说明：该服务负责增量扫描客户端插件、组装启动图并提供 bundle 路由；构造阶段
-// 会聚合已加载条目的声明或构建错误。下方英文 JSDoc 会生成到英文 API 目录，故保留。
+/** Bootstrap package whose ordinary client bundle supplies the module-system implementation. */
+const CLIENT_MODULES_ID = '@deepseek-ai/dsh-client-modules'
+
+/** Dynamic package whose ordinary client bundle must be registered before plugin boot starts. */
+const CLIENT_RUNTIME_ID = '@deepseek-ai/dsh-client-runtime'
+
+/** Ordinary dynamic bundles the HTML parser executes before the Vite shell. */
+const PARSER_PRELOAD_IDS = [CLIENT_MODULES_ID, CLIENT_RUNTIME_ID] as const
+
+/**
+ * The boot protocol as index injection rows. The inline registration queue
+ * precedes blocking classic scripts for modules' and runtime's ordinary
+ * `lib/client.js` artifacts. Its `create()` method materializes the modules
+ * bundle, delegates construction to that bundle, and leaves the same facade
+ * in live-registration mode. The graph global follows before the shell reads
+ * it.
+ * @param graph - the composed entry graph.
+ * @returns head rows in execution order: queue script, preload scripts, graph global.
+ */
+export function bootInjections(graph: WebBootGraph): IndexInjection[] {
+  const bootstrapId = JSON.stringify(CLIENT_MODULES_ID)
+  const queue = `(()=>{
+const pendingQueue=[]
+window.__ModuleLoader__={
+  mode:"queue",
+  pendingQueue,
+  load(registration){pendingQueue.push(registration)},
+  create(options){
+    if(this.mode!=="queue")throw new Error("client-modules: window.__ModuleLoader__.create called after module-system boot")
+    const index=pendingQueue.findIndex(registration=>registration.id===${bootstrapId})
+    const registration=pendingQueue[index]
+    if(registration===undefined)throw new Error("client-modules: HTML did not preload ${CLIENT_MODULES_ID}/client.js")
+    pendingQueue.splice(index,1)
+    const exports=registration.factory(specifier=>{
+      throw new Error('client-modules: ${CLIENT_MODULES_ID}/client.js requested external "'+specifier+'" before the module system existed')
+    })
+    if(typeof exports!=="object"||exports===null||typeof exports.createClientModuleSystem!=="function"||typeof exports.apply!=="function"){
+      throw new Error("client-modules: ${CLIENT_MODULES_ID}/client.js did not export the bootstrap module face")
+    }
+    return exports.createClientModuleSystem(this,{id:registration.id,exports},options)
+  }
+}
+})()`
+  const preload = PARSER_PRELOAD_IDS.map(id => graph.entries.find(entry => entry.id === id))
+    .filter((entry): entry is WebBootEntry => entry !== undefined)
+    .map((entry): IndexInjection => ({ kind: 'script-src', placement: 'head', src: entry.url }))
+  return [
+    { kind: 'script', placement: 'head', text: queue },
+    ...preload,
+    { kind: 'global', name: '__DSH_BOOT__', value: graph },
+  ]
+}
+
 /**
  * The web plugin table service: incremental `dsh.client` scan + wire composition
- * + bundle route + index tap. Construction runs the activation scan
+ * + bundle route + index injection rows. Construction runs the activation scan
  * synchronously — a malformed declaration or missing bundle among the
  * already-loaded entries aggregates into one loud throw (FAILED fiber; the
  * boot activation audit reports it).
@@ -181,8 +283,9 @@ export class ClientModuleRegistry extends Service {
   static inject = ['webServer', 'loader']
 
   private readonly table = new Map<string, WebPluginRecord>()
-  // 否定结果（无法解析的 specifier，如 cordis:include 内置项、子路径条目，或没有
-  // Web `dsh.client` 声明的包）以 null 缓存且永不过期；插件集合变更要重启后才生效。
+  // Negative verdicts (unresolvable specifier — builtins like cordis:include,
+  // subpath rows — or a package without a web `dsh.client` declaration) are
+  // cached as null and never expire: plugin-set changes take effect on restart.
   private readonly pkgMeta = new Map<string, PkgMeta | null>()
   private readonly rebuildListeners = new Set<(id: string, rev: string) => void>()
   private readonly graphListeners = new Set<() => void>()
@@ -192,23 +295,24 @@ export class ClientModuleRegistry extends Service {
   private composed: WebBootGraph
 
   /**
-   * 构建服务：订阅事件、填充初始集合并执行激活刷新。
-   * @param ctx - 提供 webServer 和 loader 的插件上下文。
+   * Build the service: subscribe, seed, and run the activation flush.
+   * @param ctx - plugin context carrying webServer and loader.
    */
   constructor(ctx: Context) {
     super(ctx, 'clientModules')
-    // 解析锚点是配置树的 baseUrl（cordis.yml 所在目录，其 package 声明所有被组装
-    // 插件为依赖）。若使用 modules 包自身的 URL，在 pnpm 隔离的 node_modules 中
-    // 无法解析同级包。
+    // Resolution anchor: the config tree's baseUrl (the cordis.yml directory,
+    // whose package declares every composed plugin as a dependency). The
+    // modules package's own URL would miss sibling packages under pnpm's
+    // isolated node_modules.
     if (ctx.baseUrl === undefined) {
       throw new Error('client-modules: ctx.baseUrl is unset — the node half needs the config-tree anchor to resolve plugin packages')
     }
     const require = createRequire(ctx.baseUrl)
     this.resolvePkgJson = spec => require.resolve(`${spec}/package.json`)
 
-    // 先订阅再填充，使激活期间到达的 fiber 也进入同一个待处理集合；Set 的幂等性
-    // 使重复加入无害。没有 entry 的 fiber 属于子插件或手动挂载，不是 Loader 条目，
-    // 可在 O(1) 时间内忽略。
+    // Subscribe before seeding so a fiber arriving mid-activation lands in the
+    // same dirty set (Set idempotence makes the overlap harmless). An entry-less
+    // fiber is a child plugin or a manual mount — never a loader row; O(1) drop.
     ctx.on('internal/plugin', (fiber) => {
       const entryName = fiber.entry?.options.name
       if (entryName === undefined) return
@@ -221,8 +325,9 @@ export class ClientModuleRegistry extends Service {
       })
     })
 
-    // 激活扫描就是对当前条目执行一次增量路径，并同步刷新；订阅、填充与刷新之间
-    // 没有异步步骤。
+    // Activation pass: the initial scan IS the incremental path over the
+    // current entries, flushed synchronously (nothing async between subscribe,
+    // seed, and flush).
     for (const entry of ctx.loader.entries()) this.dirty.add(entry.options.name)
     this.composed = this.compose()
     const failures: Error[] = []
@@ -235,13 +340,11 @@ export class ClientModuleRegistry extends Service {
       () => ctx.webServer.register({ kind: 'prefix', path: '/plugins', handler: this.serveBundle }),
       'client-modules: bundle route',
     )
-    ctx.effect(
-      () => ctx.webServer.tapIndex(html => injectBootManifest(html, this.composed)),
-      'client-modules: boot manifest injection',
-    )
+    ctx.on('webserver/index-inject', (table) => {
+      table.push(...bootInjections(this.composed))
+    })
   }
 
-  // 中文：返回当前启动条目图；无变更时对象引用稳定。
   /**
    * Current composed entry graph (stable object between changes).
    * @returns the graph served as `window.__DSH_BOOT__`.
@@ -250,17 +353,15 @@ export class ClientModuleRegistry extends Service {
     return this.composed
   }
 
-  // 中文：按包名查询客户端 bundle 的绝对路径。
   /**
    * Absolute path of an entry's client bundle.
    * @param id - entry id (package name).
    * @returns the path, or undefined for an unknown id.
    */
   clientPath(id: string): string | undefined {
-    return this.table.get(id)?.clientPath
+    return this.table.get(id)?.meta.clientPath
   }
 
-  // 中文：重新计算 bundle 哈希；这是 HMR 将内容变化写入启动图的唯一入口。
   /**
    * Re-hash one bundle (the HMR watch's registration hook — the only entry
    * point through which bundle content changes reach the graph).
@@ -270,13 +371,13 @@ export class ClientModuleRegistry extends Service {
   rebuilt(id: string): string | undefined {
     const record = this.table.get(id)
     if (record === undefined) return undefined
-    const rev = shortHash(readFileSync(record.clientPath))
+    const rev = shortHash(readFileSync(record.meta.clientPath))
     if (rev === record.entry.rev) return rev
-    record.entry = graphRow(id, rev, record.entry.inject, record.entry.immediately === true)
+    record.entry = graphRow(id, rev, record.meta)
     this.composed = this.compose()
     for (const notify of this.rebuildListeners) {
-      // rebuilt() 在 HMR 监听回调中执行；单个订阅者抛错不能终止轮询，也不能跳过
-      // 后续订阅者。
+      // Containment: rebuilt() runs inside the HMR watch callback — a
+      // throwing subscriber must not kill the poll or skip later subscribers.
       try {
         notify(id, rev)
       } catch (error) {
@@ -287,7 +388,6 @@ export class ClientModuleRegistry extends Service {
     return rev
   }
 
-  // 中文：订阅实际改变 rev 的 bundle 重建。
   /**
    * Subscribe to bundle rebuilds; fires only when the re-hash changed the rev.
    * @param listener - receives the entry id and its new bundle rev.
@@ -298,7 +398,6 @@ export class ClientModuleRegistry extends Service {
     return () => { this.rebuildListeners.delete(listener) }
   }
 
-  // 中文：条目图重组后发出无载荷通知，监听器需重新读取 graph()。
   /**
    * Fires after any flush that recomposed the graph (row added/removed, or a
    * rebuilt rev change). Pull model: listeners re-read {@link graph}.
@@ -311,14 +410,14 @@ export class ClientModuleRegistry extends Service {
   }
 
   private compose(): WebBootGraph {
-    const entries = [...this.table.values()].map(record => record.entry)
+    const entries = orderByModuleGraph([...this.table.values()].map(record => record.entry))
     return { rev: shortHash(JSON.stringify(entries)), entries }
   }
 
   private notifyGraphChanged(): void {
     for (const listener of this.graphListeners) {
-      // 单个订阅者抛错不能跳过后续订阅者，也不能逸出到触发本次刷新的调用方
-      // （调用方可能是 fs.watchFile 回调）。
+      // A throwing subscriber must not skip later subscribers (or escape into
+      // whatever triggered the flush — possibly an fs.watchFile callback).
       try {
         listener()
       } catch (error) {
@@ -334,8 +433,8 @@ export class ClientModuleRegistry extends Service {
     try {
       pkgPath = this.resolvePkgJson(pkgName)
     } catch {
-      // 无法解析为包根目录：Loader 内置项（cordis:include）和子路径条目
-      // （如 …/gateway）会进入这里，并被永久判定为非客户端条目。
+      // Not a resolvable package root: loader builtins (cordis:include) and
+      // subpath entries (…/gateway) land here — permanently not a client row.
       this.pkgMeta.set(pkgName, null)
       return null
     }
@@ -356,6 +455,7 @@ export class ClientModuleRegistry extends Service {
     const meta: PkgMeta = {
       clientPath: join(dirname(pkgPath), clientRel),
       ...(decl.inject !== undefined ? { inject: decl.inject } : {}),
+      external: decl.external ?? [],
       immediately: decl.immediately === true,
     }
     this.pkgMeta.set(pkgName, meta)
@@ -363,11 +463,11 @@ export class ClientModuleRegistry extends Service {
   }
 
   /**
-   * 读取激活时的 bundle 修订号。
-   * @param pkgName - 声明客户端 bundle 的包。
-   * @param clientPath - 已构建客户端产物的绝对路径。
-   * @returns bundle 内容的短哈希，用作修订号。
-   * @throws {MissingClientBundleError} 读取因 `ENOENT` 失败时抛出；其他文件系统错误原样抛出。
+   * Read the activation-time bundle revision.
+   * @param pkgName - package that declares the client bundle.
+   * @param clientPath - absolute path of the built client artifact.
+   * @returns the bundle content's short hash for use as its revision.
+   * @throws {MissingClientBundleError} when the read fails with `ENOENT`; other filesystem errors are rethrown unchanged.
    */
   private initialBundleRevision(pkgName: string, clientPath: string): string {
     try {
@@ -378,7 +478,7 @@ export class ClientModuleRegistry extends Service {
     }
   }
 
-  /** 将一个条目名与 Loader 实时条目对齐。@returns 表是否发生变化。 */
+  /** Reconcile one entry name against the live loader entries. @returns whether the table changed. */
   private processOne(entryName: string): boolean {
     let qualifies = false
     for (const entry of this.ctx.loader.entries()) {
@@ -391,10 +491,10 @@ export class ClientModuleRegistry extends Service {
     if (this.table.has(entryName)) return false
     const meta = this.resolveMeta(entryName)
     if (meta === null) return false
-    // 从此处起 rev 随条目保存：fiber 重启会原样复用条目及其 rev；只有 rebuilt()
-    // 会重新读取 bundle。
+    // The rev rides the row from here on: a fiber restart reuses the row (and
+    // its rev) untouched; only rebuilt() re-reads the bundle.
     const rev = this.initialBundleRevision(entryName, meta.clientPath)
-    this.table.set(entryName, { entry: graphRow(entryName, rev, meta.inject, meta.immediately), clientPath: meta.clientPath })
+    this.table.set(entryName, { entry: graphRow(entryName, rev, meta), meta })
     return true
   }
 
@@ -405,15 +505,25 @@ export class ClientModuleRegistry extends Service {
       try {
         if (this.processOne(entryName)) changed = true
       } catch (error) {
-        // 稳定运行期中，一个损坏的包不能影响其他包；激活阶段则会聚合这些错误并
-        // 明确抛出。
+        // Steady state: one broken package must not poison the others; the
+        // activation pass aggregates these into a loud throw instead.
         onError(error instanceof Error ? error : new Error(String(error)))
       }
     }
-    if (changed) {
-      this.composed = this.compose()
-      this.notifyGraphChanged()
+    if (!changed) return
+    let composed: WebBootGraph
+    try {
+      composed = this.compose()
+    } catch (error) {
+      // An unorderable module graph is a property of the whole table, not of
+      // the arriving package, so it surfaces here: aggregated into the
+      // activation throw, or warned in steady state while the last orderable
+      // graph stays served.
+      onError(error as Error)
+      return
     }
+    this.composed = composed
+    this.notifyGraphChanged()
   }
 
   private readonly serveBundle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
@@ -422,10 +532,10 @@ export class ClientModuleRegistry extends Service {
       res.end()
       return
     }
-    /* v8 ignore next -- `?? '/'` 分支：node:http 始终会为服务端请求设置 url。 */
+    /* v8 ignore next -- `?? '/'` arm: node:http always sets url on server requests. */
     const pathname = decodeURIComponent(new URL(req.url ?? '/', 'http://x').pathname)
-    // ID 可能包含 scope 斜杠。/plugins 下的其他路径（包括 HMR 条目缺失时的
-    // /plugins/events）都属于未知资源。
+    // The id may contain a scope slash. Anything else under /plugins (including
+    // /plugins/events when the HMR row is absent) is an unknown resource.
     const prefix = '/plugins/'
     const mapSuffix = '/client.js.map'
     const bundleSuffix = '/client.js'
@@ -448,7 +558,7 @@ export class ClientModuleRegistry extends Service {
       })
       res.end(body)
     } catch {
-      // 已注册但无法读取（bundle 尚未构建）时明确返回 404，避免静默回退为 SPA HTML。
+      // Registered but unreadable (bundle not built yet): loud 404 beats a silent SPA-fallback HTML page.
       res.writeHead(404)
       res.end()
     }

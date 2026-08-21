@@ -427,9 +427,6 @@ export function presentFetchResult(args: { url: string }, result: ToolResult): W
  *   {@link formatFetchOutput}) and on source characters converted synchronously.
  */
 export function applyWebFetchTool(ctx: Context, timeoutMs: number, maxOutputChars: number): void {
-  // 下方英文会作为 web_fetch 的 system prompt 指引发送给模型。中文译文：使用 web_fetch
-  // 获取特定 HTTP(S) URL（例如 web_search 结果）的内容；它把页面解码为文本。使用其中
-  // 内容时，以 Markdown 链接引用该 URL。运行时原文保持不变，以维持模型行为与快照。
   ctx.systemPrompt.section({
     name: 'tool:web_fetch',
     order: 111,

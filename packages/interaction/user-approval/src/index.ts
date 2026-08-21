@@ -96,14 +96,9 @@ export type ApprovalPolicy = 'ask' | 'never'
 /** Every {@link ApprovalPolicy}, for option advertisement and runtime validation of untrusted policy strings. */
 export const APPROVAL_POLICIES: readonly ApprovalPolicy[] = ['ask', 'never']
 
-// 这两句英文会按当前 Session 策略作为动态 user-role 上下文发送给模型。
-// NEVER_SENTENCE 译文：本 Session 已禁用审批提示；需要审批的操作会自动拒绝，不要请求
-// sandbox escalation，也不要设置 sandbox_permissions。
-// ASK_SENTENCE 译文：审批策略为 ask。需要审批的操作可以向已配置的 answerer 询问；没有
-// 可用 answerer 时，请求按 fail-closed 处理。运行时原文保持不变，以保持策略行为与回放。
-/** 确定性 `'never'` 策略的模型可见说明。 */
+/** Model-facing statement for the deterministic `'never'` policy. */
 const NEVER_SENTENCE = 'Approval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).'
-/** 仍可能 fail-closed 的交互式策略说明。 */
+/** Model-facing statement for an interactive policy that may still fail closed. */
 const ASK_SENTENCE = 'Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.'
 
 /**
@@ -232,8 +227,6 @@ export class ApprovalService extends Service {
     const previous = this.effectivePolicy(agent.session)
     if (previous === policy) return
     setApprovalPolicy(agent.session, policy)
-    // 下方英文通知会作为 user-role 消息进入模型历史。中文含义：审批策略已由用户从
-    // previous 切换为 policy。枚举原值必须保留，运行时文本也不做本地化。
     agent.inject(createUserMessage({
       content: [{
         type: 'text',

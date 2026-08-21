@@ -1,5 +1,5 @@
 /**
- * `@deepseek-ai/dsh-client-ui-slots` 包所有的不变量配套模块。
+ * Package-owned invariant companion for `@deepseek-ai/dsh-client-ui-slots`.
  * @module @deepseek-ai/dsh-client-ui-slots/invariant
  */
 
@@ -9,22 +9,23 @@ import type { InvariantInstaller } from '@deepseek-ai/dsh-invariants'
 
 const PACKAGE_NAME = '@deepseek-ai/dsh-client-ui-slots'
 
-/** Cordis 配套插件名称。 */
+/** Cordis companion plugin name. */
 export const name = 'client-ui-slots-invariant'
-/** 配套模块登记包所有权前所需的服务。 */
+/** Service required before the companion can reserve package ownership. */
 export const inject = ['invariants']
 
 /**
- * 无运行时不变量：这是零依赖的纯注册表核心，自身不发送 Cordis 事件；事件桥及其
- * 不变量归 runtime SlotRegistry 包装层所有。define、register、dispose 的顺序直接由
- * 本包行为规格验证。
+ * No runtime invariant: a zero-dependency pure registry core — it emits no
+ * cordis events itself (the runtime SlotRegistry wrapper owns the event
+ * bridge and its invariants); define/register/dispose sequencing is asserted
+ * directly by this package's behavior specs.
  */
 const install: InvariantInstaller = () => {}
 
 /**
- * 注册本包的不变量配套模块。
- * @param ctx - 带有不变量服务的 Cordis 上下文。
- * @returns 设置成功后，返回已安装注册项的 disposer。
+ * Register this package's invariant companion.
+ * @param ctx - Cordis context carrying the invariant service.
+ * @returns the installed registration's disposer after setup succeeds.
  */
 export const apply = (ctx: Context): Promise<() => void> =>
   Promise.resolve(ctx.invariants.register(PACKAGE_NAME, install))

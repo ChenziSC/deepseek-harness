@@ -1,8 +1,9 @@
-/** 面向浏览器的运行时服务：槽位、会话、工作区和连接流分发。 */
+/** Browser runtime services for slots, sessions, workspaces, and connection-stream delivery. */
 import type { Context } from '@deepseek-ai/cordis'
 import type { ConnectionHandle, SessionId } from '@deepseek-ai/dsh-api-remotes/client'
-// 仅用于带入 ctx.remote 的类型合并。这里有意使用 gateway 的 Client 端，而不是
-// api-remotes 的接口；后者会导入 Host tsdown 生成的产物，而本项目位于 Host 构建图中。
+// Type-only: the ctx.remote merge. Deliberately the gateway's Client half rather
+// than api-remotes': that face imports a Host-tsdown-generated artifact, and this
+// project sits in the Host build graph.
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type { TypertContext } from '@deepseek-ai/dsh-typert-protocol'
 import type { MaybeSnapshotSelectorHook, SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
@@ -38,16 +39,16 @@ export type { RootOwnerProps } from './slots.ts'
 export { SessionCreateError, SessionRuntime, scopeOf, workspaceTitleOf } from './sessions/service.ts'
 export { indexSubagentDescendants } from './sessions/subagent-lineage.ts'
 export type { SubagentDescendantSummary } from './sessions/subagent-lineage.ts'
-// provide 通道与客户端测试 runtime 共享，实例化/投影只有一套实现，不维护可能漂移的
-// 测试侧镜像。
+// The provide channel is shared with the client test runtime (one
+// materialization/projection implementation; no test-side mirror to drift).
 export { SessionProvideChannel } from './sessions/provide.ts'
 export type { SessionProvideChannelHost } from './sessions/provide.ts'
 export { createScope } from './agents/scope.ts'
 export type { AgentScopeHandle } from './agents/scope.ts'
 export { DirectoryBrowseError, WorkspaceCreateError, WorkspaceRuntime } from './workspaces/service.ts'
-export { resolveWorkspacePath } from './workspaces/path.ts'
-// 此处仅导出接口；scope 实现及其 Host 传输属于 dsh-client-ui-settings，参见该包的
-// settings-scope.ts。
+export { abbreviateHomePath, resolveWorkspacePath } from './workspaces/path.ts'
+// Contract only: the scope implementation and its Host transport belong to
+// dsh-client-ui-settings (see that package's settings-scope.ts).
 export type {
   SettingsScope, SettingsScopeSnapshot, SettingsScopeSpec,
 } from './contract/settings-scope.ts'
@@ -65,7 +66,7 @@ export type { WorkspaceListState } from './workspaces/service.ts'
 export type {
   DirectoryEntry, DirectoryListing, WorkspaceId, WorkspaceView,
 } from '@deepseek-ai/dsh-client-connection/client'
-// Runtime 拥有快照 store；web-react 只负责绑定到 React。
+// Runtime owns the snapshot store; ui-renderer only binds it to React.
 export { createSnapshotStore, defineStore, shallowEqual } from './contract/store.ts'
 export type {
   EngineStoreHandle, EngineStoreInstance, ObservableSnapshot, SnapshotStore,
@@ -84,7 +85,7 @@ export {
 } from './sessions/conversation.ts'
 export { emptyAssistantBlock } from './sessions/partial.ts'
 export { isTokenDelta } from './sessions/assistant-timing.ts'
-export { contextForm, contextProvenance } from './sessions/context-provenance.ts'
+export { contextForm, contextProvenance, sessionRecallLabels } from './sessions/context-provenance.ts'
 export { displayFailureMessage } from './sessions/failure-display.ts'
 export type {
   ConversationContext, ConversationContextOriginKind,
@@ -99,50 +100,52 @@ export { PendingWait } from './sessions/pending.ts'
 export type {
   PendingInteraction, PendingInteractionStatus, PendingKind, PendingPayloads,
 } from './sessions/pending.ts'
-// 投影值 store 采用推送模型，详见 docs/subsystems/session-projection.md。Host 按键计算
-// 完整值，使业务域无需附带客户端代码即可提供投影能力。
+// Projection value store (push model; see the session-projection subsystem
+// page, docs/subsystems/session-projection.md): host-computed
+// whole values per key; domains ship projection support with zero client code.
 export type {
   ProjectionsBaseline, ProjectionValueStore, SessionProjectionMap, UseProjection,
 } from './sessions/projection-store.ts'
 export type { SessionId } from '@deepseek-ai/dsh-client-connection/client'
 
-/** 完成声明合并后的客户端 Cordis 上下文。 */
+/** Client-side Cordis context after declaration merging. */
 export type ClientContext = Context
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertContextMap {
-    /** 客户端 Agent scope 身份；Agent 与 session 共用一个传输 ID。 */
+    /** Client Agent scope identity; the agent and session share one wire id. */
     agent: TypertContext<SessionId>
   }
 }
 
-/** 提供给 session scope UI 条目的对话快照 selector hook。 */
+/** The conversation-snapshot selector hook supplied to session-scoped UI entries. */
 export type UseConversationSession = SnapshotSelectorHook<ConversationSnapshot>
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   /**
-   * Session 标准工具组的实际成员。ui-slots 声明空席位，拥有数据主体的 runtime 合并
-   * 具体类型；每个 session scope 槽位组件都会从框架获得这些成员。
+   * Session standard kit, real members (ui-slots declares the empty seat;
+   * the runtime — where the subjects live — merges the concrete types):
+   * every session-scope slot component receives these from the framework.
    */
   interface SessionStandardProps {
     useSession: SnapshotSelectorHook<ConversationSnapshot>
-    /** 框架解析出的 session ID，所有者无需传入。 */
+    /** The framework-resolved session id (owners never pass it). */
     sessionId: SessionId
-    /** 框架第五个 hook 席位：按键读取投影；undefined 表示能力不存在。 */
+    /** The fifth framework hook seat: key-addressed projection reader (undefined = capability absent). */
     useProjection: UseProjection
   }
-  /** 当前 session 变化时仍保持挂载的槽位所用标准工具组。 */
+  /** Standard kit for slots that remain mounted while current session changes. */
   interface SessionMaybeStandardProps {
     useSession: MaybeSnapshotSelectorHook<ConversationSnapshot>
-    /** 当前 session ID；无 session 状态下不存在。 */
+    /** Current session id; absent in the no-session state. */
     sessionId: SessionId | undefined
-    /** 按键读取投影；没有当前 session 时，所有键都读取为不存在。 */
+    /** Key-addressed projection reader; every key reads absent while no session is current. */
     useProjection: UseProjection
   }
-  /** 注入每个全局槽位组件的 props。 */
+  /** Props injected into every global slot component. */
   interface GlobalStandardProps {
     useSessions: SnapshotSelectorHook<SessionListState>
-    /** 读取真实 Workspace 及其独立基线生命周期的 selector hook。 */
+    /** Selector hook over real Workspaces and their independent baseline lifecycle. */
     useWorkspaces: SnapshotSelectorHook<import('./workspaces/service.ts').WorkspaceListState>
   }
 }
@@ -150,36 +153,37 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 declare module '@deepseek-ai/cordis' {
   interface Events {
     /**
-     * 某个槽位的定义或注册集合发生变化。
+     * A slot's definition or registration set changed.
      * @mode emit
-     * @param key - 发生变化的 SlotMap 键。
+     * @param key - the mutated SlotMap key.
      */
     'slots/changed'(key: string): void
     /**
-     * 一个连接代次已建立或重新建立。由传输数据派生的缓存必须把现有状态视为过期并
-     * 重新拉取；命令目录采用此方式，队列镜像则通过 session 重同步路径自行重置。
+     * A connection generation was (re-)established. Wire-derived caches must
+     * treat their state as stale and repull (commands directory; the queue
+     * mirrors reset themselves through the session resync path).
      * @mode emit
      */
     'connection/reset'(): void
   }
   interface Context {
     slots: import('./slots.ts').SlotRegistry
-    /** 从事件到业务 Context 的 Definition 注册表。 */
+    /** Event-to-business-Context Definition registry. */
     conversationEvents: import('./conversation/event-registry.ts').ConversationEventRegistry
-    /** 按 target 保存的 Conversation 快照构建器注册表。 */
+    /** Per-target Conversation snapshot builder registry. */
     conversationViews: import('./conversation/view-registry.ts').ConversationViewRegistry
-    /** 仅暴露对外接口；具体服务保留在 runtime 内部。 */
+    /** The outward face only; the concrete service stays inside the runtime. */
     sessions: import('./contract/sessions.ts').ISessions
-    /** 仅暴露对外接口；具体服务保留在 runtime 内部。 */
+    /** The outward face only; the concrete service stays inside the runtime. */
     workspaces: import('./contract/workspaces.ts').IWorkspaces
   }
 }
 
-/** 必需服务：传输 handle 和客户端 Typert 注册表。 */
+/** Required services: the wire handle and Client Typert registry. */
 export const inject = ['connection', 'typert', 'remote', 'remote.commands']
 
-/** 挂载浏览器 runtime 服务和连接流。
- * @param ctx - 客户端 Cordis 上下文。
+/** Mounts the browser runtime services and connection stream.
+ * @param ctx - Client Cordis context.
  */
 export function apply(ctx: Context): void {
   ctx.plugin(SlotRegistry)
@@ -204,9 +208,10 @@ export function apply(ctx: Context): void {
     onHostEnvelope: (envelope) => {
       sessions.handleHostEnvelope(envelope)
       workspaces.handleHostEnvelope(envelope)
-      // 转发事件桥：session 层会忽略没有 session 路由的注册表帧。本插件拥有帧接收点，
-      // 因此把已解码帧直接交给 Remote 服务，再由其分发给 `ctx.remote.$on` 订阅者；
-      // 没有消费者直接读取帧。
+      // Forwarded-event bridge: the session layer ignores registry frames (no
+      // session routing). This plugin owns the frame sink, so it hands the
+      // decoded frame straight to the Remote service, which fans it out to
+      // `ctx.remote.$on` subscribers; no consumer reads a frame.
       const frame = envelope.payload
       if (frame.type === 'host/remote-event') ctx.remote.$dispatch(frame.event, frame.args)
     },
@@ -216,8 +221,9 @@ export function apply(ctx: Context): void {
       ctx.emit('connection/reset')
     },
     onStateChange: (state) => {
-      // 连接代次终止会在下一代任何帧到达前触发；重连从打开流开始重放，早于
-      // onConnected。这是丢弃代次范围交互状态的唯一安全时机。
+      // Generation death fires before any next-generation frame can arrive
+      // (reconnect replays flow from stream open, ahead of onConnected):
+      // the only safe moment to drop generation-scoped interaction state.
       if (state === 'reconnecting') {
         sessions.handleDisconnected()
       }

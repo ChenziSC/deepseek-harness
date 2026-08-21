@@ -90,7 +90,7 @@ describe('headless command-line provider', () => {
 
   it.each([{ args: [] }, { args: ['   '] }])('rejects an invocation with no non-whitespace task ($args)', async ({ args }) => {
     const { task, observed } = await bootStartup(args)
-    expect(observed.out).toContain('必须提供任务')
+    expect(observed.out).toContain('a task is required')
     expect(task).toBeUndefined()
     expect(observed.runnerConfig).toBeUndefined()
     expect(observed.exits).toEqual([1])

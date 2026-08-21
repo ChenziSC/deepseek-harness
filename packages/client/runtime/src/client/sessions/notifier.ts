@@ -1,13 +1,16 @@
-// Notifier 是 Session 与 SessionManager 共用的订阅和批量通知基元。N 次 markDirty 调用
-// 合并为一次微任务刷新，N 次 markFrameDirty 调用合并为一次动画帧刷新。刷新会先重建
-// 快照缓存再通知，因为 useSyncExternalStore 要求 getSnapshot 引用稳定。没有监听器时
-// 跳过重建，只设置 dirty 标记，以降低帧风暴成本；下次 getSnapshot 再延迟重建。
+// Notifier: subscription + batched notification primitive shared by Session and
+// SessionManager. Semantics: N markDirty calls collapse into one microtask flush, while
+// N markFrameDirty calls collapse into one animation-frame flush;
+// the flush rebuilds the snapshot cache BEFORE notifying (useSyncExternalStore requires a stable
+// getSnapshot reference). With no listeners the rebuild is skipped and only the dirty bit is set
+// (keeps frame storms cheap); the next getSnapshot rebuilds lazily.
 //
-// 新鲜度与通知是两个独立标记：若在 markDirty 与计划刷新之间调用 ensureFresh 拉取，
-// 会重建快照，但不能吞掉通知；否则任何读取方率先拉取时，推送订阅者（对象层 watcher）
-// 都会收不到通知。
+// Freshness and notification are SEPARATE bits: a pull (ensureFresh) between
+// markDirty and the scheduled flush rebuilds the snapshot but must not
+// swallow the notification — push subscribers (object-layer watchers) would
+// otherwise starve whenever any reader pulls first.
 
-/** Session 与 SessionManager 共用的订阅和批量通知基元。 */
+/** Subscription + batched notification primitive (shared by Session and SessionManager). */
 export class Notifier {
   private listeners = new Set<() => void>()
   private dirty = false
@@ -15,13 +18,13 @@ export class Notifier {
   private scheduled: 'none' | 'microtask' | 'frame' = 'none'
   private scheduleGeneration = 0
 
-  /** @param rebuild - 所有者注入的快照重建函数；写入其 snapshotCache。 */
+  /** @param rebuild - snapshot rebuild function injected by the owner (writes the owner's snapshotCache). */
   constructor(private readonly rebuild: () => void) {}
 
   /**
-   * uSES 订阅入口。
-   * @param listener - 变化回调。
-   * @returns 取消订阅函数。
+   * uSES subscription entry.
+   * @param listener - change callback.
+   * @returns the unsubscribe function.
    */
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener)
@@ -30,7 +33,7 @@ export class Notifier {
     }
   }
 
-  /** 状态变化入口：标为 dirty 并计划批量刷新。 */
+  /** State-change entry: mark dirty and schedule the batched flush. */
   markDirty(): void {
     this.dirty = true
     this.notifyPending = true
@@ -38,7 +41,7 @@ export class Notifier {
     this.schedule('microtask')
   }
 
-  /** 流变化入口：标为 dirty，并且每帧最多发布一次累计状态。 */
+  /** Stream-change entry: mark dirty and publish the cumulative state at most once per frame. */
   markFrameDirty(): void {
     this.dirty = true
     this.notifyPending = true
@@ -47,8 +50,8 @@ export class Notifier {
   }
 
   /**
-   * 同步刷新：受控输入写入必须与 onChange 在同一 tick 通知，否则 React 会把 DOM
-   * 回滚到旧值，光标也会跳到末尾。
+   * Synchronous flush: controlled-input writes must notify in the same tick as
+   * onChange, or React rolls the DOM back to the stale value and the caret jumps to the end.
    */
   notifyNow(): void {
     this.dirty = true
@@ -58,8 +61,8 @@ export class Notifier {
   }
 
   /**
-   * getSnapshot 前检查：dirty 时同步重建，用于首次订阅前或无人观察时的读取路径；
-   * 通知仍保持等待状态。
+   * Pre-getSnapshot check: rebuild synchronously when dirty (read path
+   * before first subscribe / while unobserved). Notification stays pending.
    */
   ensureFresh(): void {
     if (!this.dirty) return
@@ -89,7 +92,7 @@ export class Notifier {
 
   private flush(): void {
     if (!this.notifyPending) return
-    if (this.listeners.size === 0) return // 延迟处理：dirty 仍存在时，下次 getSnapshot 重建。
+    if (this.listeners.size === 0) return // lazy: dirty (if still set) rebuilds on next getSnapshot
     this.notifyPending = false
     if (this.dirty) {
       this.dirty = false

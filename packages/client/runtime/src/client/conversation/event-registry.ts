@@ -2,19 +2,19 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ConversationNodeDefinition } from '../contract/conversation.ts'
 import { ConversationDefinitionRegistry } from './definition-registry.ts'
 
-/** 独立所有的 Conversation 业务 Definitions 在 runtime 中的注册表。 */
+/** Runtime registry of independently owned Conversation business Definitions. */
 export class ConversationEventRegistry extends ConversationDefinitionRegistry<ConversationNodeDefinition> {
   private fallback: ConversationNodeDefinition | undefined
 
-  /** @param ctx - 拥有本注册表的客户端 Runtime 上下文。 */
+  /** @param ctx - owning Client Runtime context. */
   constructor(ctx: Context) {
     super(ctx, 'conversationEvents')
   }
 
   /**
-   * 在调用方生命周期内注册一个名称唯一的业务 Definition。
-   * @param definition - Definition 贡献项。
-   * @returns 幂等 disposer。
+   * Register a uniquely named business Definition for the caller's lifetime.
+   * @param definition - Definition contribution.
+   * @returns idempotent disposer.
    */
   register(definition: ConversationNodeDefinition): () => void {
     assertDefinitionTarget(definition)
@@ -27,9 +27,9 @@ export class ConversationEventRegistry extends ConversationDefinitionRegistry<Co
   }
 
   /**
-   * 注册唯一 fallback，仅在没有普通 Definition 匹配时使用。
-   * @param definition - fallback Definition。
-   * @returns 幂等 disposer。
+   * Register the sole fallback used only when no ordinary Definition matches.
+   * @param definition - fallback Definition.
+   * @returns idempotent disposer.
    */
   registerFallback(definition: ConversationNodeDefinition): () => void {
     assertDefinitionTarget(definition)
@@ -50,8 +50,8 @@ export class ConversationEventRegistry extends ConversationDefinitionRegistry<Co
   }
 
   /**
-   * 返回当前用于未匹配事件的 fallback。
-   * @returns 已安装 fallback；不存在时返回 undefined。
+   * Return the current unmatched-event fallback.
+   * @returns installed fallback, when present.
    */
   fallbackEntry(): ConversationNodeDefinition | undefined {
     return this.fallback

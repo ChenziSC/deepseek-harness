@@ -1,5 +1,5 @@
 /**
- * `@deepseek-ai/dsh-client-modules` 包自有的不变量伴随插件。
+ * Package-owned invariant companion for `@deepseek-ai/dsh-client-modules`.
  * @module @deepseek-ai/dsh-client-modules/invariant
  */
 
@@ -9,21 +9,24 @@ import type { InvariantInstaller } from '@deepseek-ai/dsh-invariants'
 
 const PACKAGE_NAME = '@deepseek-ai/dsh-client-modules'
 
-/** Cordis 伴随插件名称。 */
+/** Cordis companion plugin name. */
 export const name = 'client-modules-invariant'
-/** 伴随插件声明包所有权前必须存在的服务。 */
+/** Service required before the companion can reserve package ownership. */
 export const inject = ['invariants']
 
 /**
- * 本包负责的不变量：Node 端的启动条目图必须保持自洽，每一行都应以同一 ID 解析出
- * clientPath；否则刚收到图的浏览器访问其声明的 /plugins/<id>/client.js 会得到 404。
- * 每次扫描触发（cordis 'internal/plugin'）时检查。graph() 与 clientPath() 读取同一个
- * 表对象，所以任意时刻都能判断该关系，无需等待 Node 端微任务防抖刷新结束。
+ * Owned relation: the node half's boot entry graph must stay self-consistent
+ * — every row must resolve a clientPath under the same id (the
+ * /plugins/<id>/client.js URL it advertises would otherwise 404 on a browser
+ * that just received the graph). Checked on every scan trigger (cordis
+ * 'internal/plugin'): graph() and clientPath() read the same table object,
+ * so the relation holds at any instant — no need to wait out the node half's
+ * own microtask-debounced flush.
  */
 const install: InvariantInstaller = (ctx, fail) => {
   ctx.on('internal/plugin', () => {
     const host = ctx.get('clientModules')
-    if (host === undefined) return // 浏览器端或没有 Node 端的宿主无需审计。
+    if (host === undefined) return // browser side / host without the node half: nothing to audit
     for (const row of host.graph().entries) {
       if (host.clientPath(row.id) === undefined) {
         fail(`web plugin graph row "${row.id}" advertises ${row.url} but resolves no client bundle path — the served __DSH_BOOT__ would 404 on fetch`)
@@ -33,9 +36,9 @@ const install: InvariantInstaller = (ctx, fail) => {
 }
 
 /**
- * 注册本包的不变量伴随插件。
- * @param ctx - 提供不变量服务的 Cordis 上下文。
- * @returns 安装成功后用于撤销注册的函数。
+ * Register this package's invariant companion.
+ * @param ctx - Cordis context carrying the invariant service.
+ * @returns the installed registration's disposer after setup succeeds.
  */
 export const apply = (ctx: Context): Promise<() => void> =>
   Promise.resolve(ctx.invariants.register(PACKAGE_NAME, install))

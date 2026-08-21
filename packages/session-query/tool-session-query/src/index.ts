@@ -54,12 +54,6 @@ const PROMPT_TEXT =
   + 'events in one session. Search results are cursor-free and workspace-scoped. Follow a useful hit with '
   + 'session_trace, session_event_trace, or session_event_read when you need lineage, relationships, or exact data.'
 
-// 上方英文会作为五个 Session 查询 Tool 的共用 system prompt 指引发送给模型。中文译文：
-// 使用 session_search 查找先前 Session 中的相关工作，或使用 session_event_search 搜索某个
-// Session 的早期事件。搜索结果不带游标，并限制在 workspace 范围内。找到有用结果后，
-// 若需要谱系、关系或精确数据，再使用 session_trace、session_event_trace 或
-// session_event_read。运行时原文保持不变，以维持模型选路和快照行为。
-
 /** Register all five tools and their shared model guidance. */
 export function apply(ctx: Context, config: Config): void {
   const resolved = resolveConfig(config)

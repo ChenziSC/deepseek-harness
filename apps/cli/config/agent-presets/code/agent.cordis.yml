@@ -31,8 +31,6 @@
 - id: persona
   name: '@deepseek-ai/dsh-persona'
   config:
-    # 中文译文（仅供学习和维护，不参与运行时）：你是由 {{model}} 模型驱动的编码 Agent；
-    # 工作目录为 {{cwd}}。变量在每个 Agent 的实际路由与 workspace 中解析。
     text: >-
       You are a coding agent powered by the {{model}} model. Your working directory is {{cwd}}.
 
@@ -119,33 +117,6 @@
     - id: plan-mode
       name: '@deepseek-ai/dsh-plan-mode'
       config:
-        # 中文译文（仅供学习和维护，不参与运行时）：
-        # 你处于 Plan Mode。保持此模式，直到 exit_plan_mode 成功或用户切换 Session 模式。
-        # 要求实施变更的祈使语句在此表示“规划实施”，而不是执行。用户在对话中表示同意，
-        # 包括确认你所提问题的回答，都不构成批准，也不会结束 Plan Mode；应把确认的决定
-        # 纳入计划，再通过 exit_plan_mode 提交。
-        #
-        # 先探索。使用不产生修改的读取、搜索、静态分析和检查，以实际仓库为依据制定计划。
-        # 不得编辑或写文件、改变配置、运行会改写受跟踪文件的格式化或代码生成、commit，
-        # 也不得以其他方式实施计划。优先采用现有函数和模式，不要引入新机制。
-        #
-        # 为保持请求缓存稳定，不同模式的 Tool 目录相同。本规则覆盖后续任何建议使用修改类
-        # Tool 的描述或指引；这些 Tool 仍列出只是为了保持请求结构稳定。规划阶段不要用
-        # todo_write：它跟踪的是计划批准后的实施，计划本身应提交给 exit_plan_mode。
-        #
-        # 可通过检查发现的事实应自行查明。只有用户拥有的选择，或检查无法消除的重大歧义，
-        # 才使用 ask_user_question。能够自行找到时，不要询问代码位置或当前行为方式。
-        #
-        # 计划必须足以直接决策：写明目标和成功标准；按子系统组织实施变更；指出公共 API、
-        # schema 和数据流变化；覆盖边界情况、失败模式、测试、验收标准和显式假设。计划应
-        # 简洁到便于评审，同时详细到另一位工程师无需另做设计决策即可实施。
-        #
-        # 准备好后，以完整 Markdown 计划调用 exit_plan_mode，并以“# 标题”开头。在该次
-        # assistant 响应中，exit_plan_mode 必须是唯一且最后一次 Tool 调用：它负责提交审批，
-        # 只有批准后的后续步骤才能开始实施。不要把最终计划作为普通回复粘贴，也不要通过
-        # 普通文字或 ask_user_question 询问“是否继续”。评审拒绝时，吸收反馈并再次提交。
-        # 评审通道不可用或被中止时，留在 Plan Mode 并请用户手动切换模式，不得继续实施。
-
         section: |
               You are in plan mode. Stay in plan mode until exit_plan_mode succeeds or the user switches the session mode. Imperative language to implement changes means plan the implementation, not execute it. A user's conversational agreement — including an answer confirming something you asked — approves nothing and does not end plan mode; fold the confirmed decision into the plan and submit it through exit_plan_mode.
 
@@ -227,16 +198,17 @@
         toolName: subagent_fork
         backgroundMode: continuable
 
-    # Product providers are host-plane singletons. Copy this preset, then
-    # remove `disabled` from either ordinary tool row to expose that product
-    # only to agents composed from the copy.
+    # Production dsh does not install these optional providers. Install the
+    # matching Bundle in this Profile and restart the Host, then copy this
+    # preset and remove `disabled` from the matching tool row. Host availability
+    # alone grants no tool.
     - id: tool-subagent-codex
       name: '@deepseek-ai/dsh-tool-subagent'
       disabled: true
       config:
         provider: codex
         toolName: subagent_codex
-        enableRunInBackground: false
+        backgroundMode: one-shot
         maxDepth: provider-managed
 
     - id: tool-subagent-claude-code
@@ -245,7 +217,7 @@
       config:
         provider: claude-code
         toolName: subagent_claude_code
-        enableRunInBackground: false
+        backgroundMode: one-shot
         maxDepth: provider-managed
 
     - id: workflow-worker-thread

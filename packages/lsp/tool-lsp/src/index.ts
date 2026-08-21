@@ -1,12 +1,12 @@
 /**
- * 基于 `ctx.lsp`、面向模型的 `lsp` Tool。一个只读 Tool 提供四种操作：
- * `goToDefinition`、`findReferences`、`goToImplementation` 和 `hover`。它把从 1 开始的
- * UTF-16 光标坐标转换为 seam 使用的从 0 开始的位置；必须使用 Session workspace，
- * 不提供回退；对结果执行限量和渲染；并附加可配置的超时预算，交由
- * `dsh-tool-call-timeout-policy` 强制执行。运行时只注入 `tools`、`lsp` 和
- * `systemPrompt`，不导入任何 Provider。
+ * Model-facing `lsp` tool over `ctx.lsp`. One read-only tool with four operations
+ * (`goToDefinition`/`findReferences`/`goToImplementation`/`hover`); it converts one-based UTF-16
+ * cursor coordinates to the seam's zero-based positions, requires the session workspace with no
+ * fallback, caps and renders results, and attaches a configurable timeout budget for
+ * `dsh-tool-call-timeout-policy` to enforce. It runtime-injects only `tools`, `lsp`, and `systemPrompt` and
+ * imports no provider.
  *
- * 这是 namespace 插件：使用具名导出，不提供 default export。
+ * Namespace plugin (named exports, no default export).
  * @module @deepseek-ai/dsh-tool-lsp
  */
 
@@ -41,27 +41,19 @@ export {
 } from './render.ts'
 export { sessionCwd } from './session-cwd.ts'
 
-/** Loader 诊断使用的 Cordis 插件名。 */
+/** Cordis plugin name for loader diagnostics. */
 export const name = 'tool-lsp'
 
-/** 本插件需要的服务。 */
+/** Services required by this plugin. */
 export const inject = ['tools', 'lsp', 'systemPrompt']
 
-/** 默认 Tool 调用超时预算（毫秒），覆盖排队后的 open/query/close 生命周期。 */
+/** Default tool-call timeout budget (ms), covering the queued open/query/close lifecycle. */
 export const DEFAULT_LSP_TOOL_TIMEOUT_MS = 60_000
 
-// 该英文段落会在注册 `lsp` 工具时加入系统提示词，指导模型何时选用精确导航，
-// 并定义坐标和引用结果的语义。它与工具 schema 一起影响模型选路和快照输出；
-// 为保持跨模型的一致术语与现有行为，运行时原文不翻译，中文解释由 README 提供。
-// 中文译文：普通导航使用 search/read。当文本匹配存在歧义，或修改前需要精确查找定义、
-// 实现或引用时，使用 lsp。位置使用从 1 开始的行号和光标处 UTF-16 字符序号；光标不在
-// 符号上时可能没有结果。findReferences 始终包含声明本身。
-/** 将 LSP 定位为精确辅助工具的稳定 system prompt 指引。 */
+/** The stable system-prompt guidance positioning LSP as a precision aid. */
 export const LSP_PROMPT_TEXT =
   'Use search/read for ordinary navigation. Use lsp when textual matches are ambiguous or before a change requires precise definitions, implementations, or references. Positions are one-based line and character (UTF-16) at the cursor; an off-symbol position may return no results. findReferences always includes the declaration.'
 
-// 中文说明：插件配置包括结果上限和超时预算。下方公共 JSDoc 保持英文，因为配置目录生成器
-// 会将其逐字抽取到英文参考页；中文配置参考页通过文档配对维护。
 /** Plugin configuration: result caps and the timeout budget. */
 export interface Config {
   /** Largest number of rendered locations before an omission marker (default 100). */
@@ -99,9 +91,9 @@ const LSP_RANGE_OUTPUT_SCHEMA = {
 } as const
 
 /**
- * 注册 `lsp` Tool 及其 system prompt 指引。
- * @param ctx - 插件上下文，必须注入 `tools`、`lsp` 和 `systemPrompt`。
- * @param config - 解析后的插件配置。
+ * Register the `lsp` tool and its system-prompt guidance.
+ * @param ctx - the plugin context (must inject `tools`, `lsp`, `systemPrompt`).
+ * @param config - the resolved plugin configuration.
  */
 export function apply(ctx: Context, config: Config): void {
   const resolved = config as ResolvedConfig
@@ -178,7 +170,7 @@ export function apply(ctx: Context, config: Config): void {
             return [{ type: 'text', text: formatLocations(value.locations, value.resolvedWorkspaceUri, resolved.maxLocations, resolved.maxResultChars) }]
           case 'hover':
             return [{ type: 'text', text: formatHover(value.hover, resolved.maxResultChars) }]
-          /* v8 ignore next -- 已穷尽输出 schema 的封闭联合，不可达 */
+          /* v8 ignore next -- exhaustive over the output schema's closed union; unreachable. */
           default:
             return assertNever(value, 'tool-lsp output')
         }
@@ -227,7 +219,7 @@ export function apply(ctx: Context, config: Config): void {
                   },
               },
           }
-        /* v8 ignore next -- 已穷尽封闭的 LspQueryResult 联合，不可达 */
+        /* v8 ignore next -- exhaustive over the closed LspQueryResult union; unreachable. */
         default:
           return assertNever(result, 'tool-lsp result')
       }
@@ -236,14 +228,14 @@ export function apply(ctx: Context, config: Config): void {
   }))
 }
 
-/** 加载时拒绝非正整数配置，使错误配置立即显式失败。 */
+/** Reject a non-positive-integer config value at load, so misconfiguration fails loud. */
 function assertPositiveInteger(name: string, value: number): void {
   if (!Number.isInteger(value) || value < 1) {
     throw new Error(`tool-lsp: ${name} must be a positive integer`)
   }
 }
 
-/** 拒绝会被 Node 截断、无法按配置调度的 timer 值。 */
+/** Reject a timer value Node would clamp instead of scheduling as configured. */
 function assertTimer(name: string, value: number): void {
   if (!Number.isInteger(value) || value < 1 || value > MAX_TIMER_DELAY_MS) {
     throw new Error(`tool-lsp: ${name} must be a positive integer no greater than ${MAX_TIMER_DELAY_MS}`)

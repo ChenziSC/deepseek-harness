@@ -207,11 +207,8 @@ export function apply(ctx: Context, config: Config): void {
   // fields; the assertion records that resolution, not a hidden fallback.
   const { toolName, maxResultChars } = config as ResolvedConfig
   const recorder = createWorkflowRecorder(ctx)
-  // 使用策略随 Tool 一起提供：按仓库约定，Tool 指引由 Tool 插件注册 Prompt 段，不放在
-  // 部署 persona 中。下方英文的中文译文：只有用户明确要求 workflow 或大型多 Agent
-  // 编排时才使用 toolName；编写 JavaScript 脚本（精确格式见 Tool 描述），按 phase 把工作
-  // 分发给多个子 Agent 并收集结构化结果。一两项委派应优先用普通 subagent 调用。
-  // toolName 由配置插入，运行时原文保持不变。
+  // Usage policy ships with the tool (the master convention: tool guidance
+  // lives in tool plugins as prompt sections, not in the deployment persona).
   ctx.systemPrompt.section({
     name: `tool:${toolName}`,
     order: 115,

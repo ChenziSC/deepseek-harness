@@ -1,24 +1,26 @@
 /**
- * 对保留的 session 列表镜像执行纯 subagent 谱系聚合。普通 fork 会终止传播，使每个
- * 可见 session 只拥有其连续 subagent 子树。
+ * Pure subagent-lineage aggregation over the retained session-list mirror.
+ * Ordinary forks terminate propagation so each visible session owns only its
+ * uninterrupted subagent subtree.
  * @module @deepseek-ai/dsh-client-runtime/client/sessions/subagent-lineage
  */
 import type { SessionId } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SessionSummary } from './service.ts'
 
-/** 为一个可能的父 session 投影的后代计数。 */
+/** Descendant counts projected for one possible parent session. */
 export interface SubagentDescendantSummary {
-  /** 通过连续 subagent 来源谱系连接的全部后代。 */
+  /** All descendants connected through uninterrupted subagent-origin lineage. */
   readonly count: number
-  /** 对应 session 摘要当前处于运行状态的后代数。 */
+  /** Descendants whose exact session summary is currently running. */
   readonly runningCount: number
 }
 
 /**
- * 将每个 subagent 后代索引到它沿连续 subagent 来源链可到达的每个祖先下。循环会软
- * 失败；孤立所有者在其摘要到达前只作为无害映射键存在。
- * @param summaries - 以 ID 为键保留的 session 摘要。
- * @returns 以可能父 ID 为键的后代总数和运行中总数。
+ * Index every subagent descendant under each ancestor it reaches through an
+ * uninterrupted subagent-origin chain. Cycles fail soft and orphan owners
+ * remain harmless map keys until their summaries arrive.
+ * @param summaries - retained session summaries keyed by id.
+ * @returns descendant totals and running totals keyed by possible parent id.
  */
 export function indexSubagentDescendants(
   summaries: Readonly<Record<SessionId, SessionSummary>>,
