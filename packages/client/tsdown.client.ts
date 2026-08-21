@@ -57,13 +57,18 @@ function styleInjectionModule(
 export const INLINE_SAFE = /^@deepseek-ai\/dsh-(host-apiproxy|file-reference|session|llm|tools|brand)(\/|$)/
 
 /**
- * Vendored 框架库被重新 scope 到 @deepseek-ai，因此下方门禁会把它们误认作插件包。它们
- * 不携带需要跨插件共享的运行时 identity：框架本身是显式请求的模块表行（external），
- * 而这些只是由浏览器 Bundle 内联的普通库。
+ * 中文说明：这些 vendored 库被改到 `@deepseek-ai` scope 后仍是可内联的普通库，
+ * 不携带跨插件共享的运行时 identity。下方英文块同时是 rescope 校验的精确标记。
+ */
+/**
+ * Vendored framework libraries: rescoped into @deepseek-ai, so the gate below
+ * would read them as plugin packages. They carry no cross-plugin runtime
+ * identity to share — the framework itself is a requested module-table row
+ * (external), while these are ordinary libraries a browser bundle inlines.
  */
 const VENDORED_LIBRARY = /^@deepseek-ai\/(cosmokit|schemastery)(\/|$)/
 
-/** 不携带共享运行时 identity 的已生成 descriptor/codec contribution。 */
+/** Generated descriptor/codec contribution with no shared runtime identity. */
 const GENERATED_REMOTE = /^@deepseek-ai\/dsh-[a-z0-9]+(?:-[a-z0-9]+)*\/remote$/
 
 /**

@@ -53,7 +53,7 @@ export class WorkspaceRuntime implements IWorkspaces {
   readonly list: SnapshotStore<WorkspaceListState>
   /** Workspace baseline and frame owner. */
   private readonly manager: WorkspaceManager
-  /** 按 Workspace 索引、正在进行的空白 Session 连接操作（复用或创建）。 */
+  /** 按 Workspace 索引正在进行的空白 Session 创建，用于合并并发的 connectWorkspace。 */
   private readonly connecting = new Map<WorkspaceId, Promise<SessionId>>()
   /** Guards the runtime-owned one-shot initial-selection subscription. */
   private initialSelectionStarted = false
@@ -76,13 +76,12 @@ export class WorkspaceRuntime implements IWorkspaces {
 
   /**
    * 选择 Workspace 后，解析 New Session 流程最终进入的 Session：若列表 Mirror 中存在该
-   * Workspace 的空白 Session，则显式采用；否则在 Host 创建新 Session。`session.create`
-   * 会创建或恢复完整 Session+Agent，客户端不保存中间状态。采用操作会通知可选默认值
-   * 所有者：该 Session 已通过复用检查。导航归调用方所有，应把返回 id 交给
-   * `sessions.open`。两条分支都保证返回 id 已经进入列表 store，且
-   * `sessions.binding(id)` 可同步解析，因此草稿交接能在打开前写入新 scope 的状态机。
+   * Workspace 的空白 Session，则直接复用；否则在 Host 创建新 Session。`session.create`
+   * 会创建完整的 Session+Agent，客户端不保存中间状态。导航归调用方所有，应把返回
+   * ID 交给 `sessions.open`。两条分支都保证返回 ID 已进入列表 store，且
+   * `sessions.binding(id)` 可同步解析，因此草稿交接可以在打开前写入新 scope 的状态机。
    * @param workspaceId - 已选择的 Workspace；必须存在于 Workspace 列表。
-   * @returns 复用或新建的 Session id。
+   * @returns 复用或新建的 Session ID。
    */
   async connectWorkspace(workspaceId: WorkspaceId): Promise<SessionId> {
     const workspace = this.list.getSnapshot().items.find(item => item.workspaceId === workspaceId)
@@ -105,13 +104,7 @@ export class WorkspaceRuntime implements IWorkspaces {
       const summary = sessions.byId[id]
       if (summary !== undefined && summary.blank && summary.cwd === workspace.path
         && workspace.sessionIds.includes(summary.id)
-        && !archived.includes(summary.id)) {
-        return this.sessions.create({
-          workspaceId,
-          sessionId: summary.id,
-          reuseWorkspaceBlank: true,
-        })
-      }
+        && !archived.includes(summary.id)) return summary.id
     }
     const attempt = this.sessions.create({ workspaceId })
       .finally(() => { this.connecting.delete(workspaceId) })

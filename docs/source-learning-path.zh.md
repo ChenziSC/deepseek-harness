@@ -75,7 +75,7 @@
 
 1. **领取输入：**`ReactLoopAgent.preStep()` 从 inbox 领取目标消息，并组装本步骤使用的系统提示词上下文。
 2. **建立边界：**`ReactLoopAgent.turn()` 追加 `turn/start` 与 `step/start`，然后把领取的消息写成 `user/message`。
-3. **请求模型：**`ReactLoopAgent.step()` 解析模型目标、收集工具 schema、发出 LLM 请求并记录流式输出。
+3. **请求模型：**`ReactLoopAgent.step()` 解析模型目标、收集工具 schema，并通过 `prepareCall()` 把能力检查与实际 stream 固定在同一份 Provider 配置快照上，随后记录流式输出。
 4. **执行工具：**[`packages/core/agent-loop/src/tool-calls.ts`](../packages/core/agent-loop/src/tool-calls.ts) 配对工具调用与结果；新 inbox 消息可进入下一步骤。
 5. **确定结束：**循环追加 `step/end` 和 `turn/end`，保留 completed、max-tokens、blocked、aborted 或 error 等结构化原因。
 
@@ -143,20 +143,22 @@
 
 **检查点：**能够解释为什么同步 `require` 不能等待尚未到达的模块，以及 Host 为什么必须按外部依赖图先发送提供方。
 
-## 第 8 课：输入、附件、设置与多视图
+## 第 8 课：输入、附件、请求投影、设置与多视图
 
-**概念目标：**理解浏览器输入不是直接发字符串，而是经过输入状态机、附件信封、Host admission、会话事件和视图投影。
+**概念目标：**理解浏览器输入不是直接发字符串，图片也不是原样塞进每次模型请求。输入要经过草稿状态机、Host 接纳、Provider 无关的持久规范化、路由专属请求投影、Provider wire 表示和视图投影。
 
 **运行分区：**
 
 1. **输入状态机：**[`packages/client/ui-conversation/src/client/input/machine.ts`](../packages/client/ui-conversation/src/client/input/machine.ts) 管理草稿阶段；`facade.ts` 把 UI 操作映射为提交事务。
-2. **附件所有权：**[`packages/client/ui-attachment/README.zh.md`](../packages/client/ui-attachment/README.zh.md) 说明草稿附件、提交信封与历史图片的不同生命周期。
-3. **插件设置：**[`packages/client/ui-settings/README.zh.md`](../packages/client/ui-settings/README.zh.md) 说明插件自有 schema 如何经 Host 镜像进入统一设置界面。
-4. **并行视图：**Chat 与 [`packages/client/ui-trajectory/README.zh.md`](../packages/client/ui-trajectory/README.zh.md) 消费同一事件窗口，但各自拥有 Definition、assembler 状态和渲染器。
+2. **接纳与持久规范化：**[`packages/host/apiproxy/src/api-proxy.ts`](../packages/host/apiproxy/src/api-proxy.ts) 在追加消息事件前原子接纳整批图片；[`packages/attachment/attachment-local/src/normalization.ts`](../packages/attachment/attachment-local/src/normalization.ts) 把格式、方向、色彩空间和尺寸收敛成 Provider 无关的规范化对象。会话日志只保存内容寻址引用。
+3. **路由请求投影：**[`packages/attachment/attachment-local/src/request-image.ts`](../packages/attachment/attachment-local/src/request-image.ts) 按模型路由的像素与编码字节预算生成确定性请求版本；variant id 覆盖原附件身份与全部转换策略，可复用缓存而不让 Provider 限制污染持久层。
+4. **请求容量与 Provider 表示：**[`packages/llm/llm/src/content.ts`](../packages/llm/llm/src/content.ts) 用确定性英文占位符替换最早的超额图片；[`packages/llm/llm-deepseek/src/adapter.ts`](../packages/llm/llm-deepseek/src/adapter.ts) 优先让整份请求使用 Files API file id，任一解析失败则把整份请求重新按 base64 上限裁剪和序列化，避免一份请求混用两种表示。pi-ai 路由直接使用相同请求版本生成 base64 Context。
+5. **插件设置：**[`packages/client/ui-settings/README.zh.md`](../packages/client/ui-settings/README.zh.md) 说明插件自有 schema 如何经 Host 镜像进入统一设置界面。
+6. **并行视图：**Chat 与 [`packages/client/ui-trajectory/README.zh.md`](../packages/client/ui-trajectory/README.zh.md) 消费同一事件窗口，但各自拥有 Definition、assembler 状态和渲染器。
 
-**观察点：**发送一条带图片的消息，分别记录草稿图片 id、Host 接纳、持久事件和历史图片读取发生在哪个阶段。
+**观察点：**先发送一张需要缩小的图片，记录草稿 id、Host 接纳、规范化 attachment id、请求 variant id 和最终 wire 表示；再令 Files API 解析失败，确认回退请求中的所有保留图片都改用 base64，而会话事件与持久引用没有改变。
 
-**检查点：**能够说明为什么附件、设置或 Trajectory 不能只在 `ui-conversation` 内部临时实现。
+**检查点：**能够解释为什么持久层保存 Provider 无关的规范化图片、路由层另建请求版本、Adapter 才选择 file id/base64，以及为什么这三层都不能缩进 `ui-conversation` 的临时状态。
 
 ## 第 9 课：subagent、后台任务与实验性 Agent Teams
 

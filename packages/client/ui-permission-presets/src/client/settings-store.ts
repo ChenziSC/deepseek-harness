@@ -18,7 +18,7 @@ import { displayPermissionPreset } from './presentation.ts'
 /** 权限在线协议中的 Host 设置命名空间。 */
 export const PERMISSION_SETTINGS_NS = 'permission'
 
-/** 一个可选择的新会话及已确认复用默认值。 */
+/** 一个可选择的新会话默认值。 */
 export interface PermissionDefaultOption {
   /** 写入 Settings 的 preset 键。 */
   id: string
@@ -119,7 +119,7 @@ export class PermissionPresetSettingsController {
   }
 
   /**
-   * 把一个 preset 持久化为新会话及合格已确认空白复用的默认值。已有保存进行时的
+   * 把一个 preset 持久化为后续新建会话的默认值。已有保存进行时的
    * 新选择会被忽略；保存期间行控件已禁用，因此这里只会丢弃程序化重复提交，
    * 不会丢失用户意图。
    * @param preset - 已公布的 preset 键。

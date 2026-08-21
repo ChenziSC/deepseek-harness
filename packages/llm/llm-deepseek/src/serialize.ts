@@ -1,19 +1,18 @@
 /**
- * Serialize harness messages into DeepSeek chat completions. Text-only
- * requests retain string user content; the image path resolves durable
- * attachments into ordered data-URL parts. Tool-result images follow their
- * string-only tool messages in a separate user message.
+ * 将 Harness 消息序列化为 DeepSeek chat completions 请求。纯文本请求继续使用紧凑的字符串
+ * content；含图片的请求则把持久化附件转换为有序的 file id 或内联图片片段。工具结果里的
+ * 图片不能直接放进 tool 消息，因此会跟在对应的纯文本 tool 消息后，以独立 user 消息发送。
  * @module dsh-llm-deepseek/serialize
  */
 
-import { contentHasImage, LlmError, offloadRequestImages } from '@deepseek-ai/dsh-llm'
+import { contentHasImage, LlmError, offloadRequestImagesWithPolicy, requestImageHandleText } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, GenerateOptions, Message } from '@deepseek-ai/dsh-llm'
-import { AttachmentError } from '@deepseek-ai/dsh-attachment'
-import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
+import type { ImageAttachmentRef, RequestImageAttachment } from '@deepseek-ai/dsh-attachment'
 import type {
   WireImageContentPart,
   WireMessage,
   WireRequest,
+  WireTextContentPart,
   WireTool,
   WireUserContentPart,
 } from './types.ts'
@@ -29,16 +28,43 @@ interface ResolvedThinking {
   reasoningEffort?: 'low' | 'high' | 'max'
 }
 
-/** Dependencies required only when the request contains image input. */
+/** 单次请求中所有保留图片共同采用的 Provider 表示方式。禁止混用可让失败回退和重放保持确定性。 */
+export type ImageRequestRepresentation =
+  | {
+    kind: 'file'
+    /** 将已保留的请求版本解析为可复用的 DeepSeek file id。 */
+    resolveFileId: (
+      version: RequestImageAttachment,
+      block: Extract<ContentBlock, { type: 'image' }>,
+      location: ImageWireLocation,
+    ) => Promise<string>
+  }
+  | { kind: 'base64' }
+
+/** 仅含图片输入时才需要的序列化依赖与容量策略。 */
 export interface ImageSerializationOptions {
-  /** Durable resolver for canonical image references. */
-  attachments: AttachmentStore
-  /** Positive bound on accumulated base64 image payload. */
+  /** 本次请求全部保留图片使用的唯一表示方式。 */
+  representation: ImageRequestRepresentation
+  /** 为保守保留的规范化附件生成的请求版本，以附件 id 索引。 */
+  requestImages: ReadonlyMap<ImageAttachmentRef['attachmentId'], RequestImageAttachment>
+  /** 最终表示后的图片累计字节上限。 */
   maxRequestImageBytes: number
-  /** Cancellation shared with the provider request. */
-  signal: AbortSignal
+  /** 单次请求最终可表示的图片数量上限。 */
+  maxImagesPerRequest?: number
+  /** 超过字节上限后，每轮至少移除的表示后字节数。 */
+  byteQuantum?: number
+  /** 超过数量上限后，每轮至少移除的图片数。 */
+  countQuantum?: number
 }
 
+/** Provider 诊断信息所用的持久消息序号与图片序号。 */
+export interface ImageWireLocation {
+  message: number
+  image: number
+}
+
+// 该字符串会作为 user 消息直接发送给模型，用来说明后续图片来自工具结果；保持英文可避免改变
+// 默认模型上下文、快照与已记录会话的语义，中文读者应把它理解为“工具结果附带的图片”。
 const TOOL_RESULT_IMAGE_TEXT = 'Attached image(s) from tool result:'
 
 /** Validate the adapter-owned effort before resolving its DeepSeek wire fields. */
@@ -98,33 +124,46 @@ function assertSupportedImageRoles(messages: readonly Message[]): void {
   }
 }
 
-/** Resolve one durable image into its transient DeepSeek data-URL part. */
-async function imagePart(
-  block: Extract<ContentBlock, { type: 'image' }>,
-  attachments: AttachmentStore,
-  signal: AbortSignal,
-): Promise<WireImageContentPart> {
-  try {
-    const stored = await attachments.readImage(block.attachment, signal)
-    return {
-      type: 'image_url',
-      image_url: {
-        url: `data:${stored.ref.mediaType};base64,${Buffer.from(stored.data).toString('base64')}`,
-      },
-    }
-  } catch (error: unknown) {
-    if (error instanceof AttachmentError) {
-      throw new LlmError(error.message, error.code, { cause: error })
-    }
-    throw error
+/** 为模型描述实际请求预览及其可调用坐标系，便于后续工具按宽高定位。 */
+function imageHandle(
+  version: RequestImageAttachment,
+  precededByContent: boolean,
+): WireTextContentPart {
+  return {
+    type: 'text',
+    text: `${precededByContent ? '\n' : ''}${requestImageHandleText(version)}`,
   }
 }
 
-/** Convert user or nested tool-result blocks into ordered wire parts. */
+/** 把一张持久化图片解析为模型可见描述与仅存在于本次请求的 DeepSeek 图片片段。 */
+async function imageParts(
+  block: Extract<ContentBlock, { type: 'image' }>,
+  images: ImageSerializationOptions,
+  location: ImageWireLocation,
+  precededByContent: boolean,
+): Promise<[WireTextContentPart, WireImageContentPart]> {
+  const version = images.requestImages.get(block.attachment.attachmentId)
+  if (version === undefined) {
+    throw new LlmError(
+      `DeepSeek request image ${block.attachment.attachmentId} was not prepared.`,
+      'INVALID_REQUEST',
+    )
+  }
+  const image: WireImageContentPart = images.representation.kind === 'file'
+    ? { type: 'file', file_id: await images.representation.resolveFileId(version, block, location) }
+    : {
+      type: 'image_url',
+      image_url: { url: `data:${version.mediaType};base64,${Buffer.from(version.data).toString('base64')}` },
+    }
+  return [imageHandle(version, precededByContent), image]
+}
+
+/** 把 user 内容或嵌套的工具结果转换为顺序稳定的 wire 片段。 */
 async function contentParts(
   blocks: readonly ContentBlock[],
-  attachments: AttachmentStore,
-  signal: AbortSignal,
+  images: ImageSerializationOptions,
+  message: number,
+  nextImage: { value: number },
 ): Promise<WireUserContentPart[]> {
   const parts: WireUserContentPart[] = []
   for (const block of blocks) {
@@ -133,10 +172,11 @@ async function contentParts(
         if (block.text.length > 0) parts.push({ type: 'text', text: block.text })
         break
       case 'image':
-        parts.push(await imagePart(block, attachments, signal))
+        nextImage.value += 1
+        parts.push(...await imageParts(block, images, { message, image: nextImage.value }, parts.length > 0))
         break
       case 'tool-result':
-        parts.push(...await contentParts(block.content, attachments, signal))
+        parts.push(...await contentParts(block.content, images, message, nextImage))
         break
       default:
         // Other merge-extensible blocks are not DeepSeek user-input vocabulary.
@@ -150,7 +190,7 @@ async function contentParts(
 function userContent(parts: readonly WireUserContentPart[]): string | WireUserContentPart[] {
   const text: string[] = []
   for (const part of parts) {
-    if (part.type === 'image_url') return [...parts]
+    if (part.type !== 'text') return [...parts]
     text.push(part.text)
   }
   return text.join('')
@@ -232,18 +272,15 @@ export function serializeMessages(messages: Message[]): WireMessage[] {
 }
 
 /**
- * Serialize image-capable history after resolving durable attachments.
- * Consecutive tool results keep string `tool` messages and share one following
- * user message containing their images.
- * @param messages - transient request history after request-size offloading.
- * @param attachments - durable image resolver.
- * @param signal - cancellation for attachment reads.
- * @returns ordered DeepSeek wire messages.
+ * 在持久化附件完成解析后序列化含图片历史。连续工具结果仍各自保留字符串 `tool` 消息，
+ * 其图片则合并到随后的一条 user 消息中，以满足 DeepSeek wire 格式。
+ * @param messages - 完成请求容量裁剪后的临时消息历史。
+ * @param images - 已准备的请求版本、统一的 Provider 表示方式与容量策略。
+ * @returns 顺序稳定的 DeepSeek wire 消息。
  */
 export async function serializeMessagesWithImages(
   messages: readonly Message[],
-  attachments: AttachmentStore,
-  signal: AbortSignal,
+  images: ImageSerializationOptions,
 ): Promise<WireMessage[]> {
   assertSupportedImageRoles(messages)
   const wire: WireMessage[] = []
@@ -257,7 +294,8 @@ export async function serializeMessagesWithImages(
     pendingToolImages = []
   }
 
-  for (const message of messages) {
+  for (const [messageIndex, message] of messages.entries()) {
+    const nextImage = { value: 0 }
     if (message.role === 'system') {
       flushToolImages()
       wire.push({ role: 'system', content: flattenText(message.content) })
@@ -273,7 +311,7 @@ export async function serializeMessagesWithImages(
     const toolResults = message.content.filter((block): block is Extract<ContentBlock, { type: 'tool-result' }> => (
       block.type === 'tool-result'
     ))
-    const content = userContent(await contentParts(regular, attachments, signal))
+    const content = userContent(await contentParts(regular, images, messageIndex + 1, nextImage))
     if (content.length > 0 || toolResults.length === 0) {
       flushToolImages()
       wire.push({
@@ -282,15 +320,15 @@ export async function serializeMessagesWithImages(
       })
     }
     for (const result of toolResults) {
-      const parts = await contentParts(result.content, attachments, signal)
-      const images = parts.filter((part): part is WireImageContentPart => part.type === 'image_url')
+      const parts = await contentParts(result.content, images, messageIndex + 1, nextImage)
+      const imageParts = parts.filter((part): part is WireImageContentPart => part.type !== 'text')
       const text = parts.filter(part => part.type === 'text').map(part => part.text).join('')
       wire.push({
         role: 'tool',
         tool_call_id: result.toolCallId,
-        content: text || (images.length > 0 ? '(see attached image)' : '(no output)'),
+        content: text || '(no output)',
       })
-      pendingToolImages.push(...images)
+      pendingToolImages.push(...imageParts)
     }
   }
   flushToolImages()
@@ -350,13 +388,13 @@ export function serializeRequest(
 }
 
 /**
- * Build one image-capable request while keeping durable bytes out of session
- * messages. Oversized oldest images become deterministic text before any
- * attachment read.
- * @param options - harness request containing image-capable user content.
- * @param images - attachment resolver, request bound, and cancellation.
- * @param defaults - adapter-level thinking defaults.
- * @returns the fully materialized DeepSeek request body.
+ * 构造一份含图片请求，同时不把持久化字节写回会话消息。先根据准确的请求版本字节数执行容量
+ * 裁剪，把最早的超额图片替换为确定性文本，再进入 Provider 序列化，因此 file id 与 base64
+ * 两条路径都能得到可解释、可重放的结果。
+ * @param options - 含图片 user 内容的 Harness 请求。
+ * @param images - 附件请求版本、表示方式与容量策略。
+ * @param defaults - Adapter 层的 thinking 默认值。
+ * @returns 完整物化的 DeepSeek 请求体。
  */
 export async function serializeRequestWithImages(
   options: GenerateOptions,
@@ -364,11 +402,24 @@ export async function serializeRequestWithImages(
   defaults: RequestDefaults = {},
 ): Promise<WireRequest> {
   assertSupportedImageRoles(options.messages)
-  const requestMessages = offloadRequestImages(options.messages, images.maxRequestImageBytes)
+  const requestMessages = offloadRequestImagesWithPolicy(options.messages, {
+    representation: images.representation.kind === 'file' ? 'raw' : 'base64',
+    byteLength: (ref) => {
+      const version = images.requestImages.get(ref.attachmentId)
+      if (version === undefined) {
+        throw new LlmError(`DeepSeek request image ${ref.attachmentId} was not prepared.`, 'INVALID_REQUEST')
+      }
+      return version.bytes
+    },
+    maxBytes: images.maxRequestImageBytes,
+    ...images.maxImagesPerRequest === undefined ? {} : { maxImages: images.maxImagesPerRequest },
+    ...images.byteQuantum === undefined ? {} : { byteQuantum: images.byteQuantum },
+    ...images.countQuantum === undefined ? {} : { countQuantum: images.countQuantum },
+  })
   const messages: WireMessage[] = []
   if (options.system !== undefined) {
     messages.push({ role: 'system', content: options.system })
   }
-  messages.push(...await serializeMessagesWithImages(requestMessages, images.attachments, images.signal))
+  messages.push(...await serializeMessagesWithImages(requestMessages, images))
   return requestWithMessages(options, messages, defaults)
 }

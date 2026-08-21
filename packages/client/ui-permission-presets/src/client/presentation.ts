@@ -18,7 +18,6 @@ const DEFAULT_PRESET_LABELS: Record<PermissionPresetLabelKey, string> = {
   'preset.workspaceWrite': 'Workspace Write',
   'preset.fullAccess': 'Full access',
 }
-
 /**
  * 把常规 kebab-case preset 名称转换为面向用户的标题格式。
  * @param name - Host 提供的 preset 标签或键。

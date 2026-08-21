@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/source-learning-path.md
-source-learning-path.md: 7364c611a442df8886be1623b20d3bc8b4317508
-source-learning-path.zh.md: f22c9707fbdd3019d7f8fa2ae6fdc21f8a6bcf0b
+source-learning-path.md: b3db3991facef2807af58f77f41e865d4afb65c5
+source-learning-path.zh.md: efbfea7176aa3ad1117b628a02a8b4f7238e77cb

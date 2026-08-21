@@ -15,7 +15,7 @@ export const name = 'client-ui-reference-invariant'
 export const inject = ['invariants']
 
 /**
- * 无运行时 invariant：只有一个 Slash Source 注册，其释放由 HMR safety spec 证明；它不发出
+ * No runtime invariant: 只有一个 Slash Source 注册，其释放由 HMR safety spec 证明；它不发出
  * Cordis 事件，也不拥有跨插件可变状态。
  */
 const install: InvariantInstaller = () => {}

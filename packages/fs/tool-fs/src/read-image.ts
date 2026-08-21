@@ -1,13 +1,8 @@
 /**
- * The model-facing `read_image` tool: reads a PNG/JPEG/WebP/GIF file, durably
- * commits its bytes through the attachment service (the same lifecycle as a
- * user-uploaded image), and returns an image block so the image enters model
- * context from the next request onward.
+ * 面向模型的 `read_image` 工具：读取 PNG/JPEG/WebP/GIF 文件并提交到持久化附件服务。
  *
- * The route gate is deliberately stricter than the host upload preflight: a
- * tool result enters durable session history, so emitting an image on a route
- * that cannot carry it would break that route's continuation. Unknown
- * capability therefore refuses instead of relying on the adapter guard.
+ * 路由检查有意比 Host 上传预检更严格。只有实际调用工具的模型路由能够查看图片时，这次
+ * 读取才有意义；能力未知时会在文件系统与附件操作之前拒绝，不把失败推迟到 Adapter 层。
  * @module @deepseek-ai/dsh-tool-fs/src/read-image
  */
 
@@ -21,7 +16,7 @@ import type { GenericCallView, ToolExecution } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-fs'
 import { resolveRegularReadTarget } from './read-target.ts'
 
-/** Extensions `read_image` accepts; magic-byte validation at the attachment service stays authoritative. */
+/** `read_image` 接受的扩展名；最终格式仍以附件服务的 magic bytes 校验为准。 */
 const IMAGE_EXTENSIONS: Readonly<Record<string, ImageMediaType>> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
@@ -30,7 +25,29 @@ const IMAGE_EXTENSIONS: Readonly<Record<string, ImageMediaType>> = {
   '.gif': 'image/gif',
 }
 
-/** The canonical outcome declared by the `read_image` output schema. */
+const IMAGE_VALUE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: true,
+  properties: {
+    attachmentId: { type: 'string', required: true },
+    mediaType: { type: 'string', enum: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'], required: true },
+    bytes: { type: 'integer', required: true },
+    width: { type: 'integer', required: true },
+    height: { type: 'integer', required: true },
+    name: { type: 'string' },
+    originalDimensions: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        width: { type: 'integer', required: true },
+        height: { type: 'integer', required: true },
+      },
+    },
+  },
+} as const
+
+/** `read_image` 输出 schema 声明的结构化结果。 */
 export interface ImageReadValue {
   path: string
   image: {
@@ -40,6 +57,11 @@ export interface ImageReadValue {
     width: number
     height: number
     name?: string
+    /** 应用方向信息后、规范化前的文件尺寸；仅在存储阶段缩小图片时存在。 */
+    originalDimensions?: {
+      width: number
+      height: number
+    }
   }
 }
 
@@ -75,10 +97,9 @@ export async function assertImageCapableRoute(ctx: Context, exec: ToolExecution,
 }
 
 /**
- * Re-brand a canonical image outcome into the durable attachment reference an
- * `ImageBlock` carries.
- * @param image - the canonical image metadata from the output schema.
- * @returns the branded attachment reference.
+ * 把结构化图片结果重新标记为 `ImageBlock` 携带的持久附件引用。
+ * @param image - 输出 schema 中的图片元数据。
+ * @returns 带品牌类型的附件引用。
  */
 export function imageRefFromValue(image: ImageReadValue['image']): ImageAttachmentRef {
   return {
@@ -88,27 +109,41 @@ export function imageRefFromValue(image: ImageReadValue['image']): ImageAttachme
     width: image.width,
     height: image.height,
     ...image.name === undefined ? {} : { name: image.name },
+    ...image.originalDimensions === undefined ? {} : {
+      originalDimensions: { ...image.originalDimensions },
+    },
   }
 }
 
 /**
- * Format an image read as the model-facing envelope beside its image block.
- * @param displayPath - the backend-resolved path rendered in the envelope's `<path>` element.
- * @param image - the canonical image metadata to summarize.
- * @returns the model-facing envelope; the image itself rides the adjacent image block.
+ * 把图片读取结果格式化为紧邻 image block 的模型可见 envelope。若图片被缩小，结果会给出
+ * 磁盘原始尺寸，以及把预览图坐标映射回原文件所需的倍率。
+ * @param displayPath - 后端解析后的路径，写入 envelope 的 `<path>` 元素。
+ * @param image - 要摘要的图片元数据。
+ * @returns 模型可见 envelope；图片本身位于相邻的 image block。
  */
 export function formatImageReadOutput(displayPath: string, image: ImageReadValue['image']): string {
+  let scaled = ''
+  if (image.originalDimensions !== undefined) {
+    // 整数取整可能让两个轴的比例略有不同；只有二者保留两位小数后相同，才给出统一倍率。
+    const x = (image.originalDimensions.width / image.width).toFixed(2)
+    const y = (image.originalDimensions.height / image.height).toFixed(2)
+    const advice = x === y
+      ? `multiply coordinates by ${x}`
+      : `multiply x coordinates by ${x} and y coordinates by ${y}`
+    scaled = ` (downscaled from ${image.originalDimensions.width}x${image.originalDimensions.height} px; ${advice} to locate features in the original file)`
+  }
   return `<path>${displayPath}</path>
 <type>image</type>
 <content>
-${image.mediaType} image, ${image.width}x${image.height} px, ${image.bytes} bytes
+${image.mediaType} image, ${image.width}x${image.height} px, ${image.bytes} bytes${scaled}
 </content>`
 }
 
 /**
- * Project one canonical image read into its model-facing envelope and image.
- * @param value - the canonical image-read outcome.
- * @returns the two content blocks used by native and nested dispatches.
+ * 把一份结构化图片读取结果投影为模型可见 envelope 和图片。
+ * @param value - 图片读取结果。
+ * @returns 原生与嵌套分发共用的两个 content block。
  */
 function imageReadContent(value: ImageReadValue): ContentBlock[] {
   return [
@@ -129,7 +164,12 @@ function imageReadContent(value: ImageReadValue): ContentBlock[] {
 export function applyReadImageTool(ctx: Context): void {
   ctx.tools.register(defineTool({
     name: 'read_image',
-    description: 'Read a PNG/JPEG/WebP/GIF file and return the image itself. Requires the current model to accept image input.',
+    // description、参数说明和 formatImageReadOutput 的英文会直接进入模型上下文；它们约束
+    // 工具选择、并发策略和坐标换算，属于运行时 Prompt/工具协议，因此保持英文。修改这些
+    // 文本会改变模型行为、工具 schema 快照以及会话重放的可比性。
+    description: 'Read a PNG/JPEG/WebP/GIF file and return the image itself. '
+      + 'Harness validates and downscales large supported images before the next model request, so use this tool directly instead of installing image libraries or creating thumbnails merely to inspect an image. '
+      + 'Independent files may be read concurrently in small batches. Requires the current model to accept image input.',
     parameters: {
       file_path: { type: 'string', required: true, description: 'Path to the image file, resolved by the filesystem backend.' },
     },
@@ -139,31 +179,17 @@ export function applyReadImageTool(ctx: Context): void {
         additionalProperties: false,
         properties: {
           path: { type: 'string', required: true },
-          image: {
-            type: 'object',
-            additionalProperties: false,
-            required: true,
-            properties: {
-              attachmentId: { type: 'string', required: true },
-              mediaType: { type: 'string', enum: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'], required: true },
-              bytes: { type: 'integer', required: true },
-              width: { type: 'integer', required: true },
-              height: { type: 'integer', required: true },
-              name: { type: 'string' },
-            },
-          },
+          image: IMAGE_VALUE_SCHEMA,
         },
       },
       render: (_args, value) => imageReadContent(value),
     },
-    // Content-addressed attachment writes are idempotent, so concurrent reads
-    // of the same file cannot conflict.
+    // 内容寻址的附件写入具有幂等性，因此并发读取同一文件不会产生写冲突。
     isConcurrencySafe: () => true,
     async execute(args, exec) {
       if (args.file_path.trim().length === 0) throw new Error('file_path must be a non-empty string')
 
-      // Every gate runs before any filesystem I/O so a refusal never leaks
-      // partial reads or attachment writes.
+      // 所有检查都先于文件系统 I/O，拒绝路径不会留下部分读取或附件写入。
       const mediaType = imageMediaTypeForPath(args.file_path)
       if (mediaType === undefined) {
         throw new Error(`cannot read "${args.file_path}": read_image only accepts PNG/JPEG/WebP/GIF paths`)
@@ -179,20 +205,17 @@ export function applyReadImageTool(ctx: Context): void {
 
       const { target, info } = await resolveRegularReadTarget(ctx, exec, args.file_path)
 
-      // The tool result is one message carrying one image, so the per-message
-      // aggregate bound applies beside the per-image bound.
+      // 工具结果是一条携带一张图片的消息，因此同时受单图上限与单消息累计上限约束。
       const byteCap = Math.min(attachments.imageLimits.maxImageBytes, attachments.imageLimits.maxMessageImageBytes)
       const data = await ctx.fs.readBytes(target, exec.signal, byteCap)
-      // Persist before returning: the image block must reference a durably
-      // committed object by the time the tool/result event is appended.
+      // 返回前先持久化：追加 tool/result 事件时，image block 必须已经引用可靠提交的对象。
       let ref: ImageAttachmentRef
       try {
         ref = await attachments.saveImage({ data, mediaType, name: basename(target.displayPath) })
       } catch (error: unknown) {
         if (!(error instanceof AttachmentError)) throw error
-        // Dimension refusals stay recoverable tool errors: an oversized image
-        // must never enter durable history, where it would ride every later
-        // model request past provider-side dimension rejections.
+        // 尺寸拒绝仍是可恢复的工具错误。超限图片不得进入持久历史，否则后续每次模型请求
+        // 都会再次携带它，并反复触发 Provider 的尺寸拒绝。
         if (error.code === 'IMAGE_DIMENSION_TOO_LARGE') {
           throw new Error(
             `cannot read "${target.displayPath}": at least one image side exceeds the ${attachments.imageLimits.maxImageDimension}px limit; downscale the image and read the smaller copy`,
@@ -202,6 +225,18 @@ export function applyReadImageTool(ctx: Context): void {
         if (error.code === 'IMAGE_TOO_MANY_PIXELS') {
           throw new Error(
             `cannot read "${target.displayPath}": the image exceeds the ${attachments.imageLimits.maxImagePixels}-pixel decoded-size limit; downscale the image and read the smaller copy`,
+            { cause: error },
+          )
+        }
+        if (error.code === 'IMAGE_TOO_LARGE') {
+          throw new Error(
+            `cannot read "${target.displayPath}": the image cannot be stored within the deployment's byte limits; downscale the image and read the smaller copy`,
+            { cause: error },
+          )
+        }
+        if (error.code === 'ATTACHMENT_WRITE_FAILED' && /16-bit PNG/iu.test(error.message)) {
+          throw new Error(
+            `cannot read "${target.displayPath}": the 16-bit PNG could not be converted to the normalized 8-bit sRGB form; convert it to an 8-bit PNG/JPEG/WebP and retry`,
             { cause: error },
           )
         }
@@ -222,6 +257,9 @@ export function applyReadImageTool(ctx: Context): void {
           width: ref.width,
           height: ref.height,
           ...ref.name === undefined ? {} : { name: ref.name },
+          ...ref.originalDimensions === undefined ? {} : {
+            originalDimensions: { ...ref.originalDimensions },
+          },
         },
       }
       return value

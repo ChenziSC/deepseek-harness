@@ -15,7 +15,7 @@ export const name = 'client-ui-renderer-invariant'
 export const inject = ['invariants']
 
 /**
- * 无运行时不变量：本包安装渲染适配器并提供挂载回调，但不拥有事件流或跨插件的
+ * No runtime invariant: 本包安装渲染适配器并提供挂载回调，但不拥有事件流或跨插件的
  * 可变数据关系。
  */
 const install: InvariantInstaller = () => {}

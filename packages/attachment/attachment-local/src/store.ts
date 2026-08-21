@@ -1,4 +1,4 @@
-/** Content-addressed, owner-private local attachment storage. */
+/** 内容寻址、所有者私有的本地附件存储。 */
 
 import { createHash, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
@@ -14,7 +14,10 @@ import type {
   SaveImageAttachment,
   StoredImageAttachment,
 } from '@deepseek-ai/dsh-attachment'
+import { normalizeImage } from './normalization.ts'
+import type { NormalizationPolicy } from './normalization.ts'
 import { detectImage, probeImage } from './image.ts'
+import type { DetectedImage } from './image.ts'
 
 const ID_PATTERN = /^sha256:([a-f0-9]{64})$/
 const durableHomes = new Set<string>()
@@ -25,9 +28,8 @@ function digest(data: Uint8Array): string {
 
 function displayName(value: string | undefined): string | undefined {
   if (value === undefined) return undefined
-  // Strip both separator styles by hand: a POSIX host treats `\` as an
-  // ordinary character, so path.basename would keep a Windows client's full
-  // local path and leak it into the reference and the session log.
+  // 手动移除两种路径分隔符：POSIX Host 会把 `\` 当作普通字符，使用 path.basename 会保留
+  // Windows 客户端的完整本地路径，并泄露到引用和 session 日志中。
   const leaf = value.slice(Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\')) + 1)
   const clean = leaf.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 255)
   return clean === '' ? undefined : clean
@@ -47,24 +49,70 @@ async function inspectMetadata(
   data: Uint8Array,
   declaredMediaType: ImageAttachmentRef['mediaType'],
   limits: ImageAttachmentLimits,
-): Promise<Omit<ImageAttachmentRef, 'attachmentId' | 'name'>> {
+): Promise<DetectedImage> {
   if (data.byteLength === 0) throw new AttachmentError('Image is empty.', 'INVALID_IMAGE')
   const detected = await detectImage(data, { maxPixels: limits.maxImagePixels, maxDimension: limits.maxImageDimension })
   if (detected.mediaType !== declaredMediaType) throw new AttachmentError('Declared image type does not match its bytes.', 'IMAGE_TYPE_MISMATCH')
-  return { ...detected, bytes: data.byteLength }
+  return detected
 }
 
 /**
- * Run the full admission policy for one image without touching storage.
- * @param input - encoded bytes and declared metadata.
- * @param limits - resolved storage policy.
- * @returns completion after the encoded raster has been fully decoded.
+ * 在不触碰存储的情况下执行单张图片的完整准入策略，包括规范化。这保证批次中所有成员
+ * 均验证成功后，发布阶段不会再因规范化字节上限拒绝某一成员。
+ * @param input - 编码字节和已声明元数据。
+ * @param limits - 已解析的源图准入策略。
+ * @param policy - 已解析的规范化策略。
+ * @returns 光栅解码完成，且已证明其规范化版本可超内后完成。
  */
-export async function validateImageFile(input: SaveImageAttachment, limits: ImageAttachmentLimits): Promise<void> {
+export async function validateImageFile(
+  input: SaveImageAttachment,
+  limits: ImageAttachmentLimits,
+  policy: NormalizationPolicy,
+): Promise<void> {
+  await prepareImageFile(input, limits, policy)
+}
+
+/** 完全准备的规范化对象，会在持久化任何批次成员前验证。 */
+export interface PreparedImageFile {
+  /** 摘要等于 {@link ref.attachmentId} 的确定性规范化字节。 */
+  data: Uint8Array
+  /** 描述 {@link data} 的持久引用。 */
+  ref: ImageAttachmentRef
+}
+
+/**
+ * 在不触碰存储的情况下解码、规范化并验证一张提交图片。该准备/提交拆分让批次先证明
+ * 所有成员可接受，再逐一原子发布。
+ * @param input - 提交的编码字节与已声明媒体类型。
+ * @param limits - 源图准入策略。
+ * @param policy - 独立规范化策略。
+ * @returns 不可变引用事实，以及可原子发布的字节。
+ */
+export async function prepareImageFile(
+  input: SaveImageAttachment,
+  limits: ImageAttachmentLimits,
+  policy: NormalizationPolicy,
+): Promise<PreparedImageFile> {
   if (input.data.byteLength > limits.maxImageBytes) {
     throw new AttachmentError('Image exceeds the configured byte limit.', 'IMAGE_TOO_LARGE')
   }
-  await inspectMetadata(input.data, input.mediaType, limits)
+  const detected = await inspectMetadata(input.data, input.mediaType, limits)
+  const normalized = await normalizeImage(input.data, detected, policy)
+  const sha256 = digest(normalized.data)
+  const name = displayName(input.name)
+  const downscaled = detected.width !== normalized.width || detected.height !== normalized.height
+  return {
+    data: normalized.data,
+    ref: {
+      attachmentId: AttachmentId(`sha256:${sha256}`),
+      mediaType: normalized.mediaType,
+      width: normalized.width,
+      height: normalized.height,
+      bytes: normalized.data.byteLength,
+      ...(name !== undefined ? { name } : {}),
+      ...downscaled ? { originalDimensions: { width: detected.width, height: detected.height } } : {},
+    },
+  }
 }
 
 /**
@@ -127,21 +175,24 @@ async function ensureDurableHome(path: string): Promise<string> {
 }
 
 /**
- * Save and verify immutable image bytes below a versioned attachment root.
- * @param root - absolute `DSH_HOME/attachments/v1` root.
- * @param input - encoded bytes and declared metadata.
- * @param limits - resolved storage policy.
- * @returns durable content-addressed reference.
+ * 在版本化附件根目录下发布一张已验证的规范化图片。
+ * @param root - 绝对 `DSH_HOME/attachments/v1` 根目录。
+ * @param prepared - 确定性规范化字节和引用。
+ * @returns 持久的内容寻址规范化图片引用。
  */
-export async function saveImageFile(root: string, input: SaveImageAttachment, limits: ImageAttachmentLimits): Promise<ImageAttachmentRef> {
-  if (input.data.byteLength > limits.maxImageBytes) throw new AttachmentError('Image exceeds the configured byte limit.', 'IMAGE_TOO_LARGE')
-  const metadata = await inspectMetadata(input.data, input.mediaType, limits)
-  const sha256 = digest(input.data)
+export async function commitPreparedImageFile(
+  root: string,
+  prepared: PreparedImageFile,
+): Promise<ImageAttachmentRef> {
+  const normalized = prepared.data
+  const sha256 = ensureReference(prepared.ref)
+  if (digest(normalized) !== sha256 || normalized.byteLength !== prepared.ref.bytes) {
+    throw new AttachmentError('Prepared attachment bytes do not match their reference.', 'ATTACHMENT_CORRUPT')
+  }
   const bucket = join(root, 'objects', sha256.slice(0, 2))
   const staging = join(root, 'tmp')
-  // Establish DSH_HOME itself against the filesystem root once per process.
-  // Every process performs that proof independently, so observing a directory
-  // another process created can never be mistaken for durable publication.
+  // 每个进程相对文件系统根独立建立一次 DSH_HOME 持久证明，因此观测到另一进程创建的目录
+  // 永远不会被误当成已持久发布。
   const boundary = await ensureDurableHome(dirname(dirname(resolve(root))))
   await ensureDurableDirectory(bucket, boundary)
   await ensureDurableDirectory(staging, boundary)
@@ -150,7 +201,7 @@ export async function saveImageFile(root: string, input: SaveImageAttachment, li
   let handle
   try {
     handle = await open(temporary, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY, 0o600)
-    await handle.writeFile(input.data)
+    await handle.writeFile(normalized)
     await handle.sync()
     await handle.close()
     handle = undefined
@@ -162,10 +213,8 @@ export async function saveImageFile(root: string, input: SaveImageAttachment, li
       const existing = new Uint8Array(await readFile(target))
       if (digest(existing) !== sha256) throw new AttachmentError('Stored attachment failed integrity verification.', 'ATTACHMENT_CORRUPT')
     }
-    // Persist the target entry and close a concurrent bucket-creation window
-    // before the reference can reach a session checkpoint. The dedup path
-    // repeats both syncs because it may observe another writer's link before
-    // that writer reaches its own durability boundary.
+    // 在引用可以进入 session checkpoint 前持久目标目录项，并关闭并发创建 bucket 的窗口。去重路径
+    // 也重复两次 sync，因为它可能在其他写入者到达自身持久点前就观测到其 link。
     await syncDirectory(bucket)
     await syncDirectory(join(root, 'objects'))
     await unlink(temporary)
@@ -185,12 +234,24 @@ export async function saveImageFile(root: string, input: SaveImageAttachment, li
     if (error instanceof AttachmentError) throw error
     throw new AttachmentError('Unable to persist image attachment.', 'ATTACHMENT_WRITE_FAILED', { cause: error })
   }
-  const name = displayName(input.name)
-  return {
-    attachmentId: AttachmentId(`sha256:${sha256}`),
-    ...metadata,
-    ...(name !== undefined ? { name } : {}),
-  }
+  return prepared.ref
+}
+
+/**
+ * 只解码和规范化图片一次，然后发布准备好的对象。
+ * @param root - 绝对 `DSH_HOME/attachments/v1` 根目录。
+ * @param input - 提交的编码字节与已声明媒体类型。
+ * @param limits - 已解析的源图准入策略。
+ * @param policy - 已解析的规范化策略。
+ * @returns 持久的内容寻址规范化图片引用。
+ */
+export async function saveImageFile(
+  root: string,
+  input: SaveImageAttachment,
+  limits: ImageAttachmentLimits,
+  policy: NormalizationPolicy,
+): Promise<ImageAttachmentRef> {
+  return commitPreparedImageFile(root, await prepareImageFile(input, limits, policy))
 }
 
 /**

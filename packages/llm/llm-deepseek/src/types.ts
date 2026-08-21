@@ -41,11 +41,20 @@ export interface WireTextContentPart {
   text: string
 }
 
-/** Base64 data URL part inside a multimodal user message. */
-export interface WireImageContentPart {
+/** 多模态 user 消息中的 Files API 引用。 */
+export interface WireFileContentPart {
+  type: 'file'
+  file_id: string
+}
+
+/** 多模态 user 消息中的内联 base64 data URL。 */
+export interface WireImageUrlContentPart {
   type: 'image_url'
   image_url: { url: string }
 }
+
+/** 多模态 user 消息可接受的两种图片表示。 */
+export type WireImageContentPart = WireFileContentPart | WireImageUrlContentPart
 
 /** Ordered input part accepted by a multimodal user message. */
 export type WireUserContentPart = WireTextContentPart | WireImageContentPart

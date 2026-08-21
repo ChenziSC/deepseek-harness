@@ -15,7 +15,7 @@ export const name = 'client-ui-settings-plugins-invariant'
 export const inject = ['invariants']
 
 /**
- * 没有运行时不变量：这是浏览器端设置界面，其 Node 端不拥有事件流或可变运行时数据；
+ * No runtime invariant: 这是浏览器端设置界面，其 Node 端不拥有事件流或可变运行时数据；
  * 分层和写入拒绝属于 Host 约定，由拥有相关行为的插件和 api-proxy 覆盖。
  */
 const install: InvariantInstaller = () => {}

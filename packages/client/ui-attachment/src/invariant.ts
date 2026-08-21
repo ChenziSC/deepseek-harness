@@ -15,7 +15,7 @@ export const name = 'client-ui-attachment-invariant'
 export const inject = ['invariants']
 
 /**
- * 无运行时 invariant：本包只贡献由 effect 拥有的 Slot 条目；Slot 注册表拥有其生命周期并
+ * No runtime invariant: 本包只贡献由 effect 拥有的 Slot 条目；Slot 注册表拥有其生命周期并
  * 校验声明。
  */
 const install: InvariantInstaller = () => {}

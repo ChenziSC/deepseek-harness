@@ -29,15 +29,11 @@ export interface SessionsPort {
   /** 可观察列表快照；只读，写操作保留在 sessions 域内部。 */
   readonly list: ObservableSnapshot<SessionsPortList>
   /**
-   * 在 Host 上创建或显式接管一个 session。
-   * @param opts - 目标 workspace，以及可选的已确认空白复用 ID。
-   * @returns 创建或接管的 session ID。
+   * 在 Host 上创建一个 session。
+   * @param opts - 目标 workspace。
+   * @returns 新 session 的 ID。
    */
-  create(opts: {
-    workspaceId: WorkspaceId
-    sessionId?: SessionId
-    reuseWorkspaceBlank?: true
-  }): Promise<SessionId>
+  create(opts: { workspaceId: WorkspaceId }): Promise<SessionId>
   /**
    * 选择一个 session 作为当前项。
    * @param id - session ID，必须存在于列表 store。

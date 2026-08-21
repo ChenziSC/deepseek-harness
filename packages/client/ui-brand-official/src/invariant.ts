@@ -15,7 +15,7 @@ export const name = 'client-ui-brand-official-invariant'
 export const inject = ['invariants']
 
 /**
- * 无运行时 invariant：本包不保留可变状态，三个 Slot 占位组件通过同一个事务 effect 安装
+ * No runtime invariant: 本包不保留可变状态，三个 Slot 占位组件通过同一个事务 effect 安装
  * 与离开。
  */
 const install: InvariantInstaller = () => {}

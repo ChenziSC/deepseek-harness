@@ -15,7 +15,7 @@ export const name = 'client-web-invariant'
 export const inject = ['invariants']
 
 /**
- * 无运行时不变量：Vite 入口 shell 只包含启动衔接和模块表播种，不产生 Cordis
+ * No runtime invariant: Vite 入口 shell 只包含启动衔接和模块表播种，不产生 Cordis
  * 事件，也不持有跨插件可变状态。Web 冒烟 e2e 通过真实载体验证启动链
  * （加载页 → 结算 → 一次切换 UI）。
  */

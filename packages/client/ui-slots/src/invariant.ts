@@ -15,7 +15,7 @@ export const name = 'client-ui-slots-invariant'
 export const inject = ['invariants']
 
 /**
- * 无运行时不变量：这是零依赖的纯注册表核心，自身不发送 Cordis 事件；事件桥及其
+ * No runtime invariant: 这是零依赖的纯注册表核心，自身不发送 Cordis 事件；事件桥及其
  * 不变量归 runtime SlotRegistry 包装层所有。define、register、dispose 的顺序直接由
  * 本包行为规格验证。
  */

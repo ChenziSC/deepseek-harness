@@ -75,7 +75,7 @@ A request does not make the CLI call one large function. The application first l
 
 1. **Claim input:** `ReactLoopAgent.preStep()` claims target messages from the inbox and assembles the system-prompt context for this step.
 2. **Establish boundaries:** `ReactLoopAgent.turn()` appends `turn/start` and `step/start`, then records claimed messages as `user/message` events.
-3. **Request the model:** `ReactLoopAgent.step()` resolves the model target, collects tool schemas, issues the LLM request, and records streaming output.
+3. **Request the model:** `ReactLoopAgent.step()` resolves the model target, collects tool schemas, and uses `prepareCall()` to bind capability checks and the actual stream to one provider-configuration snapshot before recording streaming output.
 4. **Execute tools:** [`packages/core/agent-loop/src/tool-calls.ts`](../packages/core/agent-loop/src/tool-calls.ts) pairs tool calls with results. New inbox messages may enter the next step.
 5. **Determine the ending:** The loop appends `step/end` and `turn/end`, preserving a structured completed, max-tokens, blocked, aborted, or error reason.
 
@@ -143,20 +143,22 @@ A request does not make the CLI call one large function. The application first l
 
 **Checkpoint:** Explain why synchronous `require` cannot wait for a module that has not arrived and why the Host must send providers first according to the external dependency graph.
 
-## Lesson 8: Input, attachments, settings, and multiple views
+## Lesson 8: Input, attachments, request projection, settings, and multiple views
 
-**Concept goal:** Understand that browser input does not send a string directly. It crosses an input state machine, attachment envelope, Host admission, Session events, and view projections.
+**Concept goal:** Understand that browser input does not send a string directly and images are not copied unchanged into every model request. Input crosses draft state, Host admission, provider-independent durable normalization, route-specific request projection, provider wire representation, and view projection.
 
 **Runtime blocks:**
 
 1. **Input state machine:** [`packages/client/ui-conversation/src/client/input/machine.ts`](../packages/client/ui-conversation/src/client/input/machine.ts) manages draft phases. `facade.ts` maps UI actions to submission transactions.
-2. **Attachment ownership:** [`packages/client/ui-attachment/README.md`](../packages/client/ui-attachment/README.md) explains the distinct lifecycles of draft attachments, submission envelopes, and historical images.
-3. **Plugin settings:** [`packages/client/ui-settings/README.md`](../packages/client/ui-settings/README.md) explains how plugin-owned schemas enter the unified settings UI through a Host mirror.
-4. **Parallel views:** Chat and [`packages/client/ui-trajectory/README.md`](../packages/client/ui-trajectory/README.md) consume the same event window but own separate Definitions, assembler state, and renderers.
+2. **Admission and durable normalization:** [`packages/host/apiproxy/src/api-proxy.ts`](../packages/host/apiproxy/src/api-proxy.ts) atomically admits the whole image batch before appending the message event. [`packages/attachment/attachment-local/src/normalization.ts`](../packages/attachment/attachment-local/src/normalization.ts) converges format, orientation, colour space, and size into a provider-independent normalized object. The Session log stores only its content-addressed reference.
+3. **Route request projection:** [`packages/attachment/attachment-local/src/request-image.ts`](../packages/attachment/attachment-local/src/request-image.ts) generates a deterministic request version under the model route's pixel and encoded-byte budgets. Its variant id covers the source attachment identity and every transformation policy, allowing cache reuse without leaking provider limits into durable storage.
+4. **Request capacity and provider representation:** [`packages/llm/llm/src/content.ts`](../packages/llm/llm/src/content.ts) replaces the oldest excess images with deterministic English placeholders. [`packages/llm/llm-deepseek/src/adapter.ts`](../packages/llm/llm-deepseek/src/adapter.ts) first represents every retained image through a Files API file id; if any resolution fails, it re-trims and reserializes the whole request under the base64 bound so one request never mixes representations. A pi-ai route builds its base64 Context from the same request versions.
+5. **Plugin settings:** [`packages/client/ui-settings/README.md`](../packages/client/ui-settings/README.md) explains how plugin-owned schemas enter the unified settings UI through a Host mirror.
+6. **Parallel views:** Chat and [`packages/client/ui-trajectory/README.md`](../packages/client/ui-trajectory/README.md) consume the same event window but own separate Definitions, assembler state, and renderers.
 
-**Observation:** Send one message with an image and record when the draft image id, Host admission, durable event, and historical image read occur.
+**Observation:** Send an image that needs scaling and record its draft id, Host admission, normalized attachment id, request variant id, and final wire representation. Then make Files API resolution fail and verify that every retained image changes to base64 while the Session events and durable references remain unchanged.
 
-**Checkpoint:** Explain why attachments, settings, or Trajectory cannot be implemented as temporary internals of `ui-conversation` alone.
+**Checkpoint:** Explain why durable storage owns a provider-independent normalized image, the route creates a separate request version, the Adapter chooses file id or base64, and none of those three responsibilities belongs in temporary `ui-conversation` state.
 
 ## Lesson 9: Subagents, background jobs, and experimental Agent Teams
 

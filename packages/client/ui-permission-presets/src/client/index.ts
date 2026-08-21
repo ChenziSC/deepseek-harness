@@ -6,7 +6,7 @@
  * 渲染的同一个 Host 计算 select；选择后提交 `/permission <preset>` 命令行，因此
  * 两个界面共用一条写入路径，推送的投影 frame 是唯一确认。Full access 行采用与
  * 编辑器胶囊相同的显式风险门，模态机制由共享 popup 外壳拥有。General 设置行则
- * 通过 Host Settings API 单独写入新会话及合格已确认空白复用所用的默认 preset。
+ * 通过 Host Settings API 单独写入后续新建会话所用的默认 preset。
  */
 import type { ConnectionHandle } from '@deepseek-ai/dsh-api-remotes/client'
 // 仅类型：引入 locale 插件的 Context 合并（ctx.locale）。

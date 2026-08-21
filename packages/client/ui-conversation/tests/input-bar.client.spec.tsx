@@ -1506,7 +1506,7 @@ describe('command launcher chrome and control seats', () => {
     }
     const { view } = bench({ permissions, command })
     const trigger = view.getByLabelText(/^访问模式/) as HTMLButtonElement
-    // Product-label display is presentation only; the menu ids stay machine names.
+    // 中文标签只影响展示；菜单 id 仍保持机器值。
     expect(trigger.textContent).toBe('仅可查看')
     expect([...trigger.querySelectorAll('svg')]
       .every(icon => icon.closest('[aria-hidden="true"]') !== null)).toBe(true)
@@ -1523,26 +1523,7 @@ describe('command launcher chrome and control seats', () => {
     expect((view.getByLabelText(/^访问模式/) as HTMLButtonElement).disabled).toBe(false)
   })
 
-  it('the Access chip preserves host labels for built-in preset values', () => {
-    const permissions = {
-      options: [
-        { value: 'read-only', name: 'Review Only' },
-        { value: 'workspace-write', name: 'Project Files' },
-        { value: 'danger-full-access', name: 'Operator Mode' },
-        { value: 'custom-mode', name: 'custom-mode' },
-        { value: '__proto__', name: '__proto__' },
-      ],
-      currentValue: 'workspace-write',
-    }
-    const { view } = bench({ permissions })
-    const trigger = view.getByLabelText(/^访问模式/) as HTMLButtonElement
-    expect(trigger.textContent).toBe('Project Files')
-    fireEvent.click(trigger)
-    expect(view.getAllByRole('menuitem').map(item => item.textContent))
-      .toEqual(['Review Only', 'Project Files', 'Operator Mode', 'Custom Mode', '__proto__'])
-  })
-
-  it('requires explicit risk acknowledgement before submitting full access', async () => {
+  it('requires explicit risk acknowledgement before submitting Full access', async () => {
     const command = vi.fn(() => Promise.resolve(true))
     const permissions = {
       options: [
@@ -1571,7 +1552,7 @@ describe('command launcher chrome and control seats', () => {
     await act(async () => {})
   })
 
-  it('cancels a full access selection without changing permission and resets acknowledgement', () => {
+  it('cancels a Full access selection without changing permission and resets acknowledgement', () => {
     const command = vi.fn(() => Promise.resolve(true))
     const permissions = {
       options: [
@@ -1597,7 +1578,7 @@ describe('command launcher chrome and control seats', () => {
     expect((view.getByRole('button', { name: '启用完全权限' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('revokes an open full access confirmation when the task locks', () => {
+  it('revokes an open Full access confirmation when the task locks', () => {
     const command = vi.fn(() => Promise.resolve(true))
     const permissions = {
       options: [
@@ -1615,7 +1596,7 @@ describe('command launcher chrome and control seats', () => {
     expect(command).not.toHaveBeenCalled()
   })
 
-  it('resets an open full access confirmation when switching tasks', () => {
+  it('resets an open Full access confirmation when switching tasks', () => {
     const command = vi.fn(() => Promise.resolve(true))
     const permissions = {
       options: [
