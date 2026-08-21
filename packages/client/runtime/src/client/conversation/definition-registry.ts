@@ -1,23 +1,23 @@
 import { Service } from '@deepseek-ai/cordis'
 
-/** Shared lifecycle and stable-entry storage for one Conversation Definition registry. */
+/** Conversation Definition 注册表共用的生命周期和稳定条目存储。 */
 export abstract class ConversationDefinitionRegistry<Definition> extends Service {
   protected readonly definitions = new Map<string, Definition>()
   private listeners = new Set<() => void>()
   private cached: readonly Definition[] = []
 
   /**
-   * Return reference-stable Definitions in registration order.
-   * @returns current Definitions.
+   * 按注册顺序返回引用稳定的 Definitions。
+   * @returns 当前 Definitions。
    */
   entries(): readonly Definition[] {
     return this.cached
   }
 
   /**
-   * Observe low-frequency registry changes.
-   * @param listener - synchronous invalidation callback.
-   * @returns unsubscribe callback.
+   * 观察低频注册表变化。
+   * @param listener - 同步失效回调。
+   * @returns 取消订阅回调。
    */
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener)
@@ -25,12 +25,12 @@ export abstract class ConversationDefinitionRegistry<Definition> extends Service
   }
 
   /**
-   * Register one uniquely keyed Definition for the caller's lifetime.
-   * @param key - registry-local unique key.
-   * @param definition - contributed Definition.
-   * @param duplicateMessage - error raised when the key is already owned.
-   * @param effectName - Cordis effect diagnostic label.
-   * @returns idempotent disposer.
+   * 在调用方生命周期内注册一个键唯一的 Definition。
+   * @param key - 注册表内唯一键。
+   * @param definition - 贡献的 Definition。
+   * @param duplicateMessage - 键已被占用时抛出的错误消息。
+   * @param effectName - Cordis effect 诊断标签。
+   * @returns 幂等 disposer。
    */
   protected registerDefinition(
     key: string,
@@ -52,7 +52,7 @@ export abstract class ConversationDefinitionRegistry<Definition> extends Service
     return () => { void dispose() }
   }
 
-  /** Refresh cached entries and synchronously invalidate subscribers. */
+  /** 刷新缓存条目并同步通知订阅者失效。 */
   protected refresh(): void {
     this.cached = [...this.definitions.values()]
     for (const listener of this.listeners) listener()

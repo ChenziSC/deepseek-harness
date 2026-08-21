@@ -232,7 +232,9 @@ export function apply(ctx: Context, config: Config = {}): void {
     )
   }
 
-  // Cross-call guidance belongs in the prompt rather than one-call schema prose.
+  // 跨调用指引属于 Prompt，不应放进只描述单次调用的 schema 文本。
+  // 下方运行时英文的中文译文：检查每个 bash 结果中的 [exit code: N] 标记；继续工作前
+  // 先调查失败原因。保留英文原文可避免改变模型的失败处理行为与快照。
   ctx.systemPrompt.section({
     name: 'tool:bash',
     order: 105,

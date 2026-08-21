@@ -9,6 +9,8 @@
 - id: persona
   name: '@deepseek-ai/dsh-persona'
   config:
+    # 中文译文（仅供学习和维护，不参与运行时）：你是一名乐于助人的软件工程助手。
+    # complete 与 includeRuntimeContext: false 使这句成为唯一 system prompt。
     text: You are a helpful software engineer assistant.
     complete: true
     includeRuntimeContext: false

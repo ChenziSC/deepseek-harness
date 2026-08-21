@@ -313,6 +313,10 @@ export function applyWebSearchTool(
   timeoutMs: number,
   fetchEnabled: boolean,
 ): void {
+  // 下方两段英文会按 web_fetch 是否可用选择其一，作为 web_search 的 system prompt 指引。
+  // 中文译文：使用 web_search 获取当前网络信息；结果包含可选答案和来源 URL。若可用，
+  // 需要某条结果全文时继续调用 web_fetch；使用信息时，以 Markdown 链接引用相关 URL。
+  // 若 web_fetch 不可用，则应直接引用搜索结果 URL。运行时原文保持不变。
   ctx.systemPrompt.section({
     name: 'tool:web_search',
     order: 110,

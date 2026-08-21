@@ -1,6 +1,6 @@
 /**
- * Real-UI assembly closure. The whole layout tree hangs from the built-in
- * `root` slot, which is the only ctx-level slot render in the application.
+ * 真实 UI 的装配闭包。整个布局树挂在内置 `root` slot 下；这是应用中唯一一次
+ * ctx 级 slot 渲染。
  */
 import type { ReactNode } from 'react'
 import type { Context } from '@deepseek-ai/cordis'
@@ -8,16 +8,16 @@ import { bindSnapshotSelector } from './bind.ts'
 import { DocumentTitle } from './DocumentTitle.tsx'
 import type {} from '@deepseek-ai/dsh-client-runtime/client'
 
-/** Inputs available after the UI renderer's inject set activates. */
+/** UI renderer 的 inject 集合激活后可用的装配输入。 */
 export interface AssemblyDeps {
-  /** Client context carrying the slots and sessions services. */
+  /** 携带 slots 和 sessions 服务的客户端上下文。 */
   ctx: Context
 }
 
 /**
- * Build the assembled application factory.
- * @param deps - Active UI-renderer dependencies.
- * @returns Factory producing the application React tree.
+ * 创建已装配应用的工厂。
+ * @param deps - 已激活的 UI renderer 依赖。
+ * @returns 生成应用 React 树的工厂。
  */
 export function buildRenderApp(deps: AssemblyDeps): () => ReactNode {
   const { ctx } = deps

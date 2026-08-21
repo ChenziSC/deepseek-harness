@@ -36,7 +36,7 @@ describe('dsh SOURCE launcher (node --import tsx/esm)', () => {
       throw new Error(`dsh source launch did not exit within 25s. stdout:\n${result.stdout}\nstderr:\n${result.stderr}`)
     }
     expect(result.exitCode).not.toBe(0)
-    expect(result.stderr).toContain('--profile <name> is required')
+    expect(result.stderr).toContain('必须提供 --profile <name>')
     expect(result.stdout).toBe('')
   }, 30_000)
 })

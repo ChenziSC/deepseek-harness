@@ -66,6 +66,8 @@ declare module '@deepseek-ai/cordis' {
  */
 export const EXIT_PLAN_MODE = 'exit_plan_mode'
 
+// 中文说明：`section` 是部署提供、激活 Plan Mode 时直接发送给模型的 system prompt 段；
+// 具体英文原文位于组合配置，那里维护完整中文译文。
 /** Deployment-owned plan guidance. */
 export interface PlanModeConfig {
   /** Guidance rendered as the `plan:policy` prompt section while plan mode is active. */
@@ -86,6 +88,11 @@ const EXIT_DESCRIPTION
   + 'Send the COMPLETE plan as markdown, starting with a # heading that names it. '
   + 'The user may approve (carry out the plan from your next step) or keep '
   + 'planning — their feedback comes back in the tool result; revise and present again.'
+
+// 上方英文是 exit_plan_mode 的模型可见 Tool 描述。中文译文：仅在 Plan Mode 中使用。
+// 提交计划供用户评审，通过后离开 Plan Mode。必须发送完整 Markdown 计划，并以命名计划的
+// `#` 标题开头。用户可以批准（从下一步开始执行）或继续规划；后者的反馈会随 Tool 结果
+// 返回，此时应修订后再次提交。运行时 schema 原文保持不变。
 
 /** The plan's first markdown heading (any level), or `undefined` when it has none. */
 function firstHeading(plan: string): string | undefined {
@@ -240,6 +247,8 @@ export class PlanModeController extends Service {
     })
     ctx.effect(() => () => { disposed = true }, 'dsh-plan-mode: close service lifetime')
 
+    // 激活时，这里把部署配置中的 section 原样加入 system prompt；组合配置中的英文
+    // Prompt 旁附有完整中文译文，运行时值不在此翻译。
     ctx.systemPrompt.section({
       name: 'plan:policy',
       order: 50,

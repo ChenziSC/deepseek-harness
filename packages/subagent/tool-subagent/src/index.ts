@@ -465,6 +465,10 @@ export function apply(ctx: Context, config: Config): void {
     // The section follows provider availability without its own manual
     // lifecycle: empty text is omitted from rendered prompts while the tool is
     // absent, and the registration itself stays owned by this plugin fiber.
+    // 下方动态英文指引的中文译文：默认在后台使用 toolName。独立委派应在一条 assistant
+    // 消息中一起启动，并在运行期间继续有用工作；仅当下一步依赖子 Agent 结果时才设置
+    // run_in_background: false。后台运行结束后，runtime 会发送包含结果和最终 assistant
+    // 消息的通知。toolName 由部署配置插入，运行时原文保持不变。
     ctx.systemPrompt.section({
       name: `tool:${toolName}`,
       order: SUBAGENT_SECTION_ORDER,

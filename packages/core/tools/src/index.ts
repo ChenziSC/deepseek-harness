@@ -55,6 +55,9 @@ const COLLAPSE_SECTION_ORDER = 99
  * (the call fails) and the route (inside the program), because a rule the
  * model can only discover by being denied is one it corrects too late.
  */
+// 下方英文在有效 mode 为 code 时发送给模型。中文译文：run_code 是唯一可以直接调用的
+// Tool；直接调用任何其他 Tool 都会失败。下方 SDK 声明的所有 Tool 都必须从程序内部访问。
+// 运行时原文保持不变，因为它直接约束 Tool 调用格式与错误恢复。
 const CODE_ONLY_INSTRUCTION = `\`${RUN_CODE_NAME}\` is the only tool you can call directly — a tool call naming any other tool fails. Reach every tool the SDK declares below from inside the program.`
 
 const SDK_RENDERERS: Record<string, (schemas: ToolSdkSchema[]) => string> = {
@@ -856,8 +859,8 @@ export class ToolRuntime extends Service {
     return {
       name: 'tools:code-only',
       order: COLLAPSE_SECTION_ORDER,
-      // The SAME predicate the executor denies by, so the prompt cannot state
-      // a rule the registry does not enforce (see `collapses`).
+      // 使用与执行器拒绝调用相同的判断条件，使 Prompt 不会声明注册表未强制执行的规则
+      //（参见 `collapses`）。
       text: context => this.modeFor(context.scope) === 'code' ? CODE_ONLY_INSTRUCTION : '',
     }
   }
@@ -876,7 +879,9 @@ export class ToolRuntime extends Service {
     return {
       name: 'tools:sdk',
       order: SDK_SECTION_ORDER,
-      // Regenerate from the calling scope's visible tools in stable order.
+      // 以稳定顺序，根据调用 scope 可见的 Tool 重新生成 SDK。生成内容包含模型必须遵守的
+      // API/类型约束，属于机器相关 Prompt，因此不翻译；各 Tool 的中文用途见相邻源码注释
+      // 与中文文档。
       text: (context) => {
         const mode = this.modeFor(context.scope)
         if (mode === 'native') return ''

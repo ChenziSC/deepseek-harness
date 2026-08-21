@@ -1,7 +1,6 @@
 /**
- * Browser UI renderer. It installs the slot renderer after its Cordis
- * dependencies activate and exposes the mount operation used by the web boot
- * kernel after the complete client roster settles.
+ * 浏览器 UI 渲染器。Cordis 依赖激活后安装 slot renderer，并公开挂载操作；完整的
+ * 客户端插件名单结算后，Web 启动内核通过该操作接管页面。
  */
 import { createElement, useLayoutEffect, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
@@ -11,7 +10,7 @@ import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
 import { createSlotRenderer } from './scoped-slots.tsx'
 import { buildRenderApp } from './app.tsx'
 
-/** Selector hook over a session's conversation snapshot. */
+/** 基于会话对话快照的选择器钩子。 */
 export type UseSession<Snap extends object = object> = SnapshotSelectorHook<Snap>
 
 export type {
@@ -20,24 +19,24 @@ export type {
 } from '@deepseek-ai/dsh-client-ui-slots'
 export type { SessionProviderProps } from './session-provider.tsx'
 
-/** Mount operation exposed to the framework-free boot kernel. */
+/** 向不依赖 UI 框架的启动内核公开的挂载操作。 */
 export interface UiRendererService {
   /**
-   * Mount the assembled application into the supplied element.
-   * @param container - Application mount point.
-   * @returns Disposer that unmounts the React root.
+   * 将已装配应用挂载到给定元素。
+   * @param container - 应用挂载点。
+   * @returns 卸载 React 根节点的 disposer。
    */
   mount: (container: HTMLElement) => () => void
 }
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
-    /** Mount face provided after the UI renderer activates. */
+    /** UI renderer 激活后提供的挂载接口。 */
     uiRenderer: UiRendererService
   }
 }
 
-/** Services required before application assembly. */
+/** 装配应用前必须就绪的服务。 */
 export const inject = ['slots', 'sessions']
 
 interface BootSnapshot {
@@ -45,7 +44,7 @@ interface BootSnapshot {
   html: string
 }
 
-/** Hydrate the kernel-owned loading DOM before replacing it with the application. */
+/** 先水合启动内核所有的加载 DOM，再用应用替换它。 */
 function BootHandoff(props: { app: () => ReactNode; boot: BootSnapshot }): ReactNode {
   const [ready, setReady] = useState(false)
   useLayoutEffect(() => { setReady(true) }, [])
@@ -57,7 +56,7 @@ function BootHandoff(props: { app: () => ReactNode; boot: BootSnapshot }): React
   })
 }
 
-/** Mount React while preserving the framework-free boot DOM through hydration. */
+/** 通过水合保留不依赖框架的启动 DOM，同时挂载 React。 */
 function mountApp(container: HTMLElement, app: () => ReactNode): Root {
   const boot = container.querySelector<HTMLElement>(':scope > [data-dsh-boot]')
   if (boot !== null) {
@@ -72,8 +71,8 @@ function mountApp(container: HTMLElement, app: () => ReactNode): Root {
 }
 
 /**
- * Install the slot renderer and provide the application mount face.
- * @param ctx - Plugin context.
+ * 安装 slot renderer，并提供应用挂载接口。
+ * @param ctx - 插件上下文。
  */
 export function apply(ctx: Context): void {
   ctx.slots.install(createSlotRenderer())

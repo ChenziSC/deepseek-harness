@@ -87,6 +87,19 @@ const RALPH_META = {
  * Fixed, deployment-owned orchestration. The model supplies data only; it
  * cannot alter the loop, provider route, schema, or handoff validation.
  */
+// RALPH_SCRIPT 会在 workflow sandbox 中执行，其中 prompt 数组会发送给每轮全新的子 Agent。
+// 中文译文（仅供学习和维护，不参与运行时）：
+// - 你是前台 Ralph 循环中的一个全新 worker；没有父对话或先前子 Session。不要调用
+//   ralph Tool，因为当前轮已经是它的 worker。
+// - 不可变目标：args.objective。
+// - 当前为第 round 轮，共 args.maxRounds 轮。
+// - 共用 workspace 及当前工作树是长期记忆和事实来源。行动前先检查，保留已有工作，完成
+//   范围内的具体工作并验证修改。先前报告只是有界交接，必须对照 workspace 确认。
+// - 先前结构化交接为 prior。
+// - 返回一份所有字符串都已规范化的报告。有用工作尚存时用 continue，并至少提供一项
+//   nextSteps；只有存在具体证据且没有 nextSteps 时才用 complete；只有缺少人类输入或
+//   外部状态变化就无法取得有意义进展时才用 blocked。除 blocked 外 blocker 必须为空。
+// 脚本本身、schema、状态枚举和英文 Prompt 保持不变，以保护 workflow 行为和机器解析。
 const RALPH_SCRIPT = String.raw`
 const reportSchema = {
   type: 'object',
@@ -404,6 +417,10 @@ function presentResult(args: RalphCallArgs, result: { content: ContentBlock[]; i
 /** Register the fixed Ralph tool and its explicit-ask usage policy. */
 export function apply(ctx: Context, config: Config): void {
   const resolved = resolveConfig(config)
+  // 下方英文是 Ralph Tool 的使用策略。中文译文：只有直接人类明确要求 Ralph 循环或
+  // fresh-agent 迭代执行时才使用 ralph。每轮启动没有对话 seed 的新子 Agent，并以共用
+  // workspace 作为持久记忆。完成与阻塞只是 worker 报告，不是独立评估。普通长期目标用
+  // 同 Session Goal Tool；有界委派或 fan-out 用普通 subagent 或 workflow。运行时不翻译。
   ctx.systemPrompt.section({
     name: 'tool:ralph',
     order: 116,

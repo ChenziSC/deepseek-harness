@@ -1,81 +1,74 @@
 /**
- * The settings-namespace scope contract. The type lives here, in the common
- * dependency of every feature that owns a preference, while the implementation
- * and its Host transport live with the Settings surface
- * (`dsh-client-ui-settings`): a feature service accepts a scope through
- * `attachSettings` without depending on the surface that binds it, which would
- * otherwise close a reference cycle.
+ * 设置命名空间 scope 接口。类型放在这里，因为这是所有拥有偏好设置的功能所依赖的
+ * 公共包；实现和 Host 传输则随 Settings 界面（`dsh-client-ui-settings`）提供。功能
+ * 服务通过 `attachSettings` 接收 scope，无需依赖负责绑定该 scope 的界面，从而避免
+ * 形成循环引用。
  */
 
-/** Client-side sync state of one settings namespace. */
+/** 一个设置命名空间在客户端的同步状态。 */
 export interface SettingsScopeSnapshot<T> {
   /**
-   * `loading` until the first accepted section, `ready` while one stands, and
-   * `unavailable` when the namespace is not exposed to this client or the
-   * connection keeps preferences process-local (memory mode).
+   * 首个 section 被接受前为 `loading`；已有有效 section 时为 `ready`；命名空间未向
+   * 本客户端公开，或连接将偏好设置保留在进程内（memory 模式）时为 `unavailable`。
    */
   status: 'loading' | 'ready' | 'unavailable'
-  /** Last accepted schema-resolved section; undefined before the first acceptance. */
+  /** 最近接受并经 schema 解析的 section；首次接受前为 undefined。 */
   value: T | undefined
   /**
-   * Composition layer the Host resolved {@link value} over, when the owning
-   * plugin declared one. What a field reverts to once cleared.
+   * 所有者插件声明组合层时，Host 据此解析 {@link value}。字段被清除后会回退到此层。
    */
   base: unknown
   /**
-   * Raw user layer as stored, when one exists. A field's PRESENCE here is what
-   * marks it overridden — an override whose value equals the composition
-   * default is still an override, and comparing values could not see it.
+   * 存在时保存原始用户层。字段是否在这里出现决定它是否被覆盖；即使覆盖值等于组合
+   * 默认值，仍然属于覆盖，因此不能只比较值。
    */
   user: unknown
-  /** Namespace revision fencing the next write; undefined before the first Host view. */
+  /** 用于隔离下一次写入的命名空间 revision；收到首个 Host 视图前为 undefined。 */
   revision: number | undefined
-  /** Whether the Host document accepts writes; memory mode never does. */
+  /** Host 文档是否接受写入；memory 模式始终不接受。 */
   writable: boolean
-  /** `host` syncs with the Host document; `memory` keeps a remote browser process-local. */
+  /** `host` 与 Host 文档同步；`memory` 将远程浏览器设置保留在进程内。 */
   mode: 'host' | 'memory'
 }
 
-/** Domain-owned description of one settings namespace consumed by a browser plugin. */
+/** 业务域拥有、供浏览器插件使用的设置命名空间说明。 */
 export interface SettingsScopeSpec<T> {
-  /** Settings namespace registered by the owning Host plugin. */
+  /** 所属 Host 插件注册的设置命名空间。 */
   namespace: string
   /**
-   * Narrow one wire section; undefined keeps the last accepted value. The
-   * default validates the section against the namespace's own serialized wire
-   * schema, so domains add a decoder only to narrow beyond that schema.
+   * 收窄一份传输 section；返回 undefined 时保留最近接受的值。默认逻辑按命名空间自身
+   * 的序列化传输 schema 校验 section，因此业务域只有需要进一步收窄时才添加 decoder。
    */
   decode?: (section: unknown) => T | undefined
 }
 
 /**
- * Reactive owner handle over one namespace's durable section — the browser
- * mirror of the Host-side `SettingsScope` owner seam. Domain services read
- * and observe the snapshot and route explicit user choices through `set`.
+ * 某命名空间持久 section 的响应式所有者 handle，是 Host 端 `SettingsScope` 所有者
+ * 接口在浏览器中的镜像。业务域服务读取、观察快照，并通过 `set` 提交用户明确选择。
  */
 export interface SettingsScope<T> {
-  /** @returns the current sync snapshot (stable reference until the next change). */
+  /** @returns 当前同步快照；下次变化前引用保持稳定。 */
   getSnapshot(): SettingsScopeSnapshot<T>
   /**
-   * Observe snapshot replacements.
-   * @param listener - invoked after each snapshot change.
-   * @returns the disposer removing this listener.
+   * 观察快照替换。
+   * @param listener - 每次快照变化后调用。
+   * @returns 移除此监听器的 disposer。
    */
   subscribe(listener: () => void): () => void
   /**
-   * Queue one field write. Rapid writes preserve mutation order, each carries
-   * the latest known namespace revision, and only the latest settlement may
-   * publish; a rejected or failed latest write reloads Host state instead.
-   * @param field - scalar field inside the namespace section.
-   * @param value - JSON-shaped value selected by the user.
-   * @returns settlement after the write and any latest-write recovery read.
+   * 将一次字段写入排队。连续快速写入会保持修改顺序，每次都携带最新已知命名空间
+   * revision，且只有最新请求完成时可以发布；若最新写入被拒绝或失败，则改为重新加载
+   * Host 状态。
+   * @param field - 命名空间 section 内的标量字段。
+   * @param value - 用户选择的 JSON 结构值。
+   * @returns 写入及必要的最新写入恢复读取完成后的 Promise。
    */
   set(field: string, value: unknown): Promise<void>
   /**
-   * Queue one field clear, so the field re-inherits the composition layer.
-   * Shares {@link set}'s ordering, revision, and recovery contract.
-   * @param field - scalar field inside the namespace section.
-   * @returns settlement after the clear and any latest-write recovery read.
+   * 将一次字段清除排队，使该字段重新继承组合层。排序、revision 和恢复约定与
+   * {@link set} 相同。
+   * @param field - 命名空间 section 内的标量字段。
+   * @returns 清除及必要的最新写入恢复读取完成后的 Promise。
    */
   unset(field: string): Promise<void>
 }

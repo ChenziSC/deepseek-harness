@@ -23,6 +23,9 @@ export const STRUCTURED_OUTPUT_TOOL = 'structured_output'
  * the tool-guidance band) scoped prompt section: the demand travels with the
  * tool, as ordinary prompt state of exactly one agent.
  */
+// 下方英文会发送给要求结构化输出的子 Agent。中文译文：得到最终答案后，必须调用
+// structured_output Tool，并让参数与其参数 schema 精确匹配；不能用普通文本答案结束，
+// 只有该 Tool 调用才算结果。运行时原文保持不变，因为它直接约束终止与解析行为。
 export const STRUCTURED_OUTPUT_INSTRUCTION
   = 'When you have your final answer, you MUST report it by calling the '
     + `\`${STRUCTURED_OUTPUT_TOOL}\` tool with arguments matching its parameter schema exactly. `

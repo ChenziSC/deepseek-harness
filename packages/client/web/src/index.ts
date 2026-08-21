@@ -1,8 +1,7 @@
 /**
- * Web shell library entry. The shell's product is {@link AppWebEntry} —
- * apps/web's Vite entry runs it against #root. The boot page and fiber-state
- * projection remain internal; the static module table and its platform words
- * form the package's build-time contract.
+ * Web shell 库入口。shell 的产物是 {@link AppWebEntry}，apps/web 的 Vite 入口将其
+ * 运行在 #root 上。启动页和 fiber 状态投影保持内部实现；静态模块表及其平台名称构成
+ * 本包的构建期约定。
  * @module @deepseek-ai/dsh-client-web
  */
 

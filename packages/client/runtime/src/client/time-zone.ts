@@ -1,9 +1,9 @@
-/** Browser-owned time-zone sampling for prompt RPC provenance. */
+/** 浏览器负责采样时区，用于记录 Prompt RPC 来源。 */
 
 /**
- * Resolve the current browser IANA zone for one outbound operation.
- * @returns The browser-provided canonical zone.
- * @throws when the runtime cannot provide a non-empty zone.
+ * 为一次出站操作解析当前浏览器的 IANA 时区。
+ * @returns 浏览器提供的规范时区。
+ * @throws runtime 无法提供非空时区时抛出。
  */
 export function resolvedClientTimeZone(): string {
   const timeZone = new Intl.DateTimeFormat().resolvedOptions().timeZone

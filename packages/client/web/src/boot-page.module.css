@@ -1,4 +1,4 @@
-/* The framework-free boot page cannot depend on theme delivery succeeding. */
+/* 不依赖 UI 框架的启动页不能以主题成功加载为前提。 */
 
 .boot {
   --dsh-boot-bg: #fff;

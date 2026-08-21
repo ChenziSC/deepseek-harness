@@ -138,7 +138,17 @@ export function resolveLanTrust(bindHost: string, extra: readonly string[]): Web
   return { lanAddresses, trustedHosts: [...lanAddresses, ...extra] }
 }
 
-/** Model-visible orientation and acceptance boundary for sessions created through `dsh web`. */
+// 该函数生成通过 `dsh web` 创建的 Session 所见 system prompt 段。中文译文：
+// 你正通过 webUrl 指向的 DeepSeek Harness Web GUI 与用户交互。用户未指定其他目标而说
+// “此页面”“此 GUI”或“此应用”时，指的就是该 GUI。浏览器不会隐式提供 DOM、路由或
+// 截图上下文。client-plugin HMR receiver 已启用，但只有同一 checkout 还运行
+// `pnpm run dev:web` 重建 bundle 时，client-plugin 修改才能无刷新加载；承诺自动更新前
+// 应先确认 watcher。其他修改（apps/web shell 和普通 package）都必须重建受影响的 Web
+// artifact，并刷新页面后在现有 URL 验证。启动另一台 server 不会更新当前 GUI。
+// apps/web 的 Vite entry 只构建 shell，不是独立应用，因为只有 dsh web 注入
+// window.__DSH_BOOT__。除非用户要求，不要启动替代 server；确有需要时，用受管后台 Job
+// 并验证准确 URL。webUrl 在运行时插入；英文原文保持不变以维持模型行为。
+/** 为通过 `dsh web` 创建的 Session 提供模型可见定位与验收范围。 */
 function webSurfacePrompt(webUrl: string): string {
   const updateContract = 'The client-plugin HMR receiver is active, but client-plugin changes reload without a refresh only while '
     + '`pnpm run dev:web` is also running from this same checkout to rebuild their bundles; verify that watcher before promising automatic updates. '
@@ -152,14 +162,14 @@ function webSurfacePrompt(webUrl: string): string {
     + 'Do not start a replacement server unless the user asks; if one is needed, use a managed background job and verify its exact URL.'
 }
 
-/** Resolve the canonical loopback URL from the active Web server. */
+/** 从活动 Web server 解析规范的 loopback URL。 */
 function localWebUrl(ctx: Context): string {
   const port = ctx.get('webServer')?.port
   if (port === undefined) throw new Error('web-app: webServer service missing while resolving Web runtime')
   return `http://${LOOPBACK_HOST}:${String(port)}`
 }
 
-/** Dist location is workspace knowledge of this bundle: resolved through the frontend package exports, not configured. */
+/** Dist 位置属于本 bundle 的 workspace 知识：通过 frontend 包 exports 解析，而非配置。 */
 function resolveDistIndex(): string {
   const require = createRequire(import.meta.url)
   try {
@@ -170,7 +180,7 @@ function resolveDistIndex(): string {
   }
 }
 
-/** Start the maintained platform opener without forwarding Harness credentials. */
+/** 启动受维护的平台 opener，且不转发 Harness 凭据。 */
 function spawnBrowserLauncher(url: string): ChildProcess {
   return spawn(process.execPath, [
     '--input-type=module',

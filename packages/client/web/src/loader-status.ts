@@ -1,16 +1,14 @@
 /**
- * Fiber-state projection vocabulary for the framework-free boot page. The
- * boot chain subscribes to `internal/status` and projects the owning loader
- * entry's current state.
+ * 不依赖框架的启动页所用 fiber 状态投影词汇。启动链订阅 `internal/status`，并投影
+ * 所属 Loader 条目的当前状态。
  * @module @deepseek-ai/dsh-client-web/src/loader-status
  */
 import type { FiberState } from '@deepseek-ai/cordis'
 
 /**
- * Value mirror of cordis's `FiberState` const enum: a const enum has no
- * runtime object to import (and esbuild-based pipelines cannot inline it
- * across modules), so these values mirror the pinned vendored definition
- * while retaining its type (same rationale as dsh-tool-cordis's mirror).
+ * Cordis `FiberState` const enum 的值镜像。const enum 没有可导入的运行时对象，
+ * 基于 esbuild 的流水线也不能跨模块内联，因此这里在保留类型的同时镜像固定的
+ * vendored 定义；理由与 dsh-tool-cordis 的镜像相同。
  */
 export const FIBER_STATE = {
   PENDING: 0 as FiberState.PENDING,
@@ -21,10 +19,10 @@ export const FIBER_STATE = {
   UNLOADING: 5 as FiberState.UNLOADING,
 } as const
 
-/** One entry's projected state label (lower-case face of {@link FiberState}). */
+/** 单个配置项的投影状态标签，即 {@link FiberState} 的小写接口。 */
 export type LoaderEntryState = 'pending' | 'loading' | 'active' | 'failed' | 'disposed' | 'unloading'
 
-/** Label for each fiber state, keyed by member (inlining-safe — no reverse mapping). */
+/** 按成员索引的各 fiber 状态标签；可安全内联，不依赖反向映射。 */
 export const STATE_LABELS: Record<FiberState, LoaderEntryState> = {
   [FIBER_STATE.PENDING]: 'pending',
   [FIBER_STATE.LOADING]: 'loading',

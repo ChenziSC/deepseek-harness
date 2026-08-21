@@ -1,5 +1,5 @@
-/* Shell-owned mount defaults. Theme tokens arrive with the ui-theme client
- * plugin before the loader roster activates. */
+/* Shell 所有的挂载默认值。主题 token 随 ui-theme client 插件到达，早于 Loader 名单
+ * 激活。 */
 
 html,
 body,
@@ -22,17 +22,17 @@ body {
     Arial,
     sans-serif
   );
-  /* Grayscale antialiasing over subpixel rendering: WebKit/Blink and the
-     Firefox macOS equivalent; other engines ignore both lines. */
+  /* 使用灰度抗锯齿而非子像素渲染：分别覆盖 WebKit/Blink 与 Firefox macOS；
+     其他引擎会忽略这两行。 */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: var(--dsw-alias-label-primary, #0f1115);
   background: var(--dsw-alias-bg-base, #fff);
 }
 
-/* Form controls don't inherit the body font (UA sheets pin their families —
-   Chrome buttons fall back to Arial, textareas to monospace), so the app
-   stack is re-applied to them explicitly, as upstream's global reset does. */
+/* 表单控件不会继承 body 字体：UA 样式表固定了字体族，例如 Chrome 按钮回退到
+   Arial、textarea 回退到等宽字体。因此与上游全局 reset 一样，在此显式重新应用
+   应用字体栈。 */
 button,
 input,
 select,
