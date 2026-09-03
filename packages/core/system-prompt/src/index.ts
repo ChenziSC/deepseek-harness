@@ -16,33 +16,25 @@ declare module '@deepseek-ai/cordis' {
   }
 
   interface Events {
-    // 中文说明：对已组装段、上下文、Tool 和变量执行专家 waterfall；分发按 scope 过滤，
-    // 返回值具有最终权威。signal 只控制本次组装；complete 段会在 waterfall 后恢复。
     /**
-     * Expert waterfall over the assembled sections, contexts, tools, and variables.
-     * Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): scoped listeners
-     * receive only that scope's assemblies. The returned value is authoritative.
-     * A supplied signal controls only this explicit assembly request and must not
-     * be retained to control later turns. A registered complete section is
-     * restored after this waterfall, so listeners cannot add to or replace
-     * that scope's system prompt.
-     * @param assembly - the mutable assembly built from registered providers.
-     * @param context - the caller's per-assembly context.
+     * 对已组装的 Section、Context、Tool 和变量执行专家 Waterfall。Scope-filtered dispatch 按 Scope 过滤，
+     * Scope 监听器只接收该 Scope 的组装请求；返回值具有最终权威。传入的 signal 只控制
+     * 当前组装请求，不能保留用于控制后续 Turn。已注册的 Complete Section 会在 Waterfall
+     * 后恢复，因此监听器不能追加或替换该 Scope 的 System Prompt。
+     * @param assembly - 根据已注册 Provider 构造的可变组装结果。
+     * @param context - 调用方为当前组装提供的 Context。
      * @mode waterfall
      */
     'system-prompt/assemble'(this: Scoped<SystemPrompt>, assembly: PromptAssembly, context: AssembleContext, next: () => Promise<PromptAssembly>): Promise<PromptAssembly>
-    // 中文说明：任一 Prompt Provider 变化时发出；全局变化影响所有 scope，因此不做过滤。
     /**
-     * Emitted when any prompt provider changes. This registry notification is
-     * unfiltered because a global change affects every scope.
+     * 任一 Prompt Provider 变化时发出。全局变化会影响所有 Scope，因此该注册表通知不做过滤。
      * @mode emit
      */
     'system-prompt/change'(): void
   }
 }
 
-// 中文说明：一次 Prompt assembly 使用的可合并扩展上下文；scope 选择参与者，signal 控制请求。
-/** Merge-extensible context for one prompt assembly. */
+/** 一次 Prompt 组装使用的可声明合并扩展 Context。 */
 export interface AssembleContext {
   /**
    * Scope whose providers and waterfall listeners participate. When absent,
@@ -53,9 +45,7 @@ export interface AssembleContext {
   signal?: AbortSignal
 }
 
-// 中文说明：一个贡献给 system prompt 的注册表输入；按 order 排序，可动态求值，complete
-// 会把该段作为唯一 system prompt。
-/** One contributed section of the system prompt (registry input). */
+/** 一项贡献给 System Prompt 的注册表输入。 */
 export interface PromptSection {
   /** Unique name — a duplicate registration throws (see {@link SystemPrompt.section}). */
   readonly name: string
@@ -80,8 +70,7 @@ export interface PromptSection {
   readonly complete?: boolean
 }
 
-// 中文说明：动态模型上下文会物化为持久 user-role 快照，按 order 排序，空文本不贡献内容。
-/** Dynamic model context materialized as a durable user-role snapshot. */
+/** 会物化为持久 User Role 快照的动态模型上下文。 */
 export interface PromptContext {
   /** Unique name — a duplicate registration throws (see {@link SystemPrompt.context}). */
   readonly name: string
@@ -91,8 +80,7 @@ export interface PromptContext {
   readonly text: string | ((context: AssembleContext) => string)
 }
 
-// 中文说明：assembly 中已经解析文本、但尚未插值的 PromptSection。
-/** One section of an assembly: {@link PromptSection} with its text resolved. */
+/** 组装结果中的一个 Section：已经解析 text 的 {@link PromptSection}。 */
 export interface AssembledSection {
   /** The contributing section's unique name. */
   name: string
@@ -100,8 +88,7 @@ export interface AssembledSection {
   text: string
 }
 
-// 中文说明：一项已解析、尚未进行变量插值的动态上下文贡献。
-/** One resolved dynamic context contribution. */
+/** 一项已解析的动态 Context 贡献。 */
 export interface AssembledContext {
   /** The contributing context's unique name. */
   name: string
@@ -109,8 +96,7 @@ export interface AssembledContext {
   text: string
 }
 
-// 中文说明：一次 assembly 可见的 Tool schema，以及配置校验使用的限制前名称集合。
-/** Tool schemas visible in one assembly and their pre-restriction name set. */
+/** 一次组装中可见的 Tool Schema，以及应用限制前的名称集合。 */
 export interface ToolProviderResult {
   /** The schemas this provider contributes to THIS assembly. */
   readonly schemas: readonly ToolSchema[]
@@ -118,10 +104,9 @@ export interface ToolProviderResult {
   readonly knownNames?: readonly string[]
 }
 
-// 中文说明：可合并扩展的模型输入；段和上下文渲染时再插值，Tool 已规范排序。
 /**
- * Merge-extensible assembled model input. Sections and contexts remain
- * uninterpolated until rendered; tools are already in canonical order.
+ * 可通过声明合并扩展的模型输入。Section 和 Context 在渲染前保持未插值状态，Tool 已按
+ * 规范顺序排列。
  */
 export interface PromptAssembly {
   sections: AssembledSection[]
@@ -189,9 +174,7 @@ function compareToolNames(a: ToolSchema, b: ToolSchema): number {
   return a.name < b.name ? -1 : a.name > b.name ? 1 : 0
 }
 
-// 中文说明：插件配置定义部署方编写的 system prompt 片段。下方公共 JSDoc 保持英文，
-// 因为配置目录生成器会逐字抽取它；中文配置参考页通过文档配对维护。
-/** Plugin config: the deployment-authored fragment of the system prompt (see {@link Config.persona} for its contract). */
+/** 插件配置：由部署方编写的 System Prompt 片段，具体约定见 {@link Config.persona}。 */
 export interface Config {
   /** Include the fixed DeepSeek Harness identity before the deployment persona (default true). */
   includeHarnessIdentity?: boolean
@@ -341,8 +324,7 @@ class PromptLayer implements ScopeLayer {
   }
 }
 
-// 中文说明：每个模型 step 前组装 Prompt 输入的注册表服务。
-/** Registry service for the prompt inputs assembled before each model step. */
+/** 在每个模型 Step 前组装 Prompt 输入的注册表 Service。 */
 export class SystemPrompt extends Service {
   static Config: z<Config> = z.object({
     includeHarnessIdentity: z.boolean().default(true),
@@ -383,15 +365,11 @@ export class SystemPrompt extends Service {
     if (!(config.includeRuntimeContext ?? true)) this.suppressRuntimeContext()
   }
 
-  // 中文说明：在调用 scope 注册有序 Prompt 段；scoped 段遮蔽同名全局段，重复名称或
-  // 非有限 order 会抛错，注册与释放均发出 change 事件。
   /**
-   * Register an ordered prompt section in the calling context's scope. A scoped
-   * section shadows a global section with the same name; duplicates within one
-   * layer and non-finite orders throw. Registration and disposal emit
-   * `system-prompt/change`.
-   * @param section - the section to register.
-   * @returns the exact Cordis effect disposer.
+   * 在调用方 Context 的 Scope 中注册有序 Prompt Section。Scope Section 会覆盖同名全局项；
+   * 同一层重复名称或非有限 Order 会抛错。注册和释放都会发出 `system-prompt/change`。
+   * @param section - 要注册的 Section。
+   * @returns Cordis Effect 返回的原始 disposer。
    */
   section(section: PromptSection): () => void {
     if (!Number.isFinite(section.order)) {
@@ -404,12 +382,10 @@ export class SystemPrompt extends Service {
     )
   }
 
-  // 中文说明：在调用 scope 注册有序动态上下文；scoped 条目遮蔽同名全局条目。
   /**
-   * Register ordered dynamic context in the calling context's scope. Scoped
-   * entries shadow global entries with the same name.
-   * @param context - the context contribution to register.
-   * @returns the exact Cordis effect disposer.
+   * 在调用方 Context 的 Scope 中注册有序动态 Context。Scope 条目覆盖同名全局条目。
+   * @param context - 要注册的 Context 贡献。
+   * @returns Cordis Effect 返回的原始 disposer。
    */
   context(context: PromptContext): () => void {
     if (!Number.isFinite(context.order)) {
@@ -422,13 +398,10 @@ export class SystemPrompt extends Service {
     )
   }
 
-  // 中文说明：抑制当前 scope 的全部动态运行时上下文，但不改变事实拥有方或强制方；
-  // 多个 suppressor 可独立释放。
   /**
-   * Suppress every dynamic runtime-context contribution in the calling
-   * context's scope without changing the services that own or enforce those
-   * facts. Multiple suppressors remain independently disposable.
-   * @returns the exact Cordis effect disposer.
+   * 抑制调用方 Scope 中的全部动态运行时 Context，但不改变拥有或强制这些事实的 Service。
+   * 多个抑制器可以相互独立地释放。
+   * @returns Cordis Effect 返回的原始 disposer。
    */
   suppressRuntimeContext(): () => void {
     return this.layers.effect(
@@ -438,14 +411,11 @@ export class SystemPrompt extends Service {
     )
   }
 
-  // 中文说明：在调用 scope 注册 Tool schema Provider；全局和匹配的 scoped Provider 都会
-  // 贡献，返回保留名称 TOOL_ORDER_REST 会导致 assembly 失败。
   /**
-   * Register a tool-schema provider in the calling context's scope. Global and
-   * matching scoped providers both contribute; returning the reserved
-   * {@link TOOL_ORDER_REST} name makes assembly fail.
-   * @param provider - evaluated for each assembly with its context.
-   * @returns the exact Cordis effect disposer.
+   * 在调用方 Scope 中注册 Tool Schema Provider。全局和匹配 Scope 的 Provider 都会贡献；
+   * 返回保留名称 {@link TOOL_ORDER_REST} 会导致组装失败。
+   * @param provider - 每次组装时使用该次 Context 求值的 Provider。
+   * @returns Cordis Effect 返回的原始 disposer。
    */
   tools(provider: (context: AssembleContext) => ToolProviderResult): () => void {
     return this.layers.effect(
@@ -455,15 +425,12 @@ export class SystemPrompt extends Service {
     )
   }
 
-  // 中文说明：在调用 scope 注册 Prompt 变量；scoped 值遮蔽全局值，无效或重复名称抛错；
-  // Provider 可返回 undefined，但引用该值的段随后会渲染失败。
   /**
-   * Register a prompt variable in the calling context's scope. Scoped values
-   * shadow globals; invalid or duplicate names throw. A provider may return
-   * `undefined`, but rendering a section that references that value then fails.
-   * @param name - the `[a-z][a-z0-9_]*` reference name.
-   * @param provider - evaluated for each assembly.
-   * @returns the exact Cordis effect disposer.
+   * 在调用方 Scope 中注册 Prompt 变量。Scope 值覆盖全局值；无效或重复名称会抛错。Provider
+   * 可以返回 `undefined`，但之后渲染引用该值的 Section 会失败。
+   * @param name - 符合 `[a-z][a-z0-9_]*` 的引用名称。
+   * @param provider - 每次组装时求值的 Provider。
+   * @returns Cordis Effect 返回的原始 disposer。
    */
   variable(name: string, provider: (context: AssembleContext) => string | undefined): () => void {
     if (!VARIABLE_NAME.test(name)) {
@@ -476,16 +443,12 @@ export class SystemPrompt extends Service {
     )
   }
 
-  // 中文说明：组装全局与 scoped Provider、分离 Tool 参数并排序，再执行 waterfall；
-  // scoped 段和变量遮蔽全局值，complete 段最终恢复为唯一 Prompt 段。
   /**
-   * Assemble global and scoped providers, detach tool parameters, apply
-   * canonical ordering, then run the assembly waterfall. Scoped sections and
-   * variables shadow globals. The returned waterfall value is authoritative
-   * except that an effective complete section is restored afterwards as the
-   * sole prompt section.
-   * @param context - the optional scope and plugin-defined assembly fields.
-   * @returns the post-waterfall assembly with any complete prompt enforced.
+   * 组装全局与 Scope Provider，复制 Tool 参数并应用规范顺序，再执行组装 Waterfall。Scope
+   * Section 和变量覆盖全局值。Waterfall 返回值具有最终权威，但若存在有效 Complete
+   * Section，之后会恢复它并作为唯一 Prompt Section。
+   * @param context - 可选 Scope 以及插件定义的组装字段。
+   * @returns Waterfall 处理后、并已强制应用 Complete Prompt 的组装结果。
    */
   // 让配置失败继续位于已声明的异步错误路径上。
   async assemble(context: AssembleContext = {}): Promise<PromptAssembly> {

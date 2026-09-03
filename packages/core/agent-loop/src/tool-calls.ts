@@ -1,13 +1,10 @@
 /**
- * Schedules one assistant step's tool calls. Exclusive calls form barriers;
- * parallel calls use a bounded rolling pool and are reclassified before start.
- * Dispatch may overlap, while policy, results, and result context remain
- * model-ordered. Abort or an internal scheduler failure stops replenishment
- * and drains started calls.
+ * 调度一个 Assistant Step 中的工具调用。独占调用形成屏障；并行调用进入有上限的滚动池，
+ * 并在启动前重新分类。Dispatch 可以重叠执行，但策略、结果与结果上下文仍按模型顺序处理。
+ * 取消或调度器内部失败会停止补充任务，并等待已启动调用结束。
  *
- * Abort records synthetic error results for skipped calls so replay stays
- * valid. A terminal scheduler failure preserves already-recorded `tool/call`
- * events without fabricating results.
+ * 取消时为跳过的调用写入合成错误结果，使重放日志保持有效。调度器最终失败时保留已经记录的
+ * `tool/call` 事件，但不会伪造结果。
  * @module dsh-agent-loop/tool-calls
  */
 
@@ -38,23 +35,18 @@ interface GroupOutcome {
 }
 
 /**
- * Schedule one assistant step's tool calls by their live concurrency mode.
- * Ordinary completion and abort commit started-call results in order. Abort
- * drains them, records synthetic results for unstarted calls, and returns with
- * the signal still aborted after accepting started-call context through the
- * caller-supplied acceptor (the machine stages it in its next-step inbox for the
- * step boundary). An internal scheduler failure stops new dispatches, drains
- * already-started dispatches, and rejects with the first failure without
- * fabricating tool results.
- * The committed step's AgentLoop driver boundary supplies the initiating Agent
- * that becomes each explicit {@link ToolExecutionInput.agent}.
+ * 按工具当前并发模式调度一个 Assistant Step 中的调用。正常完成或取消时，已启动调用的
+ * 结果都按顺序提交。取消会等待已启动调用结束，为未启动调用写入合成结果，并在接收已启动
+ * 调用的上下文后返回；驱动器会把这些上下文暂存到下一 Step 的 Inbox。调度器内部失败会
+ * 停止新 Dispatch、排空已启动任务，并以首个失败拒绝，不伪造工具结果。当前 AgentLoop
+ * 驱动边界提供发起 Agent，并写入每个 {@link ToolExecutionInput.agent}。
  *
- * @param ctx - loop context that owns the tool registry and carries the initiating Agent.
- * @param turn - current turn number.
- * @param step - current step number.
- * @param toolCalls - assistant calls in model order.
- * @param signal - abort signal shared by the step.
- * @param acceptContext - accepts committed result context for the next step boundary.
+ * @param ctx - 拥有工具注册表并携带发起 Agent 的 Loop Context。
+ * @param turn - 当前 Turn 编号。
+ * @param step - 当前 Step 编号。
+ * @param toolCalls - 按模型顺序排列的 Assistant 工具调用。
+ * @param signal - 当前 Step 共用的取消信号。
+ * @param acceptContext - 接收已提交结果产生的上下文，供下一 Step 边界使用。
  */
 export async function executeToolCalls(
   ctx: Context,
@@ -64,10 +56,12 @@ export async function executeToolCalls(
   signal: AbortSignal,
   acceptContext: (context: UserMessage) => void,
 ): Promise<{ concluded: boolean }> {
+  // requireInitiator 把工具调用明确归属到当前 Agent；工具的 Scope、Session 和权限判断
+  // 都从这个身份继续解析，而不是依赖某个可能串线的全局“当前会话”变量。
   const agent = ctx.agents.requireInitiator()
   const { session } = agent
 
-  // Inputs are distinct because tools/execute wrappers may replace `exec.signal`.
+  // 每次调用都创建独立输入，因为 tools/execute 包装器可能替换 exec.signal。
   const planned: PlannedCall[] = toolCalls.map(block => ({
     block,
     exec: {
@@ -82,7 +76,7 @@ export async function executeToolCalls(
   let next = 0
   let concluded = false
   while (next < planned.length) {
-    // Commit before classifying again so registry changes affect unstarted calls.
+    // 先提交已完成结果再重新分类，使注册表变更可以影响尚未启动的调用。
     // oxlint-disable-next-line typescript/no-non-null-assertion -- bounded by the loop condition
     const first = planned[next]!
     const mode = ctx.tools.executionMode(first.exec).kind
@@ -110,13 +104,10 @@ function parseArguments(raw: string): unknown {
 }
 
 /**
- * Run one exclusive barrier or parallel pool. Later calls are reclassified
- * before start; an exclusive reclassification waits for the current pool to
- * drain and remains for the caller's next barrier. Results and contexts commit
- * in model order. Abort stops starts, drains and commits started calls, accepts
- * their contexts into the owning batch, records results for skipped calls, and
- * returns an aborted outcome. Scheduler failure drains dispatches without
- * committing synthetic recovery results.
+ * 运行一个独占屏障或并行池。后续调用在启动前重新分类；若重新分类为独占调用，则先等待
+ * 当前并行池排空，再留给调用方的下一屏障处理。结果和上下文按模型顺序提交。取消时停止
+ * 启动新调用，排空并提交已启动调用，把它们的上下文加入当前批次，为跳过的调用记录结果，
+ * 并返回已取消结果。调度器失败时排空 Dispatch，但不提交合成恢复结果。
  */
 async function runGroup(
   ctx: Context,
@@ -130,7 +121,7 @@ async function runGroup(
   const { session } = ctx.agents.requireInitiator()
   const { maxParallelToolCalls } = ctx.agentLoop.config
   const slots: (Slot | undefined)[] = group.map(() => undefined)
-  // Started slots retain their `tool/call` seq so the result can cite it.
+  // 已启动槽位保留 tool/call 的 seq，后续结果事件必须引用它。
   const callSeqs: number[] = group.map(() => -1)
   let nextToStart = 0
   let committed = 0
@@ -142,8 +133,10 @@ async function runGroup(
     if (schedulerFailure !== undefined) throw schedulerFailure.error
   }
 
-  // `committed` advances only across contiguous model-order slots.
+  // committed 只跨过模型顺序中连续且已经完成的槽位。
   const commitReady = async (): Promise<void> => {
+    // 并发只覆盖工具主体。最终提交始终从 committed 指针连续向前，较晚完成的调用必须
+    // 等待较早调用，因此日志顺序与模型给出的 tool-call 顺序一致。
     while (committed < group.length) {
       const slot = slots[committed]
       if (slot === undefined) break
@@ -197,7 +190,7 @@ async function runGroup(
 
   const fillPool = async (): Promise<void> => {
     while (!aborted && nextToStart < group.length && inFlight.size < maxParallelToolCalls) {
-      // Re-read later modes after ordered commits so registry changes can create a barrier.
+      // 每次按序提交后重新读取后续调用模式，使注册表变化能够建立新的独占屏障。
       // oxlint-disable-next-line typescript/no-non-null-assertion -- bounded by the loop condition
       const nextCall = group[nextToStart]!
       if (nextToStart > 0 && mode === 'parallel'
@@ -207,14 +200,13 @@ async function runGroup(
       throwSchedulerFailure()
       await commitReady()
       throwSchedulerFailure()
-      // Abort may arrive while pre-execute awaits.
+      // pre-execute 等待期间也可能收到取消信号。
       if (signal.aborted) aborted = true
     }
   }
 
-  // Ordered pre-execute may await; only dispatch/body overlaps. A scheduler
-  // failure stops new dispatches and reaches the turn boundary after every
-  // already-started dispatch settles.
+  // pre-execute 按模型顺序执行并且可能等待，只有 dispatch 和工具主体允许重叠。调度器失败
+  // 后停止发起新调用，等待所有已启动调用结束，再把失败交给 Turn 边界处理。
   try {
     await fillPool()
     while (inFlight.size > 0) {
@@ -223,7 +215,7 @@ async function runGroup(
       throwSchedulerFailure()
       await commitReady()
       throwSchedulerFailure()
-      // Abort may arrive while a tool or ordered commit awaits.
+      // 工具运行或按序提交等待期间也可能收到取消信号。
 
       if (signal.aborted) aborted = true
       await fillPool()
@@ -235,8 +227,8 @@ async function runGroup(
   }
 
   if (aborted) {
-    // Started calls and accepted context settle first; every remaining model
-    // call then receives an ordered synthetic result before the turn aborts.
+    // 先等待已启动调用和已接收上下文稳定，再为剩余模型调用按序写入合成错误结果，最后
+    // 才结束本次 Turn。
     for (const call of group.slice(started)) appendSkippedToolCall(session, turn, step, call.block)
     return { consumed: group.length, aborted: true, concluded }
   }
@@ -282,8 +274,7 @@ function appendToolResult(
     turn, step,
     message,
     ...result.error?.info ? { error: result.error.info } : {},
-    // The tool's private presentation payload (e.g. a result-time diff),
-    // persisted so a UI bridge reproduces the card on replay.
+    // 保存工具私有的展示数据（例如结果产生时的 diff），使 UI 在重放时能够还原同一张卡片。
     ...result.meta !== undefined ? { meta: result.meta } : {},
   }, { surfaceOp: 'append', sourceEventSeqs: [callSeq] })
 }

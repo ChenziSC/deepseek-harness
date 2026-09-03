@@ -102,8 +102,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'agentLoop',
-    summary: 'Concrete agent factory and driver service.',
-    description: 'Concrete agent factory and driver service.',
+    summary: '具体的 Agent 工厂与驱动 Service。',
+    description: '具体的 Agent 工厂与驱动 Service。',
     methods: [
       {
         signature: 'readonly config: ResolvedConfig',
@@ -118,9 +118,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async createAgent(ownerCtx: Context, options: CreateAgentOptions): Promise<AgentHandle>',
-        description: 'Create an owned agent on a caller-supplied session id.',
-        parameters: [{ name: 'ownerCtx', description: 'caller context that structurally owns the lifecycle.' }, { name: 'options', description: 'identities, session seed/metadata, loop options, setup, and cancellation.' }],
-        returns: 'the published handle.',
+        description: '使用调用方提供的 Session id 创建由其所有的 Agent。',
+        parameters: [{ name: 'ownerCtx', description: '在结构上拥有该生命周期的调用方 Context。' }, { name: 'options', description: '身份、Session Seed 与元数据、Loop 选项、setup 和取消信号。' }],
+        returns: '已发布的 Agent 句柄。',
       },
       {
         signature: 'async resume(ownerCtx: Context, options: ResumeAgentOptions): Promise<AgentHandle>',
@@ -132,8 +132,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'agentPresets',
-    summary: 'Registry over the deployment\'s agent presets.',
-    description: 'Registry over the deployment\'s agent presets.\n\nDiscovery is unmemoized: `list()` and `resolve()` re-read the roots on every call so a preset authored while the process runs is visible immediately, and a preset deleted underneath a picker disappears from the next read.',
+    summary: '当前部署的 Agent Preset 注册表。发现结果不缓存：`list()` 和 `resolve()` 每次调用都会 重新读取根目录，使进程运行期间新增的 Preset 立即可见，被删除的 Preset 也会在下一次 读取时消失。',
+    description: '当前部署的 Agent Preset 注册表。发现结果不缓存：`list()` 和 `resolve()` 每次调用都会 重新读取根目录，使进程运行期间新增的 Preset 立即可见，被删除的 Preset 也会在下一次 读取时消失。',
     methods: [
       {
         signature: 'async list(): Promise<AgentPreset[]>',
@@ -150,10 +150,10 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async mount(agentCtx: Context, id?: string): Promise<AgentPreset>',
-        description: 'Compose one agent from a preset: ensure the preset\'s standing mount, then parent the agent\'s scope key to it so the mount\'s registrations and listeners cover this agent.\n\nCall from the agent factory\'s `setup(agentCtx)`; a rejection there rolls the agent creation back, so a broken preset never yields a half-composed session.',
-        parameters: [{ name: 'agentCtx', description: 'the agent\'s scope context.' }, { name: 'id', description: 'the preset id, or `undefined` for {@link defaultId}.' }],
-        returns: 'the preset that was composed, for the caller to record.',
-        throws: ['when the preset is unknown or its composition is unusable.'],
+        description: '使用 Preset 组合一个 Agent：先确保常驻挂载存在，再把 Agent Scope Key 接到该挂载下， 使挂载的注册和监听器覆盖该 Agent。必须从 AgentFactory 的 `setup(agentCtx)` 调用；这里 失败会回滚 Agent 创建，因此损坏的 Preset 不会产生只组合了一半的 Session。',
+        parameters: [{ name: 'agentCtx', description: 'Agent 的 Scope Context。' }, { name: 'id', description: 'Preset id；`undefined` 表示使用 {@link defaultId}。' }],
+        returns: '实际组合的 Preset，供调用方记录。',
+        throws: ['Preset 不存在或组合不可用。'],
       },
       {
         signature: 'composeFrom(agentCtx: Context, parentCtx: Context): string | undefined',
@@ -211,8 +211,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'agents',
-    summary: 'Agent service (`ctx.agents`): tracks live agents and carries the initiating Agent through one process-local asynchronous driver chain.',
-    description: 'Agent service (`ctx.agents`): tracks live agents and carries the initiating Agent through one process-local asynchronous driver chain. Agent *creation* is provided by whichever plugin implements the AgentFactory (`@deepseek-ai/dsh-agent-loop`), registered via setFactory.\n\nInitiator methods provide same-process causal attribution only. Ambient presence is neither liveness proof nor authorization; subjects and owners remain explicit, as does identity at worker, process, persistence, and wire boundaries. Returned Promise boundaries drain during teardown, except a nested lineage that starts an owning-fiber unload is excluded from its own drain.',
+    summary: 'Agent Service（`ctx.agents`）：追踪活跃 Agent，并在一条进程内异步驱动链中传递发起者 Agent。Agent 的创建由实现 AgentFactory 的插件提供，默认是通过 setFactory 注册的 `@deepseek-ai/dsh-agent-loop`。',
+    description: 'Agent Service（`ctx.agents`）：追踪活跃 Agent，并在一条进程内异步驱动链中传递发起者 Agent。Agent 的创建由实现 AgentFactory 的插件提供，默认是通过 setFactory 注册的 `@deepseek-ai/dsh-agent-loop`。\n\n发起者相关方法只提供同进程因果归属。上下文中存在发起者既不能证明 Agent 仍存活，也不 代表已经授权；作用对象与生命周期所有者仍需显式传递，Worker、进程、持久化和传输接口 上的身份同样如此。清理期间会等待受管理的 Promise；触发所有者 Fiber 卸载的嵌套调用 不会反过来等待自身。',
     methods: [
       {
         signature: 'currentInitiator(): Agent | undefined',
@@ -244,15 +244,15 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'setFactory(factory: AgentFactory): () => void',
-        description: 'Register the agent-creation factory (the loop calls this on construction, effect-scoped). A traced Cordis service is canonicalized to its concrete target; each create/resume call is then traced through that caller\'s context so ownership follows the caller without stacking proxy layers. Throws if a factory is already registered. Returns the disposer; on dispose the factory slot is cleared.',
-        parameters: [{ name: 'factory', description: 'the loop-owned factory {@link create}/{@link resume} delegate to.' }],
-        returns: 'the disposer that clears the factory slot. The exact Cordis effect disposer (single-shot): composite (generator) effects may yield it directly — exact identity nests the teardown in order.',
+        description: '注册 Agent 创建工厂；Loop 会在构造时调用，并由 Effect 管理生命周期。已被 Cordis 追踪的 Service 会还原为具体对象，之后每次 create/resume 再通过调用方 Context 建立 追踪，使所有权跟随调用方且不叠加代理。已有工厂时抛错；释放后清空工厂槽位。',
+        parameters: [{ name: 'factory', description: '{@link create} 和 {@link resume} 委托到的 Loop 工厂。' }],
+        returns: '清空工厂槽位的单次 Cordis Effect disposer；组合式生成器 Effect 可直接 yield， 从而按原始对象身份把清理嵌入正确顺序。',
       },
       {
         signature: 'async create(options: CreateAgentOptions): Promise<AgentHandle>',
-        description: 'Create and publish a new agent through the registered factory. Distinct from register (which records an already-constructed agent): this constructs the agent and its session. Rejects if no factory is registered or creation/setup fails. The resolved AgentHandle lets the owner tear down exactly this agent.',
-        parameters: [{ name: 'options', description: 'shared identity, session seed/metadata, and agent options.' }],
-        returns: 'the handle after setup, rollback-covered publication, and loop start complete.',
+        description: '通过已注册工厂创建并发布新 Agent。与只记录已构造 Agent 的 register 不同， 本方法同时构造 Agent 与 Session。未注册工厂、创建失败或 setup 失败时拒绝。',
+        parameters: [{ name: 'options', description: '共享身份、Session Seed 与元数据，以及 Agent 选项。' }],
+        returns: 'setup、受回滚保护的发布和 Loop 启动全部完成后的句柄；所有者可用它精确释放该 Agent。',
       },
       {
         signature: 'async resume(options: ResumeAgentOptions): Promise<AgentHandle>',
@@ -956,14 +956,14 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'llm',
-    summary: 'The abstract `llm` service: an adapter registry plus a streaming model-call API, interceptable via the `llm/stream` waterfall.',
-    description: 'The abstract `llm` service: an adapter registry plus a streaming model-call API, interceptable via the `llm/stream` waterfall.',
+    summary: '抽象 `llm` Service：由 Adapter 注册表和流式模型调用 API 组成，可通过 `llm/stream` Waterfall 拦截。Provider 是配置与请求使用的稳定名称，Adapter 是可热替换的实现实例； 注册、模型能力解析和流式发送都由此 Service 统一处理。',
+    description: '抽象 `llm` Service：由 Adapter 注册表和流式模型调用 API 组成，可通过 `llm/stream` Waterfall 拦截。Provider 是配置与请求使用的稳定名称，Adapter 是可热替换的实现实例； 注册、模型能力解析和流式发送都由此 Service 统一处理。',
     methods: [
       {
         signature: 'registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle',
-        description: 'Register an adapter for the given provider routes. Throws `LlmError` with code `DUPLICATE_ADAPTER` if any provider already has an adapter (all-or-nothing). Disposed with the fiber.',
-        parameters: [{ name: 'providers', description: 'every provider route this adapter should serve.' }, { name: 'adapter', description: 'the adapter that streams calls for those providers.' }],
-        returns: 'the disposer, carrying {@link AdapterRegistrationHandle.replace}.',
+        description: '为指定 Provider 路由注册 Adapter。任一 Provider 已有 Adapter 时，以 `DUPLICATE_ADAPTER` 抛出 `LlmError`，整次注册不产生部分结果。注册随 Fiber 释放。',
+        parameters: [{ name: 'providers', description: '当前 Adapter 服务的全部 Provider 路由。' }, { name: 'adapter', description: '为这些 Provider 执行流式调用的 Adapter。' }],
+        returns: '注册 disposer，并带有 {@link AdapterRegistrationHandle.replace}。',
       },
       {
         signature: 'listProviders(): LlmProviderInfo[]',
@@ -1021,15 +1021,15 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async prepareCall(config: LlmCallConfig, signal?: AbortSignal): Promise<PreparedLlmCall>',
-        description: 'Resolve one call under its current adapter registration. The returned one-shot handle keeps that registration across header logging and dispatch, so HMR cannot combine one adapter\'s capability result with another adapter.',
-        parameters: [{ name: 'config', description: 'provider/model route and optional request controls.' }, { name: 'signal', description: 'optional cancellation for adapter-owned capability lookup.' }],
-        returns: 'a prepared config and its registration-bound stream entry point.',
+        description: '使用当前 Adapter 注册解析一次调用。返回的单次句柄会从 Header 记录一直绑定到 Dispatch， 防止 HMR 把一个 Adapter 的能力解析结果与另一个 Adapter 的发送实现组合起来。',
+        parameters: [{ name: 'config', description: 'Provider/Model 路由与可选请求控制项。' }, { name: 'signal', description: '用于 Adapter 能力查询的可选取消信号。' }],
+        returns: '准备后的配置，以及绑定到当前注册代的流式入口。',
       },
       {
         signature: 'stream(options: GenerateOptions): AsyncIterable<StreamChunk>',
-        description: 'Stream one model call as raw chunks (token-level deltas). Replay state is retained only when the same adapter instance owns its historical provider and the target provider. Final adapter selection remains fixed through asynchronous exact-model resolution and dispatch. Adapter selection, dispatch, and iteration failures become terminal `error` or `aborted` finish chunks; middleware, nested-call, cleanup, and consumer failures remain thrown.',
-        parameters: [{ name: 'options', description: 'the full request; `options.provider` selects the adapter.' }],
-        returns: 'the chunk stream, possibly wrapped by `llm/stream` listeners.',
+        description: '把一次模型调用流式输出为原始 Chunk（Token 级增量）。只有同一个 Adapter 实例同时拥有 历史 Provider 和目标 Provider 时才保留 Replay 状态。异步解析精确模型和 Dispatch 期间，最终 Adapter 选择保持固定。Adapter 选择、Dispatch 与迭代失败会转换为终止的 `error` 或 `aborted` Finish Chunk；中间件、嵌套调用、清理和消费者失败继续向外抛出。',
+        parameters: [{ name: 'options', description: '完整请求；`options.provider` 用于选择 Adapter。' }],
+        returns: 'Chunk 流，可能被 `llm/stream` 监听器包装。',
       },
     ],
   },
@@ -1455,8 +1455,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'sessions',
-    summary: 'In-memory session store (`ctx.sessions`).',
-    description: 'In-memory session store (`ctx.sessions`).\n\nPersistence is intentionally not implemented here — persistence plugins subscribe to `session/event` and flush on `session/flush` / dispose.',
+    summary: '内存 Session Store（`ctx.sessions`），管理当前进程中正在运行的 Session。这里刻意不实现 持久化；持久化插件订阅 `session/event`，并在 `session/flush` 或释放时写盘。内存生命周期 与 JSONL、SQLite 等存储实现因此可以独立替换。',
+    description: '内存 Session Store（`ctx.sessions`），管理当前进程中正在运行的 Session。这里刻意不实现 持久化；持久化插件订阅 `session/event`，并在 `session/flush` 或释放时写盘。内存生命周期 与 JSONL、SQLite 等存储实现因此可以独立替换。',
     methods: [
       {
         signature: 'create(id?: SessionId, options?: CreateSessionOptions): Session',
@@ -1891,44 +1891,44 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'systemPrompt',
-    summary: 'Registry service for the prompt inputs assembled before each model step.',
-    description: 'Registry service for the prompt inputs assembled before each model step.',
+    summary: '在每个模型 Step 前组装 Prompt 输入的注册表 Service。',
+    description: '在每个模型 Step 前组装 Prompt 输入的注册表 Service。',
     methods: [
       {
         signature: 'section(section: PromptSection): () => void',
-        description: 'Register an ordered prompt section in the calling context\'s scope. A scoped section shadows a global section with the same name; duplicates within one layer and non-finite orders throw. Registration and disposal emit `system-prompt/change`.',
-        parameters: [{ name: 'section', description: 'the section to register.' }],
-        returns: 'the exact Cordis effect disposer.',
+        description: '在调用方 Context 的 Scope 中注册有序 Prompt Section。Scope Section 会覆盖同名全局项； 同一层重复名称或非有限 Order 会抛错。注册和释放都会发出 `system-prompt/change`。',
+        parameters: [{ name: 'section', description: '要注册的 Section。' }],
+        returns: 'Cordis Effect 返回的原始 disposer。',
       },
       {
         signature: 'context(context: PromptContext): () => void',
-        description: 'Register ordered dynamic context in the calling context\'s scope. Scoped entries shadow global entries with the same name.',
-        parameters: [{ name: 'context', description: 'the context contribution to register.' }],
-        returns: 'the exact Cordis effect disposer.',
+        description: '在调用方 Context 的 Scope 中注册有序动态 Context。Scope 条目覆盖同名全局条目。',
+        parameters: [{ name: 'context', description: '要注册的 Context 贡献。' }],
+        returns: 'Cordis Effect 返回的原始 disposer。',
       },
       {
         signature: 'suppressRuntimeContext(): () => void',
-        description: 'Suppress every dynamic runtime-context contribution in the calling context\'s scope without changing the services that own or enforce those facts. Multiple suppressors remain independently disposable.',
+        description: '抑制调用方 Scope 中的全部动态运行时 Context，但不改变拥有或强制这些事实的 Service。 多个抑制器可以相互独立地释放。',
         parameters: [],
-        returns: 'the exact Cordis effect disposer.',
+        returns: 'Cordis Effect 返回的原始 disposer。',
       },
       {
         signature: 'tools(provider: (context: AssembleContext) => ToolProviderResult): () => void',
-        description: 'Register a tool-schema provider in the calling context\'s scope. Global and matching scoped providers both contribute; returning the reserved TOOL_ORDER_REST name makes assembly fail.',
-        parameters: [{ name: 'provider', description: 'evaluated for each assembly with its context.' }],
-        returns: 'the exact Cordis effect disposer.',
+        description: '在调用方 Scope 中注册 Tool Schema Provider。全局和匹配 Scope 的 Provider 都会贡献； 返回保留名称 TOOL_ORDER_REST 会导致组装失败。',
+        parameters: [{ name: 'provider', description: '每次组装时使用该次 Context 求值的 Provider。' }],
+        returns: 'Cordis Effect 返回的原始 disposer。',
       },
       {
         signature: 'variable(name: string, provider: (context: AssembleContext) => string | undefined): () => void',
-        description: 'Register a prompt variable in the calling context\'s scope. Scoped values shadow globals; invalid or duplicate names throw. A provider may return `undefined`, but rendering a section that references that value then fails.',
-        parameters: [{ name: 'name', description: 'the `[a-z][a-z0-9_]*` reference name.' }, { name: 'provider', description: 'evaluated for each assembly.' }],
-        returns: 'the exact Cordis effect disposer.',
+        description: '在调用方 Scope 中注册 Prompt 变量。Scope 值覆盖全局值；无效或重复名称会抛错。Provider 可以返回 `undefined`，但之后渲染引用该值的 Section 会失败。',
+        parameters: [{ name: 'name', description: '符合 `[a-z][a-z0-9_]*` 的引用名称。' }, { name: 'provider', description: '每次组装时求值的 Provider。' }],
+        returns: 'Cordis Effect 返回的原始 disposer。',
       },
       {
         signature: 'async assemble(context: AssembleContext = {}): Promise<PromptAssembly>',
-        description: 'Assemble global and scoped providers, detach tool parameters, apply canonical ordering, then run the assembly waterfall. Scoped sections and variables shadow globals. The returned waterfall value is authoritative except that an effective complete section is restored afterwards as the sole prompt section.',
-        parameters: [{ name: 'context', description: 'the optional scope and plugin-defined assembly fields.' }],
-        returns: 'the post-waterfall assembly with any complete prompt enforced.',
+        description: '组装全局与 Scope Provider，复制 Tool 参数并应用规范顺序，再执行组装 Waterfall。Scope Section 和变量覆盖全局值。Waterfall 返回值具有最终权威，但若存在有效 Complete Section，之后会恢复它并作为唯一 Prompt Section。',
+        parameters: [{ name: 'context', description: '可选 Scope 以及插件定义的组装字段。' }],
+        returns: 'Waterfall 处理后、并已强制应用 Complete Prompt 的组装结果。',
       },
     ],
   },
@@ -2082,8 +2082,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'tools',
-    summary: 'Tool registry and execution pipeline.',
-    description: 'Tool registry and execution pipeline. Scoped registrations shadow globals; one visibility resolver feeds presentation, lookup, and dispatch.',
+    summary: 'Tool 注册表与执行管线。Scope 注册会覆盖全局注册；展示、名称查找和 Dispatch 共用同一个 可见性解析器，使模型看到的 Tool Schema 与运行时真正可调用的工具来自同一来源。',
+    description: 'Tool 注册表与执行管线。Scope 注册会覆盖全局注册；展示、名称查找和 Dispatch 共用同一个 可见性解析器，使模型看到的 Tool Schema 与运行时真正可调用的工具来自同一来源。',
     methods: [
       {
         signature: 'presentAs(mode: ToolPresentationMode): () => void',
@@ -2093,9 +2093,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'register(definition: ToolDefinition): () => void',
-        description: 'Register globally or in the calling agent scope. Scoped tools shadow globals; duplicates within one layer and the reserved `run_code` name fail.',
-        parameters: [{ name: 'definition', description: 'tool schema, execution, and optional finalization/presentation callbacks.' }],
-        returns: 'the exact disposer that unregisters the tool.',
+        description: '在全局层或调用方 Agent Scope 中注册工具。Scope 工具覆盖全局工具；同一层重复名称或 使用保留名称 `run_code` 会失败。',
+        parameters: [{ name: 'definition', description: 'Tool Schema、执行函数，以及可选的最终处理与展示回调。' }],
+        returns: '精确注销该工具的 disposer。',
       },
       {
         signature: 'restrict(filter: ToolRestriction): () => void',
@@ -2129,9 +2129,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async execute(exec: ToolExecutionInput): Promise<ToolExecutionResult>',
-        description: 'Execute through pre-policy, guards, around-dispatch, post-policy, definition-owned content finalization, and final notification. Tool and listener failures resolve as materialized error results; an invisible tool reports `UNKNOWN_TOOL`. The returned outcome is the same lossless, frozen snapshot final observers receive. Cancellation arriving after entry and before final result materialization skips a not-yet-started body with `ABORTED_BEFORE_DISPATCH` or replaces a successful started outcome with `ABORTED`; already-started work is still drained and may retain a tool-owned structured error.',
-        parameters: [{ name: 'exec', description: 'the typed same-process call input. The registry assigns its correlation token before policy begins.' }],
-        returns: 'the materialized final result.',
+        description: '依次经过前置策略、Guard、Around Dispatch、后置策略、工具定义拥有的内容最终处理， 最后发布结果通知。工具或监听器失败会物化为错误结果；不可见工具返回 `UNKNOWN_TOOL`。 返回值与最终观察者收到的是同一份无损冻结快照。进入管线后、结果物化前发生取消时， 尚未启动的工具返回 `ABORTED_BEFORE_DISPATCH`，已成功启动的结果改为 `ABORTED`； 已启动工作仍会等待结束，并可保留工具自身的结构化错误。',
+        parameters: [{ name: 'exec', description: '带类型的同进程调用输入；注册表会在策略运行前分配关联 Token。' }],
+        returns: '物化后的最终结果。',
       },
     ],
   },
@@ -2721,16 +2721,16 @@ export const EVENT_API: readonly EventApiEntry[] = [
     name: 'system-prompt/assemble',
     mode: 'waterfall',
     signature: '\'system-prompt/assemble\'(this: Scoped<SystemPrompt>, assembly: PromptAssembly, context: AssembleContext, next: () => Promise<PromptAssembly>): Promise<PromptAssembly>',
-    summary: 'Expert waterfall over the assembled sections, contexts, tools, and variables.',
-    description: 'Expert waterfall over the assembled sections, contexts, tools, and variables. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): scoped listeners receive only that scope\'s assemblies. The returned value is authoritative. A supplied signal controls only this explicit assembly request and must not be retained to control later turns. A registered complete section is restored after this waterfall, so listeners cannot add to or replace that scope\'s system prompt.',
-    parameters: [{ name: 'assembly', description: 'the mutable assembly built from registered providers.' }, { name: 'context', description: 'the caller\'s per-assembly context.' }],
+    summary: '对已组装的 Section、Context、Tool 和变量执行专家 Waterfall。Scope-filtered dispatch 按 Scope 过滤， Scope 监听器只接收该 Scope 的组装请求；返回值具有最终权威。传入的 signal 只控制 当前组装请求，不能保留用于控制后续 Turn。已注册的 Complete Section 会在 Waterfall 后恢复，因此监听器不能追加或替换该 Scope 的 System Prompt。',
+    description: '对已组装的 Section、Context、Tool 和变量执行专家 Waterfall。Scope-filtered dispatch 按 Scope 过滤， Scope 监听器只接收该 Scope 的组装请求；返回值具有最终权威。传入的 signal 只控制 当前组装请求，不能保留用于控制后续 Turn。已注册的 Complete Section 会在 Waterfall 后恢复，因此监听器不能追加或替换该 Scope 的 System Prompt。',
+    parameters: [{ name: 'assembly', description: '根据已注册 Provider 构造的可变组装结果。' }, { name: 'context', description: '调用方为当前组装提供的 Context。' }],
   },
   {
     name: 'system-prompt/change',
     mode: 'emit',
     signature: '\'system-prompt/change\'(): void',
-    summary: 'Emitted when any prompt provider changes.',
-    description: 'Emitted when any prompt provider changes. This registry notification is unfiltered because a global change affects every scope.',
+    summary: '任一 Prompt Provider 变化时发出。全局变化会影响所有 Scope，因此该注册表通知不做过滤。',
+    description: '任一 Prompt Provider 变化时发出。全局变化会影响所有 Scope，因此该注册表通知不做过滤。',
     parameters: [],
   },
   {

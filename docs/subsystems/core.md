@@ -344,7 +344,7 @@ Source: [`packages/core/agent-default-model/src/index.ts`](../../packages/core/a
 
 ### `ctx.agentLoop` — `AgentLoop`
 
-Concrete agent factory and driver service.
+具体的 Agent 工厂与驱动 Service。
 
 ```ts cordis-catalog
 /**
@@ -359,10 +359,10 @@ Concrete agent factory and driver service.
 create(id: SessionId, options: AgentOptions = {}, meta: Pick<SessionHeader, 'cwd'> = {}): Agent
 
 /**
- * Create an owned agent on a caller-supplied session id.
- * @param ownerCtx - caller context that structurally owns the lifecycle.
- * @param options - identities, session seed/metadata, loop options, setup, and cancellation.
- * @returns the published handle.
+ * 使用调用方提供的 Session id 创建由其所有的 Agent。
+ * @param ownerCtx - 在结构上拥有该生命周期的调用方 Context。
+ * @param options - 身份、Session Seed 与元数据、Loop 选项、setup 和取消信号。
+ * @returns 已发布的 Agent 句柄。
  */
 async createAgent(ownerCtx: Context, options: CreateAgentOptions): Promise<AgentHandle>
 
@@ -383,9 +383,7 @@ Source: [`packages/core/agent-loop/src/index.ts`](../../packages/core/agent-loop
 
 ### `ctx.agentPresets` — `AgentPresets`
 
-Registry over the deployment's agent presets.
-
-Discovery is unmemoized: `list()` and `resolve()` re-read the roots on every call so a preset authored while the process runs is visible immediately, and a preset deleted underneath a picker disappears from the next read.
+当前部署的 Agent Preset 注册表。发现结果不缓存：`list()` 和 `resolve()` 每次调用都会 重新读取根目录，使进程运行期间新增的 Preset 立即可见，被删除的 Preset 也会在下一次 读取时消失。
 
 ```ts cordis-catalog
 /**
@@ -407,17 +405,13 @@ async list(): Promise<AgentPreset[]>
 async resolve(id?: string): Promise<AgentPreset>
 
 /**
- * Compose one agent from a preset: ensure the preset's standing mount, then
- * parent the agent's scope key to it so the mount's registrations and
- * listeners cover this agent.
- *
- * Call from the agent factory's `setup(agentCtx)`; a rejection there rolls
- * the agent creation back, so a broken preset never yields a half-composed
- * session.
- * @param agentCtx - the agent's scope context.
- * @param id - the preset id, or `undefined` for {@link defaultId}.
- * @returns the preset that was composed, for the caller to record.
- * @throws when the preset is unknown or its composition is unusable.
+ * 使用 Preset 组合一个 Agent：先确保常驻挂载存在，再把 Agent Scope Key 接到该挂载下，
+ * 使挂载的注册和监听器覆盖该 Agent。必须从 AgentFactory 的 `setup(agentCtx)` 调用；这里
+ * 失败会回滚 Agent 创建，因此损坏的 Preset 不会产生只组合了一半的 Session。
+ * @param agentCtx - Agent 的 Scope Context。
+ * @param id - Preset id；`undefined` 表示使用 {@link defaultId}。
+ * @returns 实际组合的 Preset，供调用方记录。
+ * @throws Preset 不存在或组合不可用。
  */
 async mount(agentCtx: Context, id?: string): Promise<AgentPreset>
 
@@ -554,9 +548,9 @@ Source: [`packages/preset/agent-presets/src/index.ts`](../../packages/preset/age
 
 ### `ctx.agents` — `AgentRegistry`
 
-Agent service (`ctx.agents`): tracks live agents and carries the initiating Agent through one process-local asynchronous driver chain. Agent *creation* is provided by whichever plugin implements the AgentFactory (`@deepseek-ai/dsh-agent-loop`), registered via setFactory.
+Agent Service（`ctx.agents`）：追踪活跃 Agent，并在一条进程内异步驱动链中传递发起者 Agent。Agent 的创建由实现 AgentFactory 的插件提供，默认是通过 setFactory 注册的 `@deepseek-ai/dsh-agent-loop`。
 
-Initiator methods provide same-process causal attribution only. Ambient presence is neither liveness proof nor authorization; subjects and owners remain explicit, as does identity at worker, process, persistence, and wire boundaries. Returned Promise boundaries drain during teardown, except a nested lineage that starts an owning-fiber unload is excluded from its own drain.
+发起者相关方法只提供同进程因果归属。上下文中存在发起者既不能证明 Agent 仍存活，也不 代表已经授权；作用对象与生命周期所有者仍需显式传递，Worker、进程、持久化和传输接口 上的身份同样如此。清理期间会等待受管理的 Promise；触发所有者 Fiber 卸载的嵌套调用 不会反过来等待自身。
 
 ```ts cordis-catalog
 /**
@@ -609,27 +603,20 @@ withInitiator<T>(agent: Agent, operation: () => T): T
 withoutInitiator<T>(operation: () => T): T
 
 /**
- * Register the agent-creation factory (the loop calls this on construction,
- * effect-scoped). A traced Cordis service is canonicalized to its concrete
- * target; each create/resume call is then traced through that caller's
- * context so ownership follows the caller without stacking proxy layers.
- * Throws if a factory is already registered. Returns the disposer; on
- * dispose the factory slot is cleared.
- * @param factory - the loop-owned factory {@link create}/{@link resume} delegate to.
- * @returns the disposer that clears the factory slot. The exact
- *   Cordis effect disposer (single-shot): composite (generator) effects may
- *   yield it directly — exact identity nests the teardown in order.
+ * 注册 Agent 创建工厂；Loop 会在构造时调用，并由 Effect 管理生命周期。已被 Cordis
+ * 追踪的 Service 会还原为具体对象，之后每次 create/resume 再通过调用方 Context 建立
+ * 追踪，使所有权跟随调用方且不叠加代理。已有工厂时抛错；释放后清空工厂槽位。
+ * @param factory - {@link create} 和 {@link resume} 委托到的 Loop 工厂。
+ * @returns 清空工厂槽位的单次 Cordis Effect disposer；组合式生成器 Effect 可直接 yield，
+ * 从而按原始对象身份把清理嵌入正确顺序。
  */
 setFactory(factory: AgentFactory): () => void
 
 /**
- * Create and publish a new agent through the registered factory.
- * Distinct from {@link register} (which records an already-constructed
- * agent): this constructs the agent and its session. Rejects if no factory is
- * registered or creation/setup fails. The resolved {@link AgentHandle} lets
- * the owner tear down exactly this agent.
- * @param options - shared identity, session seed/metadata, and agent options.
- * @returns the handle after setup, rollback-covered publication, and loop start complete.
+ * 通过已注册工厂创建并发布新 Agent。与只记录已构造 Agent 的 {@link register} 不同，
+ * 本方法同时构造 Agent 与 Session。未注册工厂、创建失败或 setup 失败时拒绝。
+ * @param options - 共享身份、Session Seed 与元数据，以及 Agent 选项。
+ * @returns setup、受回滚保护的发布和 Loop 启动全部完成后的句柄；所有者可用它精确释放该 Agent。
  */
 async create(options: CreateAgentOptions): Promise<AgentHandle>
 

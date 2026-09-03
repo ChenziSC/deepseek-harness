@@ -1,7 +1,8 @@
 /**
- * LLM service: adapter registry with a waterfall-interceptable streaming call
- * API. Exports the `LlmRuntime` default, the abstract `LlmAdapter` for
- * provider backends, and `BlockAssembler` for chunk assembly.
+ * LLM Service：提供 Adapter 注册表和可由 Waterfall 拦截的流式调用 API。导出默认的
+ * `LlmRuntime`、供 Provider 后端实现的抽象 `LlmAdapter`，以及组装 Chunk 的
+ * `BlockAssembler`。DeepSeek、pi-ai 或 Replay 插件把 Adapter 注册到 Provider 名称；
+ * AgentLoop 只提交统一请求，不依赖具体 SDK 或 HTTP 协议。
  *
  * @module @deepseek-ai/dsh-llm
  */
@@ -138,10 +139,8 @@ export class LlmError extends HarnessError {
 export function assertUsableApiKey(raw: string, pkg: string, ref: string): string {
   const checked = normalizeApiKey(raw)
   if (checked.ok) return checked.value
-  // The Models page is named as the writer it usually is, not as the only one:
-  // the same value can arrive from a hand-edited .env or a shell export in a
-  // composition that mounts no credentials seam at all, where directing the
-  // user to a page that deployment does not serve would be a dead end.
+  // Models 页面只是最常见的写入方，不是唯一来源；同一值也可能来自手工编辑的 .env 或
+  // Shell export。某些组合根本未挂载 Credentials 服务，此时把用户引向不存在的页面没有意义。
   throw new LlmError(
     checked.reason === 'empty'
       ? `${pkg}: the API key resolved from ${ref} is blank; set ${ref} to the raw key`
@@ -305,8 +304,9 @@ export interface DirectoryRegistrationHandle {
 }
 
 /**
- * The abstract `llm` service: an adapter registry plus a streaming model-call
- * API, interceptable via the `llm/stream` waterfall.
+ * 抽象 `llm` Service：由 Adapter 注册表和流式模型调用 API 组成，可通过 `llm/stream`
+ * Waterfall 拦截。Provider 是配置与请求使用的稳定名称，Adapter 是可热替换的实现实例；
+ * 注册、模型能力解析和流式发送都由此 Service 统一处理。
  */
 export class LlmRuntime extends Service {
   private adapters = new Map<string, AdapterRegistration>()
@@ -322,17 +322,15 @@ export class LlmRuntime extends Service {
 
   /** Notify topology observers without letting one broken listener veto the commit. */
   private emitAdaptersUpdated(): void {
-    // Cordis emit uses Array.map: one synchronous throw starves later
-    // listeners. Registry notifications are non-vetoing, so contain each
-    // callback independently; INVARIANT-coded failures still surface.
+    // Cordis emit 使用 Array.map，某个监听器同步抛错会阻止后续监听器运行。注册表通知不能
+    // 被单个监听器否决，因此分别隔离每个回调；标记为 INVARIANT 的失败仍需向外抛出。
     let invariantFailure: unknown
     for (const listener of this.ctx.events.dispatch('emit', ['llm/adapters-updated']) as Array<() => unknown>) {
       try {
         const returned = listener()
         if (returned != null && typeof (returned as PromiseLike<unknown>).then === 'function') {
-          // An emit listener may still be an async function; its rejection
-          // cannot reach the synchronous INVARIANT rethrow below, so it is
-          // contained here instead of becoming an unhandled rejection.
+          // emit 监听器仍可能是异步函数，其 rejection 无法进入下方同步的 INVARIANT 重抛，
+          // 因此在此捕获，避免成为未处理 rejection。
           void Promise.resolve(returned as PromiseLike<unknown>).then(undefined, (error: unknown) => {
             this.warnAdaptersListenerFailure(error)
           })
@@ -355,19 +353,20 @@ export class LlmRuntime extends Service {
   }
 
   /**
-   * Register an adapter for the given provider routes. Throws `LlmError` with code
-   * `DUPLICATE_ADAPTER` if any provider already has an adapter (all-or-nothing).
-   * Disposed with the fiber.
-   * @param providers - every provider route this adapter should serve.
-   * @param adapter - the adapter that streams calls for those providers.
-   * @returns the disposer, carrying {@link AdapterRegistrationHandle.replace}.
+   * 为指定 Provider 路由注册 Adapter。任一 Provider 已有 Adapter 时，以
+   * `DUPLICATE_ADAPTER` 抛出 `LlmError`，整次注册不产生部分结果。注册随 Fiber 释放。
+   * @param providers - 当前 Adapter 服务的全部 Provider 路由。
+   * @param adapter - 为这些 Provider 执行流式调用的 Adapter。
+   * @returns 注册 disposer，并带有 {@link AdapterRegistrationHandle.replace}。
    */
   registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle {
-    // The routes this registration currently holds; `replace` rewrites it, and
-    // the disposer releases whatever it holds at disposal time.
+    // 一次注册可以拥有多条 Provider 路由，并返回可释放、可原子替换的句柄。先完整校验
+    // 再提交，观察者不会看到只注册了一半或替换过程中的空档。
+    // owned 保存本次注册当前占用的路由；replace 会重写它，disposer 则在释放时删除其中
+    // 当时仍然持有的全部路由。
     const owned = new Set<string>()
-    // The disposer has run: `owned` being empty cannot say so on its own,
-    // because `replace([])` legally leaves a live registration holding none.
+    // released 单独记录 disposer 是否运行过；不能用 owned 为空判断，因为 replace([])
+    // 合法地表示一个仍存活、但暂时没有路由的注册。
     let released = false
     const dispose = this.ctx.effect(function* (this: LlmRuntime) {
       if (providers.length === 0) throw new LlmError('an adapter must register at least one provider', 'INVALID_ADAPTER')
@@ -379,12 +378,12 @@ export class LlmRuntime extends Service {
         this.emitAdaptersUpdated()
       }
     }.bind(this), 'llm.registerAdapter()')
-    // ctx.effect's disposer returns Promise<void>; our disposer API is
-    // synchronous fire-and-forget — discard the (always-resolved) promise.
+    // ctx.effect 的 disposer 返回 Promise<void>；这里对外提供同步的即发即弃接口，因此
+    // 丢弃这个总会正常完成的 Promise。
     const handle = (() => void dispose()) as AdapterRegistrationHandle
     handle.replace = (next: string[]): void => {
-      // Registering here would leak: the effect's disposer already ran, so
-      // nothing remains to release whatever this call would put in the map.
+      // disposer 运行后再注册会造成泄漏：原 Effect 已经结束，没有任何清理动作会移除本次
+      // 调用重新放入 Map 的路由。
       if (released) {
         throw new LlmError('a disposed adapter registration cannot replace its routes', 'REGISTRATION_DISPOSED')
       }
@@ -564,8 +563,8 @@ export class LlmRuntime extends Service {
     if (discover === undefined) {
       throw new LlmError(`no model discovery is registered for "${settingsNs}"`, 'NO_DISCOVERY')
     }
-    // One of the two identifies what to describe: a route the adapter knows, or
-    // an endpoint to ask. Neither leaves nothing to answer about.
+    // 两者至少有一个用于确定查询目标：Adapter 已知的路由，或可请求的端点；都缺失时没有
+    // 可供描述的模型来源。
     if ((request.provider ?? '').length === 0 && (request.baseURL ?? '').length === 0) {
       throw new LlmError('model discovery needs a provider route or a baseURL', 'INVALID_DISCOVERY')
     }
@@ -813,14 +812,15 @@ export class LlmRuntime extends Service {
   }
 
   /**
-   * Resolve one call under its current adapter registration. The returned
-   * one-shot handle keeps that registration across header logging and dispatch,
-   * so HMR cannot combine one adapter's capability result with another adapter.
-   * @param config - provider/model route and optional request controls.
-   * @param signal - optional cancellation for adapter-owned capability lookup.
-   * @returns a prepared config and its registration-bound stream entry point.
+   * 使用当前 Adapter 注册解析一次调用。返回的单次句柄会从 Header 记录一直绑定到 Dispatch，
+   * 防止 HMR 把一个 Adapter 的能力解析结果与另一个 Adapter 的发送实现组合起来。
+   * @param config - Provider/Model 路由与可选请求控制项。
+   * @param signal - 用于 Adapter 能力查询的可选取消信号。
+   * @returns 准备后的配置，以及绑定到当前注册代的流式入口。
    */
   async prepareCall(config: LlmCallConfig, signal?: AbortSignal): Promise<PreparedLlmCall> {
+    // prepareCall 把“解析模型能力”和“最终发送”绑定到同一个 Adapter generation，并把
+    // Adapter 提供的默认值物化为冻结配置，供 AgentLoop 先记录 request/header。
     const registration = this.registration(config.provider)
     const adapterCall = await registration.adapter.prepareCall(config.provider, config.model, signal)
     const modelInfo = this.normalizeModelInfo(registration, config.model, adapterCall.model)
@@ -958,8 +958,8 @@ export class LlmRuntime extends Service {
           completed = true
           return
         }
-        // End the adapter-owned try before yielding: consumer/middleware
-        // failures resumed into this generator must remain thrown.
+        // 在 yield 前结束 Adapter 所有的 try；消费者或中间件恢复生成器时抛入的错误必须
+        // 继续向外抛出，不能被误当成 Adapter 失败转换。
         yield item.value
       }
     } finally {
@@ -971,17 +971,16 @@ export class LlmRuntime extends Service {
   }
 
   /**
-   * Stream one model call as raw chunks (token-level deltas). Replay state is
-   * retained only when the same adapter instance owns its historical provider
-   * and the target provider. Final adapter selection remains fixed through
-   * asynchronous exact-model resolution and dispatch. Adapter selection,
-   * dispatch, and iteration failures become terminal `error` or `aborted`
-   * finish chunks; middleware, nested-call, cleanup, and consumer failures
-   * remain thrown.
-   * @param options - the full request; `options.provider` selects the adapter.
-   * @returns the chunk stream, possibly wrapped by `llm/stream` listeners.
+   * 把一次模型调用流式输出为原始 Chunk（Token 级增量）。只有同一个 Adapter 实例同时拥有
+   * 历史 Provider 和目标 Provider 时才保留 Replay 状态。异步解析精确模型和 Dispatch
+   * 期间，最终 Adapter 选择保持固定。Adapter 选择、Dispatch 与迭代失败会转换为终止的
+   * `error` 或 `aborted` Finish Chunk；中间件、嵌套调用、清理和消费者失败继续向外抛出。
+   * @param options - 完整请求；`options.provider` 用于选择 Adapter。
+   * @returns Chunk 流，可能被 `llm/stream` 监听器包装。
    */
   stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+    // llm/stream 是模型调用的统一拦截点；监听器可调用 next() 包装当前 Adapter，也可返回
+    // 自己的流接管请求。最终 Adapter 选择仍由 Provider 路由决定。
     return this.streamWithRegistration(options)
   }
 

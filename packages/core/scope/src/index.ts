@@ -1,6 +1,7 @@
 /**
- * Scoped-context primitive: mint a Cordis context that tags registrations with
- * an opaque identity and build routing-only event carriers for that identity.
+ * Scope Context 基础能力：创建带不透明身份标记的 Cordis Context，并为该身份构造只用于
+ * 事件路由的 Carrier。Scope 给每个 Agent 或 Preset 一个按对象身份比较的 Key；通过它
+ * 注册的工具、Prompt 和监听器仍使用全局 Service，但只对匹配 Agent 可见。
  *
  * @module @deepseek-ai/dsh-scope
  */
@@ -127,14 +128,16 @@ export interface CreateScopeOptions {
 }
 
 /**
- * Mint a scope under `ctx`. The scoped context inherits the minting plugin's
- * dependency API and owns every registration made through it.
- * @param ctx - active context whose dependency API the scope inherits.
- * @param key - opaque identity used for listener routing.
- * @param options - optional scope-chain placement.
- * @returns the scoped context and exact/shared disposal boundaries.
+ * 在 `ctx` 下创建 Scope。新的 Scope Context 继承创建方插件的依赖 API，并拥有所有通过它
+ * 完成的注册。
+ * @param ctx - 活跃 Context；Scope 从中继承依赖 API。
+ * @param key - 用于监听器路由的不透明身份。
+ * @param options - 可选的 Scope 父链位置。
+ * @returns Scope Context，以及精确清理和共享等待接口。
  */
 export function createScope(ctx: Context, key: ScopeKey, options?: CreateScopeOptions): Scope {
+  // 新 Scope 创建一个独立 Fiber 作为所有局部注册的生命周期所有者；释放 Scope 会等待
+  // 这些注册全部退出。parent 只建立可见性继承，不改变 Cordis Fiber 的实际所有权。
   if (options?.parent !== undefined) bindScopeParent(key, options.parent)
   const fiber = ctx.plugin(scope)
   const scoped: Context = fiber.ctx.extend({ [kScope]: key })

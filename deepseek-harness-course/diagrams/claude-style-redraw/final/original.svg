@@ -1,0 +1,242 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1960"
+     height="1340"
+     viewBox="-20 -20 1960 1340">
+  <defs>
+<linearGradient id="grad-l-o1:1" x1="0" y1="0" x2="0.9999999849370643" y2="1.000000080576333" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#071426"/><stop offset="0.55" stop-color="#0b1830"/><stop offset="1" stop-color="#101b35"/></linearGradient>
+<filter id="shadow-o1-4-1" filterUnits="userSpaceOnUse" x="-36" y="-51" width="1820" height="252">
+  <feGaussianBlur in="SourceAlpha" stdDeviation="18" result="drop_blur"/>
+  <feOffset in="drop_blur" dx="0" dy="15" result="drop_off"/>
+  <feFlood flood-color="#020817" flood-opacity="0.42" result="drop_color"/>
+  <feComposite in="drop_color" in2="drop_off" operator="in" result="drop_shadow"/>
+  <feMerge>
+    <feMergeNode in="drop_shadow"/>
+    <feMergeNode in="SourceGraphic"/>
+  </feMerge>
+</filter>
+<linearGradient id="grad-l-o1:5" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#24d6d1"/><stop offset="1" stop-color="#3182f6"/></linearGradient>
+<filter id="shadow-o1-7-3" filterUnits="userSpaceOnUse" x="-67" y="-95" width="674" height="468">
+  <feGaussianBlur in="SourceAlpha" stdDeviation="33.36" result="drop_blur"/>
+  <feOffset in="drop_blur" dx="0" dy="27.8" result="drop_off"/>
+  <feFlood flood-color="#020817" flood-opacity="0.42" result="drop_color"/>
+  <feComposite in="drop_color" in2="drop_off" operator="in" result="drop_shadow"/>
+  <feMerge>
+    <feMergeNode in="drop_shadow"/>
+    <feMergeNode in="SourceGraphic"/>
+  </feMerge>
+</filter>
+<linearGradient id="grad-l-o1:8" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#8b7cf6"/><stop offset="1" stop-color="#cf68ff"/></linearGradient>
+<filter id="shadow-o1-13-5" filterUnits="userSpaceOnUse" x="-67" y="-95" width="752" height="468">
+  <feGaussianBlur in="SourceAlpha" stdDeviation="33.36" result="drop_blur"/>
+  <feOffset in="drop_blur" dx="0" dy="27.8" result="drop_off"/>
+  <feFlood flood-color="#020817" flood-opacity="0.42" result="drop_color"/>
+  <feComposite in="drop_color" in2="drop_off" operator="in" result="drop_shadow"/>
+  <feMerge>
+    <feMergeNode in="drop_shadow"/>
+    <feMergeNode in="SourceGraphic"/>
+  </feMerge>
+</filter>
+<linearGradient id="grad-l-o1:14" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#24d6d1"/><stop offset="1" stop-color="#3182f6"/></linearGradient>
+<filter id="shadow-o1-22-7" filterUnits="userSpaceOnUse" x="-67" y="-95" width="604" height="468">
+  <feGaussianBlur in="SourceAlpha" stdDeviation="33.36" result="drop_blur"/>
+  <feOffset in="drop_blur" dx="0" dy="27.8" result="drop_off"/>
+  <feFlood flood-color="#020817" flood-opacity="0.42" result="drop_color"/>
+  <feComposite in="drop_color" in2="drop_off" operator="in" result="drop_shadow"/>
+  <feMerge>
+    <feMergeNode in="drop_shadow"/>
+    <feMergeNode in="SourceGraphic"/>
+  </feMerge>
+</filter>
+<filter id="shadow-o1-28-8" filterUnits="userSpaceOnUse" x="-82" y="-115" width="1325" height="568">
+  <feGaussianBlur in="SourceAlpha" stdDeviation="40.56" result="drop_blur"/>
+  <feOffset in="drop_blur" dx="0" dy="33.8" result="drop_off"/>
+  <feFlood flood-color="#020817" flood-opacity="0.42" result="drop_color"/>
+  <feComposite in="drop_color" in2="drop_off" operator="in" result="drop_shadow"/>
+  <feMerge>
+    <feMergeNode in="drop_shadow"/>
+    <feMergeNode in="SourceGraphic"/>
+  </feMerge>
+</filter>
+<linearGradient id="grad-l-o1:29" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#24d6d1"/><stop offset="1" stop-color="#3182f6"/></linearGradient>
+<filter id="shadow-o1-38-10" filterUnits="userSpaceOnUse" x="-82" y="-115" width="693" height="568">
+  <feGaussianBlur in="SourceAlpha" stdDeviation="40.56" result="drop_blur"/>
+  <feOffset in="drop_blur" dx="0" dy="33.8" result="drop_off"/>
+  <feFlood flood-color="#020817" flood-opacity="0.42" result="drop_color"/>
+  <feComposite in="drop_color" in2="drop_off" operator="in" result="drop_shadow"/>
+  <feMerge>
+    <feMergeNode in="drop_shadow"/>
+    <feMergeNode in="SourceGraphic"/>
+  </feMerge>
+</filter>
+<linearGradient id="grad-l-o1:39" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#8b7cf6"/><stop offset="1" stop-color="#cf68ff"/></linearGradient>
+<filter id="shadow-o1-44-12" filterUnits="userSpaceOnUse" x="-53" y="-74" width="1854" height="365">
+  <feGaussianBlur in="SourceAlpha" stdDeviation="26.04" result="drop_blur"/>
+  <feOffset in="drop_blur" dx="0" dy="21.7" result="drop_off"/>
+  <feFlood flood-color="#020817" flood-opacity="0.42" result="drop_color"/>
+  <feComposite in="drop_color" in2="drop_off" operator="in" result="drop_shadow"/>
+  <feMerge>
+    <feMergeNode in="drop_shadow"/>
+    <feMergeNode in="SourceGraphic"/>
+  </feMerge>
+</filter>
+<linearGradient id="grad-l-o1:45" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#59e3a7"/><stop offset="1" stop-color="#23b58d"/></linearGradient>
+  </defs>
+<g id="o1:1" transform="translate(0, 0)"><rect x="0" y="0" width="1920" height="1300" fill="url(#grad-l-o1:1)" stroke="none" stroke-width="0" rx="36" ry="36"/></g>
+<g id="c1:1" transform="translate(0, 145)" fill-opacity="0.22" stroke-opacity="0.22"><path fill="none" stroke="#4b668e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M 0 25 C 360 -35 630 70 920 0 C 1210 -70 1480 -75 1920 15"/></g>
+<g id="c1:2" transform="translate(0, 1160)" fill-opacity="0.18" stroke-opacity="0.18"><path fill="none" stroke="#4b668e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M 0 30 C 390 -60 720 85 1070 0 C 1420 -85 1600 -75 1920 15"/></g>
+<g id="a1:1" transform="translate(84, 31.999)"><text font-size="34" font-family="Noto Sans SC" font-weight="bold" fill="#f4f8ff" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="40.001"><tspan x="0" text-anchor="start">DeepSeek Harness · 整体架构设计图</tspan></tspan></text></g>
+<g id="a1:2" transform="translate(86, 90.9995)"><text font-size="17" font-family="Noto Sans SC" font-weight="normal" fill="#91a4c6" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="20.001"><tspan x="0" text-anchor="start">从入口装配到可恢复运行时：everything is a plugin · model-visible ⇔ logged</tspan></tspan></text></g>
+<g id="o1:2" transform="translate(1535, 54)"><rect x="0" y="0" width="295" height="50" fill="#142744" stroke="#284a74" stroke-width="1" rx="25" ry="25"/></g>
+<g id="o1:3" transform="translate(1562, 71)"><ellipse fill="#24d6d1" stroke="none" stroke-width="0" cx="8" cy="8" rx="8" ry="8"/></g>
+<g id="a1:3" transform="translate(1590, 67.3525)"><text font-size="15" font-family="Noto Sans SC" font-weight="normal" fill="#bdd0ec" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="17.648"><tspan x="0" text-anchor="start">主干数据流</tspan></tspan></text></g>
+<g id="c1:3" transform="translate(1693, 79)"><path fill="none" stroke="#8b7cf6" stroke-width="3" stroke-dasharray="8 7" d="M 0 0 L 49 0"/></g>
+<g id="a1:4" transform="translate(1752, 67.3525)"><text font-size="15" font-family="Noto Sans SC" font-weight="normal" fill="#bdd0ec" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="17.648"><tspan x="0" text-anchor="start">扩展 / 重建</tspan></tspan></text></g>
+<g id="o1:4" transform="translate(86, 145)"><rect x="0" y="0" width="1748" height="150" fill="#0e203b" stroke="#2b4a72" stroke-width="2" rx="25" ry="25" filter="url(#shadow-o1-4-1)"/></g>
+<g id="o1:5" transform="translate(103, 162)"><ellipse fill="url(#grad-l-o1:5)" stroke="none" stroke-width="0" cx="19" cy="19" rx="19" ry="19"/></g>
+<g id="a1:5" transform="translate(113.5, 166.823)"><text font-size="18" font-family="Noto Sans SC" font-weight="bold" fill="#061325" text-anchor="middle" dominant-baseline="alphabetic" x="8.5"><tspan x="8.5" y="21.177"><tspan x="3.19" text-anchor="start">1</tspan></tspan></text></g>
+<g id="a1:6" transform="translate(152, 166.823)"><text font-size="18" font-family="Noto Sans SC" font-weight="bold" fill="#cfe2ff" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="21.177"><tspan x="0" text-anchor="start">用户入口与产品表面</tspan></tspan></text></g>
+<g id="n1:1" transform="translate(132, 204)"><g id="d1:1" transform="translate(0, 0)"><defs><symbol id="svgicon-d1-1" viewBox="0 0 46 45"><g transform="translate(-132 -204)"><path d="M137 222 l18 -13 18 13 -7 22 h-22 z" fill="#173B5B" stroke="#24D6D1" stroke-width="2" /></g></symbol></defs><use href="#svgicon-d1-1" x="0" y="0" width="46" height="45"/></g><g id="a1:7" transform="translate(56, 5.469999999999999)"><text font-size="20" font-family="Noto Sans SC" font-weight="bold" fill="#f4f8ff" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="23.53"><tspan x="0" text-anchor="start">CLI</tspan></tspan></text></g><g id="a1:8" transform="translate(56, 36.528999999999996)"><text font-size="14" font-family="Noto Sans SC" font-weight="normal" fill="#8fa8c8" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="16.471"><tspan x="0" text-anchor="start">headless / dsh 命令</tspan></tspan></text></g></g>
+<g id="n1:2" transform="translate(553, 209)"><g id="o1:6" transform="translate(0, 0)"><ellipse fill="#173b5b" stroke="#24d6d1" stroke-width="2" cx="22" cy="22" rx="22" ry="22"/></g><g id="d1:2" transform="translate(5, 5)"><defs><symbol id="svgicon-d1-2" viewBox="0 0 34 34"><g transform="translate(-558 -214)"><path d="M563 231 h24 M575 219 v24" stroke="#24D6D1" stroke-width="2" /></g></symbol></defs><use href="#svgicon-d1-2" x="0" y="0" width="34" height="34"/></g><g id="a1:9" transform="translate(60, 0.46999999999999886)"><text font-size="20" font-family="Noto Sans SC" font-weight="bold" fill="#f4f8ff" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="23.53"><tspan x="0" text-anchor="start">Web</tspan></tspan></text></g><g id="a1:10" transform="translate(60, 31.528999999999996)"><text font-size="14" font-family="Noto Sans SC" font-weight="normal" fill="#8fa8c8" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="16.471"><tspan x="0" text-anchor="start">Host + Browser Client</tspan></tspan></text></g></g>
+<g id="n1:3" transform="translate(1002, 203)"><g id="d1:3" transform="translate(0, 0)"><defs><symbol id="svgicon-d1-3" viewBox="0 0 56 65"><g transform="translate(-1002 -203)"><polygon points="1030,208 1053,222 1053,249 1030,263 1007,249 1007,222" fill="#173B5B" stroke="#24D6D1" stroke-width="2" /></g></symbol></defs><use href="#svgicon-d1-3" x="0" y="0" width="56" height="65"/></g><g id="a1:11" transform="translate(80, 6.469999999999999)"><text font-size="20" font-family="Noto Sans SC" font-weight="bold" fill="#f4f8ff" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="23.53"><tspan x="0" text-anchor="start">ACP</tspan></tspan></text></g><g id="a1:12" transform="translate(80, 37.528999999999996)"><text font-size="14" font-family="Noto Sans SC" font-weight="normal" fill="#8fa8c8" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="16.471"><tspan x="0" text-anchor="start">自动化 Agent Client Protocol</tspan></tspan></text></g></g>
+<g id="n1:4" transform="translate(1468, 203)"><g id="d1:4" transform="translate(0, 0)"><defs><symbol id="svgicon-d1-4" viewBox="0 0 86 65"><g transform="translate(-1468 -203)"><path d="M1491 208 h40 l18 23 -18 32 h-40 l-18 -32 z" fill="#173B5B" stroke="#24D6D1" stroke-width="2" /></g></symbol></defs><use href="#svgicon-d1-4" x="0" y="0" width="86" height="65"/></g><g id="a1:13" transform="translate(106, 6.469999999999999)"><text font-size="20" font-family="Noto Sans SC" font-weight="bold" fill="#f4f8ff" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="23.53"><tspan x="0" text-anchor="start">SDK</tspan></tspan></text></g><g id="a1:14" transform="translate(106, 37.528999999999996)"><text font-size="14" font-family="Noto Sans SC" font-weight="normal" fill="#8fa8c8" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="16.471"><tspan x="0" text-anchor="start">JSON-RPC · TypeScript / Python</tspan></tspan></text></g></g>
+<g id="c1:4" transform="translate(960, 296)"><path fill="none" stroke="#24d6d1" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" d="M 0 0 L 0 33"/></g>
+<g id="d1:5" transform="translate(947.5, 321.5)"><defs><symbol id="svgicon-d1-5" viewBox="0 0 25 21"><g transform="translate(-947.5 -321.5)"><polygon points="950,324 970,324 960,340" fill="#24D6D1" /></g></symbol></defs><use href="#svgicon-d1-5" x="0" y="0" width="25" height="21"/></g>
+<g id="o1:7" transform="translate(86, 326)"><rect x="0" y="0" width="540" height="278" fill="#101f3b" stroke="#5868b8" stroke-width="2" rx="20" ry="20" filter="url(#shadow-o1-7-3)"/></g>
+<g id="o1:8" transform="translate(103, 345)"><ellipse fill="url(#grad-l-o1:8)" stroke="none" stroke-width="0" cx="19" cy="19" rx="19" ry="19"/></g>
+<g id="a1:15" transform="translate(113.5, 349.823)"><text font-size="18" font-family="Noto Sans SC" font-weight="bold" fill="#100d25" text-anchor="middle" dominant-baseline="alphabetic" x="8.5"><tspan x="8.5" y="21.177"><tspan x="3.19" text-anchor="start">2</tspan></tspan></text></g>
+<g id="a1:16" transform="translate(152, 349.823)"><text font-size="18" font-family="Noto Sans SC" font-weight="bold" fill="#e0dcff" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="21.177"><tspan x="0" text-anchor="start">Profile / Bundle / cordis.yml</tspan></tspan></text></g>
+<g id="a1:17" transform="translate(112, 389.529)"><text font-size="14" font-family="Noto Sans SC" font-weight="normal" fill="#90a0c2" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="16.471"><tspan x="0" text-anchor="start">有序 Patch Layer 将空配置装配成插件树</tspan></tspan></text></g>
+<g id="c1:5" transform="translate(132, 448)"><path fill="none" stroke="#35456c" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" d="M 0 0 L 433 0"/></g>
+<g id="o1:9" transform="translate(135, 437)"><ellipse fill="#8b7cf6" stroke="none" stroke-width="0" cx="11" cy="11" rx="11" ry="11"/></g>
+<g id="o1:10" transform="translate(271, 437)"><ellipse fill="#9c75fa" stroke="none" stroke-width="0" cx="11" cy="11" rx="11" ry="11"/></g>
+<g id="o1:11" transform="translate(409, 437)"><ellipse fill="#b66dfb" stroke="none" stroke-width="0" cx="11" cy="11" rx="11" ry="11"/></g>
+<g id="o1:12" transform="translate(546, 437)"><ellipse fill="#cf68ff" stroke="none" stroke-width="0" cx="11" cy="11" rx="11" ry="11"/></g>
+<g id="a1:18" transform="translate(119, 464.529)"><text font-size="14" font-family="Noto Sans SC" font-weight="normal" fill="#d9d3ff" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="16.471"><tspan x="0" text-anchor="start">Bundles</tspan></tspan></text></g>
+<g id="a1:19" transform="translate(239, 464.529)"><text font-size="14" font-family="Noto Sans SC" font-weight="normal" fill="#d9d3ff" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="16.471"><tspan x="0" text-anchor="start">Profile patch</tspan></tspan></text></g>
+<g id="a1:20" transform="translate(383, 464.529)"><text font-size="14" font-family="Noto Sans SC" font-weight="normal" fill="#d9d3ff" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="16.471"><tspan x="0" text-anchor="start">Home patch</tspan></tspan></text></g>
+<g id="a1:21" transform="translate(512, 464.529)"><text font-size="14" font-family="Noto Sans SC" font-weight="normal" fill="#d9d3ff" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="16.471"><tspan x="0" text-anchor="start">--patch</tspan></tspan></text></g>
+<g id="d1:6" transform="translate(98.5, 517.5)"><defs><symbol id="svgicon-d1-6" viewBox="0 0 245 61"><g transform="translate(-98.5 -517.5)"><path d="M127 520 h188 l26 28 -26 28 H127 l-26 -28 z" fill="#1A244B" stroke="#8B7CF6" /></g></symbol></defs><use href="#svgicon-d1-6" x="0" y="0" width="245" height="61"/></g>
+<g id="a1:22" transform="translate(179, 524.3525)"><text font-size="15" font-family="Noto Sans SC" font-weight="bold" fill="#f0edff" text-anchor="middle" dominant-baseline="alphabetic" x="40"><tspan x="40" y="17.648"><tspan x="6.65" text-anchor="start">dsh-base</tspan></tspan></text></g>
+<g id="a1:23" transform="translate(177, 547.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#9ca9c8" text-anchor="middle" dominant-baseline="alphabetic" x="42"><tspan x="42" y="14.118"><tspan x="0" text-anchor="start">共同运行时基础</tspan></tspan></text></g>
+<g id="d1:7" transform="translate(335.5, 517.5)"><defs><symbol id="svgicon-d1-7" viewBox="0 0 266 61"><g transform="translate(-335.5 -517.5)"><path d="M364 520 h209 l26 28 -26 28 H364 l-26 -28 z" fill="#1A244B" stroke="#CF68FF" /></g></symbol></defs><use href="#svgicon-d1-7" x="0" y="0" width="266" height="61"/></g>
+<g id="a1:24" transform="translate(386, 524.3525)"><text font-size="15" font-family="Noto Sans SC" font-weight="bold" fill="#f0edff" text-anchor="middle" dominant-baseline="alphabetic" x="83"><tspan x="83" y="17.648"><tspan x="11.74" text-anchor="start">web-app / headless</tspan></tspan></text></g>
+<g id="a1:25" transform="translate(433, 547.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#9ca9c8" text-anchor="middle" dominant-baseline="alphabetic" x="36"><tspan x="36" y="14.118"><tspan x="0" text-anchor="start">产品表面差异</tspan></tspan></text></g>
+<g id="c1:6" transform="translate(627, 470)"><path fill="none" stroke="#8b7cf6" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" d="M 0 0 L 43 0"/></g>
+<g id="d1:8" transform="translate(662.5, 457.5)"><defs><symbol id="svgicon-d1-8" viewBox="0 0 21 25"><g transform="translate(-662.5 -457.5)"><polygon points="665,460 665,480 681,470" fill="#8B7CF6" /></g></symbol></defs><use href="#svgicon-d1-8" x="0" y="0" width="21" height="25"/></g>
+<g id="o1:13" transform="translate(685, 326)"><rect x="0" y="0" width="618" height="278" fill="#0d2735" stroke="#23bdaf" stroke-width="2" rx="20" ry="20" filter="url(#shadow-o1-13-5)"/></g>
+<g id="o1:14" transform="translate(702, 345)"><ellipse fill="url(#grad-l-o1:14)" stroke="none" stroke-width="0" cx="19" cy="19" rx="19" ry="19"/></g>
+<g id="a1:26" transform="translate(712.5, 349.823)"><text font-size="18" font-family="Noto Sans SC" font-weight="bold" fill="#061325" text-anchor="middle" dominant-baseline="alphabetic" x="8.5"><tspan x="8.5" y="21.177"><tspan x="3.19" text-anchor="start">3</tspan></tspan></text></g>
+<g id="a1:27" transform="translate(751, 349.823)"><text font-size="18" font-family="Noto Sans SC" font-weight="bold" fill="#d8fffc" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="21.177"><tspan x="0" text-anchor="start">Cordis Runtime · 一切皆插件</tspan></tspan></text></g>
+<g id="a1:28" transform="translate(714, 388.529)"><text font-size="14" font-family="Noto Sans SC" font-weight="normal" fill="#91b8bc" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="16.471"><tspan x="0" text-anchor="start">插件通过共享 ctx 协作；注册随插件卸载而撤销</tspan></tspan></text></g>
+<g id="c1:7" transform="translate(784, 444)"><path fill="none" stroke="#24d6d1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M 0 0 C 56 -34 115 -34 170 0"/></g>
+<g id="c1:8" transform="translate(954, 444)"><path fill="none" stroke="#24d6d1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M 0 0 C 56 -34 114 -34 171 0"/></g>
+<g id="o1:15" transform="translate(753, 413)"><ellipse fill="#123e48" stroke="#24d6d1" stroke-width="2" cx="31" cy="31" rx="31" ry="31"/></g>
+<g id="o1:16" transform="translate(915, 405)"><ellipse fill="#123e48" stroke="#24d6d1" stroke-width="3" cx="39" cy="39" rx="39" ry="39"/></g>
+<g id="o1:17" transform="translate(1094, 413)"><ellipse fill="#123e48" stroke="#24d6d1" stroke-width="2" cx="31" cy="31" rx="31" ry="31"/></g>
+<g id="a1:29" transform="translate(764.5, 432.529)"><text font-size="14" font-family="Noto Sans SC" font-weight="normal" fill="#e1fffc" text-anchor="middle" dominant-baseline="alphabetic" x="19.5"><tspan x="19.5" y="16.471"><tspan x="-1.31" text-anchor="start">Plugin</tspan></tspan></text></g>
+<g id="a1:30" transform="translate(939.5, 431.176)"><text font-size="16" font-family="Noto Sans SC" font-weight="bold" fill="#e1fffc" text-anchor="middle" dominant-baseline="alphabetic" x="14.5"><tspan x="14.5" y="18.824"><tspan x="2.635" text-anchor="start">ctx</tspan></tspan></text></g>
+<g id="a1:31" transform="translate(1105.5, 432.529)"><text font-size="14" font-family="Noto Sans SC" font-weight="normal" fill="#e1fffc" text-anchor="middle" dominant-baseline="alphabetic" x="19.5"><tspan x="19.5" y="16.471"><tspan x="-1.31" text-anchor="start">Plugin</tspan></tspan></text></g>
+<g id="n1:5" transform="translate(718, 512)"><g id="o1:18" transform="translate(0, 0)"><rect x="0" y="0" width="128" height="47" fill="#143845" stroke="#2ccfc4" stroke-width="1" rx="22.5" ry="22.5"/></g><g id="a1:32" transform="translate(38.5, 11.352499999999964)"><text font-size="15" font-family="Noto Sans SC" font-weight="normal" fill="#ddfbf9" text-anchor="middle" dominant-baseline="alphabetic" x="25.5"><tspan x="25.5" y="17.648"><tspan x="-0.025" text-anchor="start">Service</tspan></tspan></text></g><g id="o1:19" transform="translate(144, 0)"><rect x="0" y="0" width="128" height="47" fill="#143845" stroke="#2ccfc4" stroke-width="1" rx="22.5" ry="22.5"/></g><g id="a1:33" transform="translate(188.5, 11.352499999999964)"><text font-size="15" font-family="Noto Sans SC" font-weight="normal" fill="#ddfbf9" text-anchor="middle" dominant-baseline="alphabetic" x="19.5"><tspan x="19.5" y="17.648"><tspan x="-0.385" text-anchor="start">Effect</tspan></tspan></text></g><g id="o1:20" transform="translate(288, 0)"><rect x="0" y="0" width="128" height="47" fill="#143845" stroke="#2ccfc4" stroke-width="1" rx="22.5" ry="22.5"/></g><g id="a1:34" transform="translate(332.5, 11.352499999999964)"><text font-size="15" font-family="Noto Sans SC" font-weight="normal" fill="#ddfbf9" text-anchor="middle" dominant-baseline="alphabetic" x="19.5"><tspan x="19.5" y="17.648"><tspan x="-0.27" text-anchor="start">Event</tspan></tspan></text></g><g id="o1:21" transform="translate(432, 0)"><rect x="0" y="0" width="120" height="47" fill="#143845" stroke="#2ccfc4" stroke-width="1" rx="22.5" ry="22.5"/></g><g id="a1:35" transform="translate(470.5, 11.352499999999964)"><text font-size="15" font-family="Noto Sans SC" font-weight="normal" fill="#ddfbf9" text-anchor="middle" dominant-baseline="alphabetic" x="21.5"><tspan x="21.5" y="17.648"><tspan x="0.035" text-anchor="start">Scope</tspan></tspan></text></g></g>
+<g id="o1:22" transform="translate(1364, 326)"><rect x="0" y="0" width="470" height="278" fill="#172035" stroke="#53617d" stroke-width="2" rx="20" ry="20" filter="url(#shadow-o1-22-7)"/></g>
+<g id="a1:36" transform="translate(1394, 350.823)"><text font-size="18" font-family="Noto Sans SC" font-weight="bold" fill="#cbd7ea" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="21.177"><tspan x="0" text-anchor="start">External Runtimes / Providers</tspan></tspan></text></g>
+<g id="a1:37" transform="translate(1394, 385.529)"><text font-size="14" font-family="Noto Sans SC" font-weight="normal" fill="#8495b4" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="16.471"><tspan x="0" text-anchor="start">实现可替换；Consumer 不感知部署位置</tspan></tspan></text></g>
+<g id="c1:9" transform="translate(1422, 444)"><path fill="none" stroke="#ffad62" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M 0 0 C 48 -34 93 -34 141 0 C 189 34 234 34 282 0"/></g>
+<g id="o1:23" transform="translate(1394, 416)"><ellipse fill="#332940" stroke="#ffad62" stroke-width="1" cx="28" cy="28" rx="28" ry="28"/></g>
+<g id="o1:24" transform="translate(1535, 416)"><ellipse fill="#332940" stroke="#ffad62" stroke-width="1" cx="28" cy="28" rx="28" ry="28"/></g>
+<g id="o1:25" transform="translate(1676, 416)"><ellipse fill="#332940" stroke="#ffad62" stroke-width="1" cx="28" cy="28" rx="28" ry="28"/></g>
+<g id="a1:38" transform="translate(1406, 434.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#ffe3c8" text-anchor="middle" dominant-baseline="alphabetic" x="16"><tspan x="16" y="14.118"><tspan x="-0.53" text-anchor="start">Cloud</tspan></tspan></text></g>
+<g id="a1:39" transform="translate(1548.5, 434.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#ffe3c8" text-anchor="middle" dominant-baseline="alphabetic" x="14.5"><tspan x="14.5" y="14.118"><tspan x="-0.39" text-anchor="start">Local</tspan></tspan></text></g>
+<g id="a1:40" transform="translate(1680, 434.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#ffe3c8" text-anchor="middle" dominant-baseline="alphabetic" x="24"><tspan x="24" y="14.118"><tspan x="-0.55" text-anchor="start">Sandbox</tspan></tspan></text></g>
+<g id="o1:26" transform="translate(1395, 503)"><rect x="0" y="0" width="190" height="57" fill="#25243c" stroke="#a87069" stroke-width="1" rx="16" ry="16"/></g>
+<g id="a1:41" transform="translate(1428.5, 510.529)"><text font-size="14" font-family="Noto Sans SC" font-weight="bold" fill="#f9e5d3" text-anchor="middle" dominant-baseline="alphabetic" x="61.5"><tspan x="61.5" y="16.471"><tspan x="13.515" text-anchor="start">LLM API / Web</tspan></tspan></text></g>
+<g id="a1:42" transform="translate(1436, 533.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#aab4c8" text-anchor="middle" dominant-baseline="alphabetic" x="54"><tspan x="54" y="14.118"><tspan x="0" text-anchor="start">远端模型与网络服务</tspan></tspan></text></g>
+<g id="o1:27" transform="translate(1606, 503)"><rect x="0" y="0" width="196" height="57" fill="#25243c" stroke="#a87069" stroke-width="1" rx="16" ry="16"/></g>
+<g id="a1:43" transform="translate(1611, 510.529)"><text font-size="14" font-family="Noto Sans SC" font-weight="bold" fill="#f9e5d3" text-anchor="middle" dominant-baseline="alphabetic" x="93"><tspan x="93" y="16.471"><tspan x="16.55" text-anchor="start">Process / Worker / E2B</tspan></tspan></text></g>
+<g id="a1:44" transform="translate(1650, 533.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#aab4c8" text-anchor="middle" dominant-baseline="alphabetic" x="54"><tspan x="54" y="14.118"><tspan x="0" text-anchor="start">执行世界与隔离环境</tspan></tspan></text></g>
+<g id="c1:10" transform="translate(1304, 470)"><path fill="none" stroke="#ffad62" stroke-width="3" stroke-dasharray="8 7" d="M 0 0 L 48 0"/></g>
+<g id="d1:9" transform="translate(1344.5, 459.5)"><defs><symbol id="svgicon-d1-9" viewBox="0 0 18 21"><g transform="translate(-1344.5 -459.5)"><polygon points="1347,462 1347,478 1360,470" fill="#FFAD62" /></g></symbol></defs><use href="#svgicon-d1-9" x="0" y="0" width="18" height="21"/></g>
+<g id="c1:11" transform="translate(994, 605)"><path fill="none" stroke="#24d6d1" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" d="M 0 0 L 0 31"/></g>
+<g id="d1:10" transform="translate(981.5, 628.5)"><defs><symbol id="svgicon-d1-10" viewBox="0 0 25 21"><g transform="translate(-981.5 -628.5)"><polygon points="984,631 1004,631 994,647" fill="#24D6D1" /></g></symbol></defs><use href="#svgicon-d1-10" x="0" y="0" width="25" height="21"/></g>
+<g id="o1:28" transform="translate(86, 635)"><rect x="0" y="0" width="1161" height="338" fill="#0d2037" stroke="#287eaf" stroke-width="2" rx="20" ry="20" filter="url(#shadow-o1-28-8)"/></g>
+<g id="o1:29" transform="translate(103, 655)"><ellipse fill="url(#grad-l-o1:29)" stroke="none" stroke-width="0" cx="19" cy="19" rx="19" ry="19"/></g>
+<g id="a1:45" transform="translate(113.5, 659.823)"><text font-size="18" font-family="Noto Sans SC" font-weight="bold" fill="#061325" text-anchor="middle" dominant-baseline="alphabetic" x="8.5"><tspan x="8.5" y="21.177"><tspan x="3.19" text-anchor="start">4</tspan></tspan></text></g>
+<g id="a1:46" transform="translate(152, 659.823)"><text font-size="18" font-family="Noto Sans SC" font-weight="bold" fill="#d4ecff" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="21.177"><tspan x="0" text-anchor="start">Agent Runtime · Session / Registry / Loop</tspan></tspan></text></g>
+<g id="a1:47" transform="translate(116, 699.529)"><text font-size="14" font-family="Noto Sans SC" font-weight="normal" fill="#8fb0c9" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="16.471"><tspan x="0" text-anchor="start">Session 保存事实 · AgentRegistry 管理 live handle · AgentLoop 驱动唯一主链</tspan></tspan></text></g>
+<g id="c1:12" transform="translate(138, 772)"><path fill="none" stroke="#3b80a6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" d="M 0 0 C 152 -57 292 -57 414 0"/></g>
+<g id="o1:30" transform="translate(90, 724)"><ellipse fill="#12324a" stroke="#35b7da" stroke-width="2" cx="48" cy="48" rx="48" ry="48"/></g>
+<g id="o1:31" transform="translate(504, 724)"><ellipse fill="#12324a" stroke="#35b7da" stroke-width="2" cx="48" cy="48" rx="48" ry="48"/></g>
+<g id="a1:48" transform="translate(103, 750.3525)"><text font-size="15" font-family="Noto Sans SC" font-weight="bold" fill="#e3f8ff" text-anchor="middle" dominant-baseline="alphabetic" x="35"><tspan x="35" y="17.648"><tspan x="6.755" text-anchor="start">Session</tspan></tspan></text></g>
+<g id="a1:49" transform="translate(109, 775.0585)"><text font-size="11" font-family="Noto Sans SC" font-weight="normal" fill="#8fb7cb" text-anchor="middle" dominant-baseline="alphabetic" x="29"><tspan x="29" y="12.942"><tspan x="-0.305" text-anchor="start">Event Store</tspan></tspan></text></g>
+<g id="a1:50" transform="translate(526, 750.3525)"><text font-size="15" font-family="Noto Sans SC" font-weight="bold" fill="#e3f8ff" text-anchor="middle" dominant-baseline="alphabetic" x="26"><tspan x="26" y="17.648"><tspan x="4.535" text-anchor="start">Agent</tspan></tspan></text></g>
+<g id="a1:51" transform="translate(522.5, 775.0585)"><text font-size="11" font-family="Noto Sans SC" font-weight="normal" fill="#8fb7cb" text-anchor="middle" dominant-baseline="alphabetic" x="29.5"><tspan x="29.5" y="12.942"><tspan x="-0.595" text-anchor="start">Live Handle</tspan></tspan></text></g>
+<g id="d1:11" transform="translate(290, 730)"><defs><symbol id="svgicon-d1-11" viewBox="0 0 110 98"><g transform="translate(-290 -730)"><polygon points="345,735 395,766 377,823 313,823 295,766" fill="#172F50" stroke="#5B9FE9" stroke-width="2" /></g></symbol></defs><use href="#svgicon-d1-11" x="0" y="0" width="110" height="98"/></g>
+<g id="a1:52" transform="translate(320.5, 755.529)"><text font-size="14" font-family="Noto Sans SC" font-weight="bold" fill="#e8f2ff" text-anchor="middle" dominant-baseline="alphabetic" x="24.5"><tspan x="24.5" y="16.471"><tspan x="4.465" text-anchor="start">Agent</tspan></tspan></text></g>
+<g id="a1:53" transform="translate(325, 778.0585)"><text font-size="11" font-family="Noto Sans SC" font-weight="normal" fill="#9bb4d3" text-anchor="middle" dominant-baseline="alphabetic" x="20"><tspan x="20" y="12.942"><tspan x="-0.72" text-anchor="start">Registry</tspan></tspan></text></g>
+<g id="o1:32" transform="translate(650, 754)"><rect x="0" y="0" width="556" height="168" fill="#101c36" stroke="#315b8c" stroke-width="1" rx="28" ry="28"/></g>
+<g id="a1:54" transform="translate(680, 768.176)"><text font-size="16" font-family="Noto Sans SC" font-weight="bold" fill="#d7e8ff" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="18.824"><tspan x="0" text-anchor="start">核心时序：一个 Turn 可包含多个 Step</tspan></tspan></text></g>
+<g id="c1:13" transform="translate(702, 844)"><path fill="none" stroke="#315b8c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M 0 0 L 447 0"/></g>
+<g id="o1:33" transform="translate(690, 822)"><ellipse fill="#286b96" stroke="#4fcce3" stroke-width="1" cx="22" cy="22" rx="22" ry="22"/></g>
+<g id="o1:34" transform="translate(798, 822)"><ellipse fill="#286b96" stroke="#4fcce3" stroke-width="1" cx="22" cy="22" rx="22" ry="22"/></g>
+<g id="o1:35" transform="translate(906, 822)"><ellipse fill="#286b96" stroke="#4fcce3" stroke-width="1" cx="22" cy="22" rx="22" ry="22"/></g>
+<g id="o1:36" transform="translate(1014, 822)"><ellipse fill="#286b96" stroke="#4fcce3" stroke-width="1" cx="22" cy="22" rx="22" ry="22"/></g>
+<g id="o1:37" transform="translate(1122, 822)"><ellipse fill="#286b96" stroke="#4fcce3" stroke-width="1" cx="22" cy="22" rx="22" ry="22"/></g>
+<g id="a1:55" transform="translate(699.5, 835.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#f4fcff" text-anchor="middle" dominant-baseline="alphabetic" x="12.5"><tspan x="12.5" y="14.118"><tspan x="-0.41" text-anchor="start">Turn</tspan></tspan></text></g>
+<g id="a1:56" transform="translate(807.5, 835.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#f4fcff" text-anchor="middle" dominant-baseline="alphabetic" x="12.5"><tspan x="12.5" y="14.118"><tspan x="-0.13" text-anchor="start">Step</tspan></tspan></text></g>
+<g id="a1:57" transform="translate(916, 835.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#f4fcff" text-anchor="middle" dominant-baseline="alphabetic" x="12"><tspan x="12" y="14.118"><tspan x="0.61" text-anchor="start">LLM</tspan></tspan></text></g>
+<g id="a1:58" transform="translate(1024, 835.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#f4fcff" text-anchor="middle" dominant-baseline="alphabetic" x="12"><tspan x="12" y="14.118"><tspan x="-0.125" text-anchor="start">Tool</tspan></tspan></text></g>
+<g id="a1:59" transform="translate(1130, 837.0585)"><text font-size="11" font-family="Noto Sans SC" font-weight="normal" fill="#f4fcff" text-anchor="middle" dominant-baseline="alphabetic" x="14"><tspan x="14" y="12.942"><tspan x="-0.5" text-anchor="start">Event</tspan></tspan></text></g>
+<g id="a1:60" transform="translate(710, 875.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#8ea7c8" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="14.118"><tspan x="0" text-anchor="start">claim input</tspan></tspan></text></g>
+<g id="a1:61" transform="translate(808, 875.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#8ea7c8" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="14.118"><tspan x="0" text-anchor="start">pre-step</tspan></tspan></text></g>
+<g id="a1:62" transform="translate(910, 875.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#8ea7c8" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="14.118"><tspan x="0" text-anchor="start">stream</tspan></tspan></text></g>
+<g id="a1:63" transform="translate(1011, 875.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#8ea7c8" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="14.118"><tspan x="0" text-anchor="start">execute</tspan></tspan></text></g>
+<g id="a1:64" transform="translate(1124, 875.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#8ea7c8" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="14.118"><tspan x="0" text-anchor="start">append</tspan></tspan></text></g>
+<g id="c1:14" transform="translate(1086, 814)"><path fill="none" stroke="#cf68ff" stroke-width="2" stroke-dasharray="6 6" d="M 58 4 C 58 -20 16 -19 0 0"/></g>
+<g id="a1:65" transform="translate(990, 794.0585)"><text font-size="11" font-family="Noto Sans SC" font-weight="normal" fill="#cfb3ff" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="12.942"><tspan x="0" text-anchor="start">tool owes next request → next Step</tspan></tspan></text></g>
+<g id="o1:38" transform="translate(1305, 635)"><rect x="0" y="0" width="529" height="338" fill="#221e35" stroke="#af6ab0" stroke-width="2" rx="20" ry="20" filter="url(#shadow-o1-38-10)"/></g>
+<g id="o1:39" transform="translate(1322, 655)"><ellipse fill="url(#grad-l-o1:39)" stroke="none" stroke-width="0" cx="19" cy="19" rx="19" ry="19"/></g>
+<g id="a1:66" transform="translate(1332.5, 659.823)"><text font-size="18" font-family="Noto Sans SC" font-weight="bold" fill="#100d25" text-anchor="middle" dominant-baseline="alphabetic" x="8.5"><tspan x="8.5" y="21.177"><tspan x="3.19" text-anchor="start">5</tspan></tspan></text></g>
+<g id="a1:67" transform="translate(1371, 659.823)"><text font-size="18" font-family="Noto Sans SC" font-weight="bold" fill="#f1deff" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="21.177"><tspan x="0" text-anchor="start">Capability Seam</tspan></tspan></text></g>
+<g id="a1:68" transform="translate(1335, 697.529)"><text font-size="14" font-family="Noto Sans SC" font-weight="normal" fill="#af9bbe" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="16.471"><tspan x="0" text-anchor="start">完整能力 = Definition + Provider + Consumer</tspan></tspan></text></g>
+<g id="d1:12" transform="translate(1441.5, 739.5)"><defs><symbol id="svgicon-d1-12" viewBox="0 0 253 137"><g transform="translate(-1441.5 -739.5)"><polygon points="1568,747 1687,869 1449,869" fill="#2B2141" stroke="#B376E0" stroke-width="3" /></g></symbol></defs><use href="#svgicon-d1-12" x="0" y="0" width="253" height="137"/></g>
+<g id="o1:40" transform="translate(1530, 723)"><ellipse fill="#503061" stroke="#d592f2" stroke-width="1" cx="38" cy="38" rx="38" ry="38"/></g>
+<g id="o1:41" transform="translate(1428, 820)"><ellipse fill="#503061" stroke="#d592f2" stroke-width="1" cx="38" cy="38" rx="38" ry="38"/></g>
+<g id="o1:42" transform="translate(1632, 820)"><ellipse fill="#503061" stroke="#d592f2" stroke-width="1" cx="38" cy="38" rx="38" ry="38"/></g>
+<g id="a1:69" transform="translate(1541.5, 743.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="bold" fill="#fff0ff" text-anchor="middle" dominant-baseline="alphabetic" x="26.5"><tspan x="26.5" y="14.118"><tspan x="4.82" text-anchor="start">Service</tspan></tspan></text></g>
+<g id="a1:70" transform="translate(1542.5, 761.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#fff0ff" text-anchor="middle" dominant-baseline="alphabetic" x="25.5"><tspan x="25.5" y="14.118"><tspan x="-2.07" text-anchor="start">Definition</tspan></tspan></text></g>
+<g id="a1:71" transform="translate(1443.5, 848.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#fff0ff" text-anchor="middle" dominant-baseline="alphabetic" x="22.5"><tspan x="22.5" y="14.118"><tspan x="-1.32" text-anchor="start">Provider</tspan></tspan></text></g>
+<g id="a1:72" transform="translate(1642, 848.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#fff0ff" text-anchor="middle" dominant-baseline="alphabetic" x="28"><tspan x="28" y="14.118"><tspan x="-0.78" text-anchor="start">Consumer</tspan></tspan></text></g>
+<g id="o1:43" transform="translate(1341, 908)"><rect x="0" y="0" width="456" height="38" fill="#342549" stroke="#774b91" stroke-width="1" rx="19" ry="19"/></g>
+<g id="a1:73" transform="translate(1392.5, 916.7055)"><text font-size="13" font-family="Noto Sans SC" font-weight="normal" fill="#dfc7ed" text-anchor="middle" dominant-baseline="alphabetic" x="176.5"><tspan x="176.5" y="15.295"><tspan x="-20.47" text-anchor="start">LLM · Shell · FS · Web · Subagent · Workflow · Credentials</tspan></tspan></text></g>
+<g id="c1:15" transform="translate(1220, 540)"><path fill="none" stroke="#cf68ff" stroke-width="3" stroke-dasharray="10 8" d="M 0 0 C 100 50 -10 136 84 191"/></g>
+<g id="a1:74" transform="translate(1229, 610.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#c7a8dd" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="14.118"><tspan x="0" text-anchor="start">插件扩展 / scoped registration</tspan></tspan></text></g>
+<g id="c1:16" transform="translate(666, 974)"><path fill="none" stroke="#59e3a7" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" d="M 0 0 L 0 29"/></g>
+<g id="d1:13" transform="translate(653.5, 995.5)"><defs><symbol id="svgicon-d1-13" viewBox="0 0 25 21"><g transform="translate(-653.5 -995.5)"><polygon points="656,998 676,998 666,1014" fill="#59E3A7" /></g></symbol></defs><use href="#svgicon-d1-13" x="0" y="0" width="25" height="21"/></g>
+<g id="o1:44" transform="translate(86, 1000)"><rect x="0" y="0" width="1748" height="217" fill="#102b2b" stroke="#2ca77e" stroke-width="2" rx="20" ry="20" filter="url(#shadow-o1-44-12)"/></g>
+<g id="o1:45" transform="translate(103, 1021)"><ellipse fill="url(#grad-l-o1:45)" stroke="none" stroke-width="0" cx="19" cy="19" rx="19" ry="19"/></g>
+<g id="a1:75" transform="translate(113.5, 1025.823)"><text font-size="18" font-family="Noto Sans SC" font-weight="bold" fill="#072018" text-anchor="middle" dominant-baseline="alphabetic" x="8.5"><tspan x="8.5" y="21.177"><tspan x="3.19" text-anchor="start">6</tspan></tspan></text></g>
+<g id="a1:76" transform="translate(152, 1025.823)"><text font-size="18" font-family="Noto Sans SC" font-weight="bold" fill="#d8fff0" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="21.177"><tspan x="0" text-anchor="start">Session Log · Persistence · Projection / Recovery</tspan></tspan></text></g>
+<g id="a1:77" transform="translate(116, 1063.529)"><text font-size="14" font-family="Noto Sans SC" font-weight="normal" fill="#92bfaf" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="16.471"><tspan x="0" text-anchor="start">append-only durable facts 是模型上下文、回放、恢复与产品视图的共同来源</tspan></tspan></text></g>
+<g id="d1:14" transform="translate(106, 1101)"><defs><symbol id="svgicon-d1-14" viewBox="0 0 362 79"><g transform="translate(-106 -1101)"><path d="M135 1130 h120 l24 -24 h160 l24 24 -24 45 H135 l-24 -23 z" fill="#164139" stroke="#59E3A7" stroke-width="2" /></g></symbol></defs><use href="#svgicon-d1-14" x="0" y="0" width="362" height="79"/></g>
+<g id="a1:78" transform="translate(210.5, 1124.3525)"><text font-size="15" font-family="Noto Sans SC" font-weight="bold" fill="#e5fff5" text-anchor="middle" dominant-baseline="alphabetic" x="76.5"><tspan x="76.5" y="17.648"><tspan x="12.05" text-anchor="start">SessionEvent Log</tspan></tspan></text></g>
+<g id="a1:79" transform="translate(197, 1148.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#9cc9b7" text-anchor="middle" dominant-baseline="alphabetic" x="90"><tspan x="90" y="14.118"><tspan x="-1.93" text-anchor="start">turn / step / user / assistant / tool</tspan></tspan></text></g>
+<g id="c1:17" transform="translate(474, 1141)"><path fill="none" stroke="#59e3a7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" d="M 0 0 L 120 0"/></g>
+<g id="d1:15" transform="translate(585.5, 1129.5)"><defs><symbol id="svgicon-d1-15" viewBox="0 0 21 23"><g transform="translate(-585.5 -1129.5)"><polygon points="588,1132 588,1150 604,1141" fill="#59E3A7" /></g></symbol></defs><use href="#svgicon-d1-15" x="0" y="0" width="21" height="23"/></g>
+<g id="o1:46" transform="translate(603, 1089)"><ellipse fill="#173d38" stroke="#59e3a7" stroke-width="2" cx="106" cy="52" rx="106" ry="52"/></g>
+<g id="a1:80" transform="translate(659, 1120.3525)"><text font-size="15" font-family="Noto Sans SC" font-weight="bold" fill="#e5fff5" text-anchor="middle" dominant-baseline="alphabetic" x="50"><tspan x="50" y="17.648"><tspan x="7.82" text-anchor="start">Persistence</tspan></tspan></text></g>
+<g id="a1:81" transform="translate(665, 1145.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#9cc9b7" text-anchor="middle" dominant-baseline="alphabetic" x="44"><tspan x="44" y="14.118"><tspan x="1.695" text-anchor="start">JSONL / SQLite</tspan></tspan></text></g>
+<g id="c1:18" transform="translate(815, 1141)"><path fill="none" stroke="#59e3a7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" d="M 0 0 L 120 0"/></g>
+<g id="d1:16" transform="translate(926.5, 1129.5)"><defs><symbol id="svgicon-d1-16" viewBox="0 0 21 23"><g transform="translate(-926.5 -1129.5)"><polygon points="929,1132 929,1150 945,1141" fill="#59E3A7" /></g></symbol></defs><use href="#svgicon-d1-16" x="0" y="0" width="21" height="23"/></g>
+<g id="d1:17" transform="translate(917, 1092)"><defs><symbol id="svgicon-d1-17" viewBox="0 0 345 98"><g transform="translate(-917 -1092)"><path d="M953 1097 h273 l31 44 -31 44 H953 l-31 -44 z" fill="#163B3C" stroke="#59E3A7" stroke-width="2" /></g></symbol></defs><use href="#svgicon-d1-17" x="0" y="0" width="345" height="98"/></g>
+<g id="a1:82" transform="translate(999, 1120.3525)"><text font-size="15" font-family="Noto Sans SC" font-weight="bold" fill="#e5fff5" text-anchor="middle" dominant-baseline="alphabetic" x="90"><tspan x="90" y="17.648"><tspan x="11.315" text-anchor="start">Projection / Recovery</tspan></tspan></text></g>
+<g id="a1:83" transform="translate(1002, 1145.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#9cc9b7" text-anchor="middle" dominant-baseline="alphabetic" x="87"><tspan x="87" y="14.118"><tspan x="-7.71" text-anchor="start">deriveMessages · transcript · UI</tspan></tspan></text></g>
+<g id="c1:19" transform="translate(1257, 1141)"><path fill="none" stroke="#59e3a7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" d="M 0 0 L 134 0"/></g>
+<g id="d1:18" transform="translate(1382.5, 1129.5)"><defs><symbol id="svgicon-d1-18" viewBox="0 0 21 23"><g transform="translate(-1382.5 -1129.5)"><polygon points="1385,1132 1385,1150 1401,1141" fill="#59E3A7" /></g></symbol></defs><use href="#svgicon-d1-18" x="0" y="0" width="21" height="23"/></g>
+<g id="o1:47" transform="translate(1401, 1097)"><rect x="0" y="0" width="394" height="88" fill="#16383b" stroke="#59e3a7" stroke-width="2" rx="25" ry="25"/></g>
+<g id="a1:84" transform="translate(1446.5, 1111.3525)"><text font-size="15" font-family="Noto Sans SC" font-weight="bold" fill="#e5fff5" text-anchor="middle" dominant-baseline="alphabetic" x="151.5"><tspan x="151.5" y="17.648"><tspan x="9.78" text-anchor="start">Resume · Fork · Replay · Telemetry</tspan></tspan></text></g>
+<g id="a1:85" transform="translate(1481, 1140.7054)"><text font-size="13" font-family="Noto Sans SC" font-weight="normal" fill="#9cc9b7" text-anchor="middle" dominant-baseline="alphabetic" x="117"><tspan x="117" y="15.295"><tspan x="1.76" text-anchor="start">Host / SDK / Client 都从同一事实流投影</tspan></tspan></text></g>
+<g id="c1:20" transform="translate(1036, 972)"><path fill="none" stroke="#8b7cf6" stroke-width="3" stroke-dasharray="10 8" d="M 53 125 C 53 125 53 39 53 39 C 53 18 23 11 0 0"/></g>
+<g id="d1:19" transform="translate(1026.5, 964.5)"><defs><symbol id="svgicon-d1-19" viewBox="0 0 23 21"><g transform="translate(-1026.5 -964.5)"><polygon points="1029,967 1047,968 1038,983" fill="#8B7CF6" /></g></symbol></defs><use href="#svgicon-d1-19" x="0" y="0" width="23" height="21"/></g>
+<g id="a1:86" transform="translate(1102, 982.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="normal" fill="#c5b8f5" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="14.118"><tspan x="0" text-anchor="start">从日志重建 model history</tspan></tspan></text></g>
+<g id="o1:48" transform="translate(527, 1245)"><rect x="0" y="0" width="866" height="33" fill="#13253d" stroke="#2a4668" stroke-width="1" rx="15.5" ry="15.5"/></g>
+<g id="a1:87" transform="translate(725, 1251.7054)"><text font-size="13" font-family="Noto Sans SC" font-weight="normal" fill="#a9bcda" text-anchor="middle" dominant-baseline="alphabetic" x="235"><tspan x="235" y="15.295"><tspan x="-8.99" text-anchor="start">核心不变量：可撤销注册 · 单一主驱动链 · 模型可见必须可重建 · Provider 可替换</tspan></tspan></text></g>
+</svg>

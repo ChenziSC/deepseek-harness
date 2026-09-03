@@ -1,13 +1,12 @@
 /**
- * Register a {@link DeepSeekAdapter} for the `deepseek-official` provider route on
- * `ctx.llm`, with connection facts resolved per request instead of frozen at
- * load: the plugin layers its `cordis.yml` entry config under the optional
- * `llm-deepseek` user-settings section (`ctx.settings`) and resolves the API
- * key through the optional credential seam (`ctx.credentials`), so a changed
- * base URL, catalog, or key reaches the very next request without restarting
- * anything, while an in-flight stream keeps the facts it started with. The
- * one registration-captured fact — the retry policy — re-registers the route
- * in place when it changes.
+ * 在 `ctx.llm` 上为 `deepseek-official` Provider 路由注册 {@link DeepSeekAdapter}。连接信息
+ * 按请求解析，不在加载时冻结：插件把 `cordis.yml` 条目配置放在可选的 `llm-deepseek`
+ * 用户设置（`ctx.settings`）下，并通过可选 Credentials Service（`ctx.credentials`）解析
+ * API Key。因此 Base URL、模型目录或密钥变化会从下一次请求开始生效，进行中的流仍使用
+ * 启动时取得的信息。唯一在注册时捕获的是重试策略；它变化时会原地重新注册路由。
+ *
+ * 该插件只是 LlmRuntime 的 Provider，不属于 AgentLoop。上层仅依赖统一 LLM 接口，因此
+ * 替换 Provider 不需要修改 Session、Tool 或 Loop。
  * @module @deepseek-ai/dsh-llm-deepseek
  */
 
@@ -384,6 +383,8 @@ export function resolveAdapterOptions(config: Config, environment?: LaunchEnviro
 }
 
 export function apply(ctx: Context, config: Config): void {
+  // 配置函数按请求读取当前设置，但会保留最近一次有效结果。这样热更新后的下一次请求
+  // 立即使用新配置，而正在流式输出的请求继续使用启动时已经解析好的那一份。
   let current: () => Config = () => config
   let lastRaw: Config | undefined
   let lastGood: ResolvedDeepSeekOptions | undefined
@@ -396,9 +397,8 @@ export function apply(ctx: Context, config: Config): void {
       lastGood = next
       return next
     } catch (error) {
-      // Static composition resolves before anything registers, so this branch
-      // only sees a live settings snapshot failing a beyond-schema bound:
-      // keep serving the last good facts and say so once per bad snapshot.
+      // 静态配置会在注册前完成解析，因此这个分支只处理运行中设置快照违反 Schema 之外
+      // 的约束：继续使用最近一次有效配置，并且每个无效快照只记录一次错误。
       if (lastGood === undefined) throw error
       lastRaw = raw
       ctx.logger.error('llm-deepseek: keeping the last good configuration after an invalid settings section')
@@ -409,16 +409,15 @@ export function apply(ctx: Context, config: Config): void {
   options()
 
   const resolveApiKey = async (connection: ResolvedDeepSeekOptions): Promise<string> => {
-    // Every credential fact comes from the caller's snapshot, so a rejected
-    // settings generation cannot leak its key onto the previous endpoint.
+    // 所有凭证信息都来自调用方当前快照，因此被拒绝的新设置不会把它的密钥错误地用于
+    // 上一代服务地址。
     const ref = connection.apiKeyEnv
     const credentials = ctx.get('credentials')
     if (credentials !== undefined) {
       const hit = await credentials.resolve(ref)
       if (hit !== undefined) return assertUsableApiKey(hit.value, 'llm-deepseek', ref)
     } else {
-      // Without the seam there is no managed store to rank against, so the
-      // environment is the whole credential plane.
+      // 没有 Credentials 服务时不存在优先级更高的托管存储，环境变量就是唯一凭证来源。
       const ambient = launchEnvironmentOf(ctx).get(ref)
       if (ambient !== undefined && ambient.value.length > 0) {
         return assertUsableApiKey(ambient.value, 'llm-deepseek', ref)
@@ -442,18 +441,18 @@ export function apply(ctx: Context, config: Config): void {
   ctx.llm.registerConfigurableProviders([
     { provider: PROVIDER, displayName: 'DeepSeek', settingsNs: NS, settingsPath: [] },
   ])
-  // Route effects bind to this apply fiber via the stable `ctx` reference,
-  // even when a swap runs inside the scoped settings callback below.
+  // 这是 DeepSeek 实现接入 DSH 的关键点：Adapter 只通过稳定 Provider 名称暴露，
+  // disposer 和 replace 由 LlmRuntime 管理，不向 AgentLoop 泄漏具体 HTTP 实现。
+  // 路由 Effect 通过稳定的 ctx 引用归属于当前 apply Fiber；即使替换操作发生在下方的
+  // settings 回调中，也不会改变其生命周期所有者。
   const registration = ctx.llm.registerAdapter([PROVIDER], adapter)
   let registeredPolicy = options().retryPolicy
   const ensureRegistrationFacts = (): void => {
     const policy = options().retryPolicy
     if (deepEqualJson(policy, registeredPolicy)) return
-    // The registry captures the retry policy at registration, so it is the one
-    // fact per-request resolution cannot refresh. `replace` re-reads it in one
-    // synchronous registry section: disposing and re-registering instead would
-    // publish an empty route set between the two, and an observer that reacted
-    // to it would see this provider disappear and come back.
+    // 注册表在注册时捕获重试策略，这是按请求重新解析无法刷新的唯一配置。replace 会在
+    // 同一个同步注册表操作中重新读取它；若先释放再注册，中间会短暂发布空路由，让观察者
+    // 误以为 Provider 消失后又重新出现。
     registration.replace([PROVIDER])
     registeredPolicy = policy
   }

@@ -1,23 +1,16 @@
 /**
- * Agent presets: each session composes its model-facing plugin set from one
- * preset `cordis.yml`, mounted ONCE per preset under a standing scope and
- * joined by every agent that names it.
+ * Agent Preset：每个 Session 从一份 Preset `cordis.yml` 组合面向模型的插件集。同一 Preset
+ * 只在常驻 Scope 下挂载一次，所有使用该名称的 Agent 都加入这份组合。
  *
- * The standing mount is what makes a preset one composition rather than one
- * per session: its plugin instances, tool registrations, prompt sections, and
- * projection units exist exactly once, keyed per session inside the plugins
- * themselves (they predate presets and were written for a shared world). An
- * agent joins by having its scope key parented to the mount's
- * ({@link bindScopeParent}), which makes the mount's registrations visible to
- * that agent's views and the mount's listeners receive that agent's events —
- * and a host reader with no agent at all (a cold transcript read) resolves
- * the same standing registrations by preset id.
+ * 常驻挂载使 Preset 成为“每个 Preset 一份组合”，而不是“每个 Session 一份组合”。插件
+ * 实例、Tool 注册、Prompt 段和投影单元只存在一份，插件内部再按 Session 区分数据。Agent
+ * 通过 {@link bindScopeParent} 把自己的 Scope Key 接到常驻挂载下，于是能够看到该挂载的
+ * 注册，并让挂载监听器接收自己的事件。没有 Agent 的宿主读取方也能按 Preset id 解析同一
+ * 常驻注册。
  *
- * This package owns the preset vocabulary, filesystem discovery, and the
- * guarded standing mount. It does not decide when an agent is created — the
- * agent factory's `setup(agentCtx)` hook is the one supported call site,
- * because only there is the join installed while the agent is still
- * unpublished, so a rejected composition rolls the whole creation back.
+ * 本包负责 Preset 定义、文件系统发现和受保护的常驻挂载，不决定何时创建 Agent。唯一支持
+ * 的调用点是 AgentFactory 的 `setup(agentCtx)`：此时 Agent 尚未发布，组合失败可以回滚
+ * 整次创建。
  * @module @deepseek-ai/dsh-agent-presets
  */
 
@@ -25,7 +18,7 @@ import { stat } from 'node:fs/promises'
 import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { bindScopeParent, createScope, scopeOf, type Scope, type ScopeKey, type ScopeParentBinding } from '@deepseek-ai/dsh-scope'
-// Type-only: resolves the `agent/created` lifecycle event this service watches.
+// 仅导入类型副作用，使本服务监听的 agent/created 生命周期事件完成类型注册。
 import type {} from '@deepseek-ai/dsh-agent'
 import { settingsNamespace, type SettingsScope, type default as SettingsService } from '@deepseek-ai/dsh-settings'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
@@ -73,11 +66,9 @@ declare module '@deepseek-ai/cordis' {
 }
 
 /**
- * Registry over the deployment's agent presets.
- *
- * Discovery is unmemoized: `list()` and `resolve()` re-read the roots on every
- * call so a preset authored while the process runs is visible immediately,
- * and a preset deleted underneath a picker disappears from the next read.
+ * 当前部署的 Agent Preset 注册表。发现结果不缓存：`list()` 和 `resolve()` 每次调用都会
+ * 重新读取根目录，使进程运行期间新增的 Preset 立即可见，被删除的 Preset 也会在下一次
+ * 读取时消失。
  */
 export class AgentPresets extends Service {
   static inject = ['loader']
@@ -133,11 +124,9 @@ export class AgentPresets extends Service {
     this.resolvedRoots = config.includeUserRoot
       ? [...config.roots, { path: dshHomePath(USER_PRESET_DIR), trust: 'user' }]
       : [...config.roots]
-    // Deliberately not `installSettingsSection`: that helper exists to re-judge
-    // what a consumer DERIVED from the source — memoized resolutions,
-    // registration-level facts — across attach, detach, and change. Nothing
-    // here is derived. `defaultId` reads through on every call, so both of its
-    // hooks would be no-ops and the source thunk would restate this field.
+    // 这里故意不用 installSettingsSection。该帮助函数用于在设置挂载、卸载和变化时重新计算
+    // Consumer 从来源派生的缓存结果或注册级信息；这里没有派生状态，defaultId 每次调用都
+    // 直接读取当前来源，因此两个 Hook 都只会是空操作。
     ctx.inject(['settings'], (settingsCtx) => {
       this.settings = settingsCtx.settings.register(
         settingsNamespace(SETTINGS_NAMESPACE),
@@ -151,18 +140,13 @@ export class AgentPresets extends Service {
       }, 'agentPresets.settings()')
     })
 
-    // Advisory, not fatal: a synchronous `agent/created` listener that throws
-    // VETOES publication, and this service must not, because composing an agent
-    // outside the roster is legal — `recompose` binds exactly such a bare agent
-    // below, and the ACP, SDK-server, and headless entry points all create one.
-    // The invariant companion is the check that fails loud, at assembly. Why an
-    // unjoined agent matters at all has one home: the [Agent
-    // Note](../../../../.agents/notes/implemented/architecture/2026-08-10-host-plane-ownership-after-presets.md).
+    // 这里只给出警告，不能致命失败：同步 agent/created 监听器一旦抛错会否决发布，但在预设
+    // 清单外创建 Agent 是合法行为；下方 recompose 就会绑定这种裸 Agent，ACP、SDK Server
+    // 和 Headless 入口也都会创建。真正的不变量检查在组装阶段明确失败；未加入 Preset 的
+    // Agent 为何重要，统一记录在对应架构 Agent Note 中。
     //
-    // Known false positive: a session created bare and bound later by
-    // `recompose` is warned about once, before its first bind. No shipped flow
-    // does that today — the Web surface mounts in `setup` and children join
-    // through `composeFrom` before publication.
+    // 已知误报：裸创建后再由 recompose 绑定的 Session 会在首次绑定前收到一次警告。当前
+    // 正式流程不会这样做；Web 在 setup 中挂载，子 Agent 在发布前通过 composeFrom 加入。
     ctx.on('agent/created', ({ agent }) => {
       if (this.resolvedRoots.length === 0) return
       if (this.composedPreset(agent.ctx) !== undefined) return
@@ -173,8 +157,7 @@ export class AgentPresets extends Service {
       )
     })
 
-    // The durable record is the commit point. Its public notification carries
-    // only the stable identity needed by clients, never the live Session.
+    // 持久记录是提交点；公开通知只携带客户端需要的稳定身份，不暴露实时 Session 对象。
     ctx.on('session/event', (session, event) => {
       if (event.type !== 'agent-preset/selected') return
       ctx.emit('agent-preset/selected', session.id, event.data.agentPreset)
@@ -260,29 +243,26 @@ export class AgentPresets extends Service {
   private readonly bindings = new WeakMap<ScopeKey, ScopeParentBinding>()
 
   /**
-   * Compose one agent from a preset: ensure the preset's standing mount, then
-   * parent the agent's scope key to it so the mount's registrations and
-   * listeners cover this agent.
-   *
-   * Call from the agent factory's `setup(agentCtx)`; a rejection there rolls
-   * the agent creation back, so a broken preset never yields a half-composed
-   * session.
-   * @param agentCtx - the agent's scope context.
-   * @param id - the preset id, or `undefined` for {@link defaultId}.
-   * @returns the preset that was composed, for the caller to record.
-   * @throws when the preset is unknown or its composition is unusable.
+   * 使用 Preset 组合一个 Agent：先确保常驻挂载存在，再把 Agent Scope Key 接到该挂载下，
+   * 使挂载的注册和监听器覆盖该 Agent。必须从 AgentFactory 的 `setup(agentCtx)` 调用；这里
+   * 失败会回滚 Agent 创建，因此损坏的 Preset 不会产生只组合了一半的 Session。
+   * @param agentCtx - Agent 的 Scope Context。
+   * @param id - Preset id；`undefined` 表示使用 {@link defaultId}。
+   * @returns 实际组合的 Preset，供调用方记录。
+   * @throws Preset 不存在或组合不可用。
    */
   async mount(agentCtx: Context, id?: string): Promise<AgentPreset> {
+    // mount 必须在 AgentFactory 的 unpublished setup 阶段调用。Preset 解析或装载失败时，
+    // Agent 创建整体回滚，外部不会看到一个只装好部分工具或 Prompt 的 Agent。
     const agentKey = scopeOf(agentCtx)
     if (agentKey === undefined) {
       throw new Error('agent-presets: refusing to compose an unscoped context; the scope key is what joins an agent to its preset')
     }
     const preset = await this.resolveMountable(id)
     const standing = await this.ensureStanding(preset)
-    // The one bind of this agent's ancestry. The binding is the only re-link
-    // authority, held privately so nothing outside this roster can move a
-    // composed agent to another preset; a later recompose layer re-links
-    // through it under the caller-owned blank-session contract.
+    // 这是 Agent 父级关系的唯一绑定。binding 是唯一允许重新连接的凭证，保存在本服务内部，
+    // 因此外部代码不能把已完成组合的 Agent 移到其他 Preset；后续 recompose 也只能在调用方
+    // 持有空 Session 的前提下，通过它重新连接。
     this.bindings.set(agentKey, bindScopeParent(agentKey, standing.key))
     return preset
   }
@@ -379,16 +359,14 @@ export class AgentPresets extends Service {
    */
   async copy(from: string, id: string, name?: string): Promise<void> {
     const source = await this.resolve(from)
-    // The roster check refuses ids any root supplies — shipped ones included,
-    // since a user directory named like a shipped preset is shadowed by it.
-    // The disk check inside copyComposition only sees the writable root.
+    // 预设清单检查会拒绝任意根目录已经提供的 id，包括内置 Preset；因为同名用户目录会被
+    // 内置项遮蔽。copyComposition 内部的磁盘检查则只检查可写根目录。
     if ((await this.list()).some(preset => preset.id === id)) {
       throw new PresetExistsError(id)
     }
     await copyComposition(this.resolvedRoots, source, id, name)
-    // A settled mount under this id can only be stale (its preset was deleted
-    // from disk outside `remove`); the new preset must not inherit it. Every
-    // session already joined keeps the generation it runs on regardless.
+    // 若该 id 仍有已完成挂载，只可能是外部绕过 remove 删除文件后留下的旧状态；新 Preset
+    // 不能继承它。已经加入的 Session 仍继续使用自己当前运行的组合代。
     this.standing.delete(id)
   }
 
@@ -399,15 +377,12 @@ export class AgentPresets extends Service {
    */
   async remove(id: string): Promise<void> {
     await deleteComposition(this.resolvedRoots, await this.resolve(id))
-    // Sessions on the deleted preset keep their standing mount; only new
-    // sessions see the roster without it.
+    // 已使用被删除 Preset 的 Session 保留常驻挂载；只有新 Session 会看到删除后的清单。
     this.standing.delete(id)
-    // Storing a default that does not exist YET is deliberate — the roster is a
-    // live directory, so a name absent now may exist by the time a session asks
-    // for it, and `resolve` reports it then. A default this call just deleted is
-    // not that case: nothing will ever supply it again, and left in place every
-    // session created without an explicit pick would fail to start. Clearing it
-    // exposes the deployment's own default underneath, which is the layering.
+    // 允许保存当前尚不存在的默认项是刻意设计：清单来自实时目录，Session 真正请求时该名称
+    // 可能已经出现，resolve 会在那时判断。但本次调用刚删除的默认项不同，它已确定不会再由
+    // 当前来源提供；若继续保留，所有未显式选择 Preset 的新 Session 都会启动失败。清除后
+    // 会露出下层部署默认值，这正是设置分层语义。
     if (this.settings?.get().default !== id) return
     await this.settingsService?.mutate(
       settingsNamespace(SETTINGS_NAMESPACE),
@@ -487,26 +462,23 @@ export class AgentPresets extends Service {
     return (await this.ensureStanding(preset)).key
   }
 
-  /** Resolve (or create, single-flight) the standing mount of one preset. */
+  /** 解析 Preset 的常驻挂载；不存在时以单次并发共享方式创建。 */
   private async ensureStanding(preset: AgentPreset): Promise<StandingMount> {
+    // 同一 Preset 的首次并发请求共享一个 Promise，保证只挂载一份。文件发生变化后，新建
+    // Agent 使用下一代 composition；已经运行的 Agent 继续绑定原来的稳定版本。
     const pending = this.standing.get(preset.id)
     if (pending !== undefined) {
       const mounted = await pending
-      // Files are the only composition editor (authoring is copy/delete), so
-      // the stamp is what notices an edit: a changed file starts the next
-      // generation here, for this and later sessions. An unreadable stamp
-      // serves the current generation — a mount must survive its file
-      // disappearing, and failing the session over a stat would not.
+      // 文件是组合配置的唯一编辑来源，因此通过文件标记识别变化。文件变化后，本次及后续
+      // Session 在这里启动新一代组合；若暂时无法读取标记，则继续使用当前代，因为已经
+      // 挂载的组合不能仅因源文件消失或一次 stat 失败而停止服务。
       const current = await compositionStamp(preset.path)
       if (current === undefined || sameStamp(mounted.stamp, current)) return mounted
-      // TODO: reclaim the superseded generation once the last agent joined to
-      // it is gone. The subtree is not inert — `dsh-skill-filesystem` watches its
-      // roots — and the settings-page authoring flow turns "a composition
-      // changed" into a per-save event. This needs a joined-agent count on
-      // StandingMount, incremented in `mount`/`composeFrom`/`recompose` and
-      // decremented when the agent's scope key dies.
-      // Guarded delete: a caller that raced this one may have already started
-      // the next generation, and dropping THAT pointer would fork a third.
+      // TODO：最后一个仍使用旧版本的 Agent 退出后，应回收被替代的组合代。该子树并非
+      // 静止对象，dsh-skill-filesystem 仍在监听根目录，设置页也会把每次保存转成组合变化。
+      // 需要在 StandingMount 上记录已连接 Agent 数，并在 mount/composeFrom/recompose 与
+      // Agent Scope 销毁时分别增减。删除指针前必须确认没有并发调用方已经创建下一代，
+      // 否则会误删新指针并分裂出第三代。
       if (this.standing.get(preset.id) === pending) this.standing.delete(preset.id)
       return this.ensureStanding(preset)
     }
@@ -514,9 +486,8 @@ export class AgentPresets extends Service {
       const key: ScopeKey = { agentPreset: preset.id }
       const scope = createScope(this.selfCtx, key)
       try {
-        // Stamped before the file is read: an edit racing the mount makes the
-        // stamp stale rather than silently current, so the next session
-        // refreshes instead of trusting a composition older than its stamp.
+        // 在读取文件前取得标记：如果挂载期间发生编辑，该标记会明确变旧，下一次 Session
+        // 就会刷新组合，而不会把比标记更旧的内容误认为当前版本。
         const stamp = await compositionStamp(preset.path)
         if (stamp === undefined) {
           throw new PresetMountError(preset.id, `composition file is unreadable: ${preset.path}`)
@@ -548,8 +519,8 @@ async function compositionStamp(path: string): Promise<CompositionStamp | undefi
     const { mtimeMs, size } = await stat(path)
     return { mtimeMs, size }
   } catch {
-    // Deleted, replaced by an unreadable entry, or otherwise unstattable all
-    // mean the same to the caller: the file offers no identity to compare.
+    // 文件被删除、被不可读条目替换或其他无法 stat 的情况，对调用方含义相同：没有可比较
+    // 的文件身份。
     return undefined
   }
 }

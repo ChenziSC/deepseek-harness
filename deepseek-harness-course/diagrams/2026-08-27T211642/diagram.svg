@@ -1,0 +1,255 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1300" viewBox="0 0 1920 1300">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071426"/>
+      <stop offset="0.55" stop-color="#0B1830"/>
+      <stop offset="1" stop-color="#101B35"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#24D6D1"/>
+      <stop offset="1" stop-color="#3182F6"/>
+    </linearGradient>
+    <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8B7CF6"/>
+      <stop offset="1" stop-color="#CF68FF"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFCC66"/>
+      <stop offset="1" stop-color="#FF8F5A"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#59E3A7"/>
+      <stop offset="1" stop-color="#23B58D"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#020817" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1920" height="1300" rx="36" fill="url(#bg)"/>
+  <path d="M0 170 C360 110 630 215 920 145 S1480 70 1920 160" fill="none" stroke="#4B668E" stroke-width="2" opacity="0.22"/>
+  <path d="M0 1190 C390 1100 720 1245 1070 1160 S1600 1085 1920 1175" fill="none" stroke="#4B668E" stroke-width="2" opacity="0.18"/>
+
+  <text x="84" y="72" fill="#F4F8FF" font-family="Noto Sans SC, sans-serif" font-size="34" font-weight="700">DeepSeek Harness · 整体架构设计图</text>
+  <text x="86" y="111" fill="#91A4C6" font-family="Noto Sans SC, sans-serif" font-size="17">从入口装配到可恢复运行时：everything is a plugin · model-visible ⇔ logged</text>
+  <rect x="1535" y="54" width="295" height="50" rx="25" fill="#142744" stroke="#284A74"/>
+  <circle cx="1570" cy="79" r="8" fill="#24D6D1"/>
+  <text x="1590" y="85" fill="#BDD0EC" font-family="Noto Sans SC, sans-serif" font-size="15">主干数据流</text>
+  <line x1="1693" y1="79" x2="1742" y2="79" stroke="#8B7CF6" stroke-width="3" stroke-dasharray="8 7"/>
+  <text x="1752" y="85" fill="#BDD0EC" font-family="Noto Sans SC, sans-serif" font-size="15">扩展 / 重建</text>
+
+  <!-- 1 用户入口 -->
+  <g filter="url(#shadow)">
+    <path d="M86 170 Q86 145 111 145 H1809 Q1834 145 1834 170 V270 Q1834 295 1809 295 H111 Q86 295 86 270 Z" fill="#0E203B" stroke="#2B4A72" stroke-width="2"/>
+  </g>
+  <circle cx="122" cy="181" r="19" fill="url(#cyan)"/>
+  <text x="122" y="188" text-anchor="middle" fill="#061325" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="800">1</text>
+  <text x="152" y="188" fill="#CFE2FF" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="700">用户入口与产品表面</text>
+  <g>
+    <path d="M137 222 l18 -13 18 13 -7 22 h-22 z" fill="#173B5B" stroke="#24D6D1" stroke-width="2"/>
+    <text x="188" y="233" fill="#F4F8FF" font-family="Noto Sans SC, sans-serif" font-size="20" font-weight="700">CLI</text>
+    <text x="188" y="257" fill="#8FA8C8" font-family="Noto Sans SC, sans-serif" font-size="14">headless / dsh 命令</text>
+  </g>
+  <g>
+    <circle cx="575" cy="231" r="22" fill="#173B5B" stroke="#24D6D1" stroke-width="2"/>
+    <path d="M563 231 h24 M575 219 v24" stroke="#24D6D1" stroke-width="2"/>
+    <text x="613" y="233" fill="#F4F8FF" font-family="Noto Sans SC, sans-serif" font-size="20" font-weight="700">Web</text>
+    <text x="613" y="257" fill="#8FA8C8" font-family="Noto Sans SC, sans-serif" font-size="14">Host + Browser Client</text>
+  </g>
+  <g>
+    <polygon points="1030,208 1053,222 1053,249 1030,263 1007,249 1007,222" fill="#173B5B" stroke="#24D6D1" stroke-width="2"/>
+    <text x="1082" y="233" fill="#F4F8FF" font-family="Noto Sans SC, sans-serif" font-size="20" font-weight="700">ACP</text>
+    <text x="1082" y="257" fill="#8FA8C8" font-family="Noto Sans SC, sans-serif" font-size="14">自动化 Agent Client Protocol</text>
+  </g>
+  <g>
+    <path d="M1491 208 h40 l18 23 -18 32 h-40 l-18 -32 z" fill="#173B5B" stroke="#24D6D1" stroke-width="2"/>
+    <text x="1574" y="233" fill="#F4F8FF" font-family="Noto Sans SC, sans-serif" font-size="20" font-weight="700">SDK</text>
+    <text x="1574" y="257" fill="#8FA8C8" font-family="Noto Sans SC, sans-serif" font-size="14">JSON-RPC · TypeScript / Python</text>
+  </g>
+
+  <!-- 主干箭头 -->
+  <path d="M960 296 V329" stroke="#24D6D1" stroke-width="5"/>
+  <polygon points="950,324 970,324 960,340" fill="#24D6D1"/>
+
+  <!-- 2 装配 -->
+  <g filter="url(#shadow)">
+    <path d="M86 346 Q86 326 106 326 H606 Q626 326 626 346 V584 Q626 604 606 604 H106 Q86 604 86 584 Z" fill="#101F3B" stroke="#5868B8" stroke-width="2"/>
+  </g>
+  <circle cx="122" cy="364" r="19" fill="url(#violet)"/>
+  <text x="122" y="371" text-anchor="middle" fill="#100D25" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="800">2</text>
+  <text x="152" y="371" fill="#E0DCFF" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="700">Profile / Bundle / cordis.yml</text>
+  <text x="112" y="406" fill="#90A0C2" font-family="Noto Sans SC, sans-serif" font-size="14">有序 Patch Layer 将空配置装配成插件树</text>
+  <path d="M132 448 H565" stroke="#35456C" stroke-width="4"/>
+  <circle cx="146" cy="448" r="11" fill="#8B7CF6"/>
+  <circle cx="282" cy="448" r="11" fill="#9C75FA"/>
+  <circle cx="420" cy="448" r="11" fill="#B66DFB"/>
+  <circle cx="557" cy="448" r="11" fill="#CF68FF"/>
+  <text x="119" y="481" fill="#D9D3FF" font-family="Noto Sans SC, sans-serif" font-size="14">Bundles</text>
+  <text x="239" y="481" fill="#D9D3FF" font-family="Noto Sans SC, sans-serif" font-size="14">Profile patch</text>
+  <text x="383" y="481" fill="#D9D3FF" font-family="Noto Sans SC, sans-serif" font-size="14">Home patch</text>
+  <text x="512" y="481" fill="#D9D3FF" font-family="Noto Sans SC, sans-serif" font-size="14">--patch</text>
+  <path d="M127 520 h188 l26 28 -26 28 H127 l-26 -28 z" fill="#1A244B" stroke="#8B7CF6"/>
+  <text x="219" y="542" text-anchor="middle" fill="#F0EDFF" font-family="Noto Sans SC, sans-serif" font-size="15" font-weight="700">dsh-base</text>
+  <text x="219" y="562" text-anchor="middle" fill="#9CA9C8" font-family="Noto Sans SC, sans-serif" font-size="12">共同运行时基础</text>
+  <path d="M364 520 h209 l26 28 -26 28 H364 l-26 -28 z" fill="#1A244B" stroke="#CF68FF"/>
+  <text x="469" y="542" text-anchor="middle" fill="#F0EDFF" font-family="Noto Sans SC, sans-serif" font-size="15" font-weight="700">web-app / headless</text>
+  <text x="469" y="562" text-anchor="middle" fill="#9CA9C8" font-family="Noto Sans SC, sans-serif" font-size="12">产品表面差异</text>
+
+  <!-- 2 to 3 -->
+  <path d="M627 470 H670" stroke="#8B7CF6" stroke-width="5"/>
+  <polygon points="665,460 665,480 681,470" fill="#8B7CF6"/>
+
+  <!-- 3 Cordis runtime -->
+  <g filter="url(#shadow)">
+    <path d="M685 346 Q685 326 705 326 H1283 Q1303 326 1303 346 V584 Q1303 604 1283 604 H705 Q685 604 685 584 Z" fill="#0D2735" stroke="#23BDAF" stroke-width="2"/>
+  </g>
+  <circle cx="721" cy="364" r="19" fill="url(#cyan)"/>
+  <text x="721" y="371" text-anchor="middle" fill="#061325" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="800">3</text>
+  <text x="751" y="371" fill="#D8FFFC" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="700">Cordis Runtime · 一切皆插件</text>
+  <text x="714" y="405" fill="#91B8BC" font-family="Noto Sans SC, sans-serif" font-size="14">插件通过共享 ctx 协作；注册随插件卸载而撤销</text>
+  <path d="M784 444 C840 410 899 410 954 444" fill="none" stroke="#24D6D1" stroke-width="3"/>
+  <path d="M954 444 C1010 410 1068 410 1125 444" fill="none" stroke="#24D6D1" stroke-width="3"/>
+  <circle cx="784" cy="444" r="31" fill="#123E48" stroke="#24D6D1" stroke-width="2"/>
+  <circle cx="954" cy="444" r="39" fill="#123E48" stroke="#24D6D1" stroke-width="3"/>
+  <circle cx="1125" cy="444" r="31" fill="#123E48" stroke="#24D6D1" stroke-width="2"/>
+  <text x="784" y="449" text-anchor="middle" fill="#E1FFFC" font-family="Noto Sans SC, sans-serif" font-size="14">Plugin</text>
+  <text x="954" y="450" text-anchor="middle" fill="#E1FFFC" font-family="Noto Sans SC, sans-serif" font-size="16" font-weight="700">ctx</text>
+  <text x="1125" y="449" text-anchor="middle" fill="#E1FFFC" font-family="Noto Sans SC, sans-serif" font-size="14">Plugin</text>
+  <g>
+    <rect x="718" y="512" width="128" height="47" rx="23" fill="#143845" stroke="#2CCFC4"/>
+    <text x="782" y="541" text-anchor="middle" fill="#DDFBF9" font-family="Noto Sans SC, sans-serif" font-size="15">Service</text>
+    <rect x="862" y="512" width="128" height="47" rx="23" fill="#143845" stroke="#2CCFC4"/>
+    <text x="926" y="541" text-anchor="middle" fill="#DDFBF9" font-family="Noto Sans SC, sans-serif" font-size="15">Effect</text>
+    <rect x="1006" y="512" width="128" height="47" rx="23" fill="#143845" stroke="#2CCFC4"/>
+    <text x="1070" y="541" text-anchor="middle" fill="#DDFBF9" font-family="Noto Sans SC, sans-serif" font-size="15">Event</text>
+    <rect x="1150" y="512" width="120" height="47" rx="23" fill="#143845" stroke="#2CCFC4"/>
+    <text x="1210" y="541" text-anchor="middle" fill="#DDFBF9" font-family="Noto Sans SC, sans-serif" font-size="15">Scope</text>
+  </g>
+
+  <!-- external providers -->
+  <g filter="url(#shadow)">
+    <path d="M1364 346 Q1364 326 1384 326 H1814 Q1834 326 1834 346 V584 Q1834 604 1814 604 H1384 Q1364 604 1364 584 Z" fill="#172035" stroke="#53617D" stroke-width="2"/>
+  </g>
+  <text x="1394" y="372" fill="#CBD7EA" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="700">External Runtimes / Providers</text>
+  <text x="1394" y="402" fill="#8495B4" font-family="Noto Sans SC, sans-serif" font-size="14">实现可替换；Consumer 不感知部署位置</text>
+  <path d="M1422 444 C1470 410 1515 410 1563 444 S1656 478 1704 444" fill="none" stroke="#FFAD62" stroke-width="3"/>
+  <circle cx="1422" cy="444" r="28" fill="#332940" stroke="#FFAD62"/>
+  <circle cx="1563" cy="444" r="28" fill="#332940" stroke="#FFAD62"/>
+  <circle cx="1704" cy="444" r="28" fill="#332940" stroke="#FFAD62"/>
+  <text x="1422" y="449" text-anchor="middle" fill="#FFE3C8" font-family="Noto Sans SC, sans-serif" font-size="12">Cloud</text>
+  <text x="1563" y="449" text-anchor="middle" fill="#FFE3C8" font-family="Noto Sans SC, sans-serif" font-size="12">Local</text>
+  <text x="1704" y="449" text-anchor="middle" fill="#FFE3C8" font-family="Noto Sans SC, sans-serif" font-size="12">Sandbox</text>
+  <rect x="1395" y="503" width="190" height="57" rx="16" fill="#25243C" stroke="#A87069"/>
+  <text x="1490" y="527" text-anchor="middle" fill="#F9E5D3" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="700">LLM API / Web</text>
+  <text x="1490" y="548" text-anchor="middle" fill="#AAB4C8" font-family="Noto Sans SC, sans-serif" font-size="12">远端模型与网络服务</text>
+  <rect x="1606" y="503" width="196" height="57" rx="16" fill="#25243C" stroke="#A87069"/>
+  <text x="1704" y="527" text-anchor="middle" fill="#F9E5D3" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="700">Process / Worker / E2B</text>
+  <text x="1704" y="548" text-anchor="middle" fill="#AAB4C8" font-family="Noto Sans SC, sans-serif" font-size="12">执行世界与隔离环境</text>
+  <path d="M1304 470 H1352" stroke="#FFAD62" stroke-width="3" stroke-dasharray="8 7"/>
+  <polygon points="1347,462 1347,478 1360,470" fill="#FFAD62"/>
+
+  <!-- core runtime -->
+  <path d="M994 605 V636" stroke="#24D6D1" stroke-width="5"/>
+  <polygon points="984,631 1004,631 994,647" fill="#24D6D1"/>
+  <g filter="url(#shadow)">
+    <path d="M86 655 Q86 635 106 635 H1227 Q1247 635 1247 655 V953 Q1247 973 1227 973 H106 Q86 973 86 953 Z" fill="#0D2037" stroke="#287EAF" stroke-width="2"/>
+  </g>
+  <circle cx="122" cy="674" r="19" fill="url(#cyan)"/>
+  <text x="122" y="681" text-anchor="middle" fill="#061325" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="800">4</text>
+  <text x="152" y="681" fill="#D4ECFF" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="700">Agent Runtime · Session / Registry / Loop</text>
+  <text x="116" y="716" fill="#8FB0C9" font-family="Noto Sans SC, sans-serif" font-size="14">Session 保存事实 · AgentRegistry 管理 live handle · AgentLoop 驱动唯一主链</text>
+
+  <path d="M138 772 C290 715 430 715 552 772" fill="none" stroke="#3B80A6" stroke-width="4"/>
+  <circle cx="138" cy="772" r="48" fill="#12324A" stroke="#35B7DA" stroke-width="2"/>
+  <circle cx="552" cy="772" r="48" fill="#12324A" stroke="#35B7DA" stroke-width="2"/>
+  <text x="138" y="768" text-anchor="middle" fill="#E3F8FF" font-family="Noto Sans SC, sans-serif" font-size="15" font-weight="700">Session</text>
+  <text x="138" y="788" text-anchor="middle" fill="#8FB7CB" font-family="Noto Sans SC, sans-serif" font-size="11">Event Store</text>
+  <text x="552" y="768" text-anchor="middle" fill="#E3F8FF" font-family="Noto Sans SC, sans-serif" font-size="15" font-weight="700">Agent</text>
+  <text x="552" y="788" text-anchor="middle" fill="#8FB7CB" font-family="Noto Sans SC, sans-serif" font-size="11">Live Handle</text>
+  <polygon points="345,735 395,766 377,823 313,823 295,766" fill="#172F50" stroke="#5B9FE9" stroke-width="2"/>
+  <text x="345" y="772" text-anchor="middle" fill="#E8F2FF" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="700">Agent</text>
+  <text x="345" y="791" text-anchor="middle" fill="#9BB4D3" font-family="Noto Sans SC, sans-serif" font-size="11">Registry</text>
+
+  <!-- runtime sequence rail -->
+  <rect x="650" y="754" width="556" height="168" rx="28" fill="#101C36" stroke="#315B8C"/>
+  <text x="680" y="787" fill="#D7E8FF" font-family="Noto Sans SC, sans-serif" font-size="16" font-weight="700">核心时序：一个 Turn 可包含多个 Step</text>
+  <path d="M702 844 H1149" stroke="#315B8C" stroke-width="6"/>
+  <circle cx="712" cy="844" r="22" fill="#286B96" stroke="#4FCCE3"/>
+  <circle cx="820" cy="844" r="22" fill="#286B96" stroke="#4FCCE3"/>
+  <circle cx="928" cy="844" r="22" fill="#286B96" stroke="#4FCCE3"/>
+  <circle cx="1036" cy="844" r="22" fill="#286B96" stroke="#4FCCE3"/>
+  <circle cx="1144" cy="844" r="22" fill="#286B96" stroke="#4FCCE3"/>
+  <text x="712" y="850" text-anchor="middle" fill="#F4FCFF" font-family="Noto Sans SC, sans-serif" font-size="12">Turn</text>
+  <text x="820" y="850" text-anchor="middle" fill="#F4FCFF" font-family="Noto Sans SC, sans-serif" font-size="12">Step</text>
+  <text x="928" y="850" text-anchor="middle" fill="#F4FCFF" font-family="Noto Sans SC, sans-serif" font-size="12">LLM</text>
+  <text x="1036" y="850" text-anchor="middle" fill="#F4FCFF" font-family="Noto Sans SC, sans-serif" font-size="12">Tool</text>
+  <text x="1144" y="850" text-anchor="middle" fill="#F4FCFF" font-family="Noto Sans SC, sans-serif" font-size="11">Event</text>
+  <text x="710" y="890" fill="#8EA7C8" font-family="Noto Sans SC, sans-serif" font-size="12">claim input</text>
+  <text x="808" y="890" fill="#8EA7C8" font-family="Noto Sans SC, sans-serif" font-size="12">pre-step</text>
+  <text x="910" y="890" fill="#8EA7C8" font-family="Noto Sans SC, sans-serif" font-size="12">stream</text>
+  <text x="1011" y="890" fill="#8EA7C8" font-family="Noto Sans SC, sans-serif" font-size="12">execute</text>
+  <text x="1124" y="890" fill="#8EA7C8" font-family="Noto Sans SC, sans-serif" font-size="12">append</text>
+  <path d="M1144 818 C1144 794 1102 795 1086 814" fill="none" stroke="#CF68FF" stroke-width="2" stroke-dasharray="6 6"/>
+  <text x="990" y="807" fill="#CFB3FF" font-family="Noto Sans SC, sans-serif" font-size="11">tool owes next request → next Step</text>
+
+  <!-- 5 capability seam -->
+  <g filter="url(#shadow)">
+    <path d="M1305 655 Q1305 635 1325 635 H1814 Q1834 635 1834 655 V953 Q1834 973 1814 973 H1325 Q1305 973 1305 953 Z" fill="#221E35" stroke="#AF6AB0" stroke-width="2"/>
+  </g>
+  <circle cx="1341" cy="674" r="19" fill="url(#violet)"/>
+  <text x="1341" y="681" text-anchor="middle" fill="#100D25" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="800">5</text>
+  <text x="1371" y="681" fill="#F1DEFF" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="700">Capability Seam</text>
+  <text x="1335" y="714" fill="#AF9BBE" font-family="Noto Sans SC, sans-serif" font-size="14">完整能力 = Definition + Provider + Consumer</text>
+  <polygon points="1568,747 1687,869 1449,869" fill="#2B2141" stroke="#B376E0" stroke-width="3"/>
+  <circle cx="1568" cy="761" r="38" fill="#503061" stroke="#D592F2"/>
+  <circle cx="1466" cy="858" r="38" fill="#503061" stroke="#D592F2"/>
+  <circle cx="1670" cy="858" r="38" fill="#503061" stroke="#D592F2"/>
+  <text x="1568" y="758" text-anchor="middle" fill="#FFF0FF" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="700">Service</text>
+  <text x="1568" y="776" text-anchor="middle" fill="#FFF0FF" font-family="Noto Sans SC, sans-serif" font-size="12">Definition</text>
+  <text x="1466" y="863" text-anchor="middle" fill="#FFF0FF" font-family="Noto Sans SC, sans-serif" font-size="12">Provider</text>
+  <text x="1670" y="863" text-anchor="middle" fill="#FFF0FF" font-family="Noto Sans SC, sans-serif" font-size="12">Consumer</text>
+  <rect x="1341" y="908" width="456" height="38" rx="19" fill="#342549" stroke="#774B91"/>
+  <text x="1569" y="932" text-anchor="middle" fill="#DFC7ED" font-family="Noto Sans SC, sans-serif" font-size="13">LLM · Shell · FS · Web · Subagent · Workflow · Credentials</text>
+
+  <!-- event-driven dashed linkage -->
+  <path d="M1220 540 C1320 590 1210 676 1304 731" fill="none" stroke="#CF68FF" stroke-width="3" stroke-dasharray="10 8"/>
+  <text x="1229" y="625" fill="#C7A8DD" font-family="Noto Sans SC, sans-serif" font-size="12">插件扩展 / scoped registration</text>
+
+  <!-- 6 durable log + projection -->
+  <path d="M666 974 V1003" stroke="#59E3A7" stroke-width="5"/>
+  <polygon points="656,998 676,998 666,1014" fill="#59E3A7"/>
+  <g filter="url(#shadow)">
+    <path d="M86 1020 Q86 1000 106 1000 H1814 Q1834 1000 1834 1020 V1197 Q1834 1217 1814 1217 H106 Q86 1217 86 1197 Z" fill="#102B2B" stroke="#2CA77E" stroke-width="2"/>
+  </g>
+  <circle cx="122" cy="1040" r="19" fill="url(#green)"/>
+  <text x="122" y="1047" text-anchor="middle" fill="#072018" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="800">6</text>
+  <text x="152" y="1047" fill="#D8FFF0" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="700">Session Log · Persistence · Projection / Recovery</text>
+  <text x="116" y="1080" fill="#92BFAF" font-family="Noto Sans SC, sans-serif" font-size="14">append-only durable facts 是模型上下文、回放、恢复与产品视图的共同来源</text>
+
+  <path d="M135 1130 h120 l24 -24 h160 l24 24 -24 45 H135 l-24 -23 z" fill="#164139" stroke="#59E3A7" stroke-width="2"/>
+  <text x="287" y="1142" text-anchor="middle" fill="#E5FFF5" font-family="Noto Sans SC, sans-serif" font-size="15" font-weight="700">SessionEvent Log</text>
+  <text x="287" y="1163" text-anchor="middle" fill="#9CC9B7" font-family="Noto Sans SC, sans-serif" font-size="12">turn / step / user / assistant / tool</text>
+  <path d="M474 1141 H594" stroke="#59E3A7" stroke-width="4"/>
+  <polygon points="588,1132 588,1150 604,1141" fill="#59E3A7"/>
+  <ellipse cx="709" cy="1141" rx="106" ry="52" fill="#173D38" stroke="#59E3A7" stroke-width="2"/>
+  <text x="709" y="1138" text-anchor="middle" fill="#E5FFF5" font-family="Noto Sans SC, sans-serif" font-size="15" font-weight="700">Persistence</text>
+  <text x="709" y="1160" text-anchor="middle" fill="#9CC9B7" font-family="Noto Sans SC, sans-serif" font-size="12">JSONL / SQLite</text>
+  <path d="M815 1141 H935" stroke="#59E3A7" stroke-width="4"/>
+  <polygon points="929,1132 929,1150 945,1141" fill="#59E3A7"/>
+  <path d="M953 1097 h273 l31 44 -31 44 H953 l-31 -44 z" fill="#163B3C" stroke="#59E3A7" stroke-width="2"/>
+  <text x="1089" y="1138" text-anchor="middle" fill="#E5FFF5" font-family="Noto Sans SC, sans-serif" font-size="15" font-weight="700">Projection / Recovery</text>
+  <text x="1089" y="1160" text-anchor="middle" fill="#9CC9B7" font-family="Noto Sans SC, sans-serif" font-size="12">deriveMessages · transcript · UI</text>
+  <path d="M1257 1141 H1391" stroke="#59E3A7" stroke-width="4"/>
+  <polygon points="1385,1132 1385,1150 1401,1141" fill="#59E3A7"/>
+  <rect x="1401" y="1097" width="394" height="88" rx="25" fill="#16383B" stroke="#59E3A7" stroke-width="2"/>
+  <text x="1598" y="1129" text-anchor="middle" fill="#E5FFF5" font-family="Noto Sans SC, sans-serif" font-size="15" font-weight="700">Resume · Fork · Replay · Telemetry</text>
+  <text x="1598" y="1156" text-anchor="middle" fill="#9CC9B7" font-family="Noto Sans SC, sans-serif" font-size="13">Host / SDK / Client 都从同一事实流投影</text>
+
+  <!-- reconstruct loop -->
+  <path d="M1089 1097 V1011 C1089 990 1059 983 1036 972" fill="none" stroke="#8B7CF6" stroke-width="3" stroke-dasharray="10 8"/>
+  <polygon points="1029,967 1047,968 1038,983" fill="#8B7CF6"/>
+  <text x="1102" y="997" fill="#C5B8F5" font-family="Noto Sans SC, sans-serif" font-size="12">从日志重建 model history</text>
+
+  <rect x="527" y="1245" width="866" height="33" rx="16" fill="#13253D" stroke="#2A4668"/>
+  <text x="960" y="1267" text-anchor="middle" fill="#A9BCDA" font-family="Noto Sans SC, sans-serif" font-size="13">核心不变量：可撤销注册 · 单一主驱动链 · 模型可见必须可重建 · Provider 可替换</text>
+</svg>

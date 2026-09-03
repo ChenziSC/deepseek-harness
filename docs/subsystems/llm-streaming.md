@@ -765,16 +765,15 @@ Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnp
 
 ### `ctx.llm` — `LlmRuntime`
 
-The abstract `llm` service: an adapter registry plus a streaming model-call API, interceptable via the `llm/stream` waterfall.
+抽象 `llm` Service：由 Adapter 注册表和流式模型调用 API 组成，可通过 `llm/stream` Waterfall 拦截。Provider 是配置与请求使用的稳定名称，Adapter 是可热替换的实现实例； 注册、模型能力解析和流式发送都由此 Service 统一处理。
 
 ```ts cordis-catalog
 /**
- * Register an adapter for the given provider routes. Throws `LlmError` with code
- * `DUPLICATE_ADAPTER` if any provider already has an adapter (all-or-nothing).
- * Disposed with the fiber.
- * @param providers - every provider route this adapter should serve.
- * @param adapter - the adapter that streams calls for those providers.
- * @returns the disposer, carrying {@link AdapterRegistrationHandle.replace}.
+ * 为指定 Provider 路由注册 Adapter。任一 Provider 已有 Adapter 时，以
+ * `DUPLICATE_ADAPTER` 抛出 `LlmError`，整次注册不产生部分结果。注册随 Fiber 释放。
+ * @param providers - 当前 Adapter 服务的全部 Provider 路由。
+ * @param adapter - 为这些 Provider 执行流式调用的 Adapter。
+ * @returns 注册 disposer，并带有 {@link AdapterRegistrationHandle.replace}。
  */
 registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle
 
@@ -862,25 +861,21 @@ async resolveModelInfo( provider: string, model: string, signal?: AbortSignal, )
 async resolveCallConfig(config: LlmCallConfig, signal?: AbortSignal): Promise<LlmCallConfig>
 
 /**
- * Resolve one call under its current adapter registration. The returned
- * one-shot handle keeps that registration across header logging and dispatch,
- * so HMR cannot combine one adapter's capability result with another adapter.
- * @param config - provider/model route and optional request controls.
- * @param signal - optional cancellation for adapter-owned capability lookup.
- * @returns a prepared config and its registration-bound stream entry point.
+ * 使用当前 Adapter 注册解析一次调用。返回的单次句柄会从 Header 记录一直绑定到 Dispatch，
+ * 防止 HMR 把一个 Adapter 的能力解析结果与另一个 Adapter 的发送实现组合起来。
+ * @param config - Provider/Model 路由与可选请求控制项。
+ * @param signal - 用于 Adapter 能力查询的可选取消信号。
+ * @returns 准备后的配置，以及绑定到当前注册代的流式入口。
  */
 async prepareCall(config: LlmCallConfig, signal?: AbortSignal): Promise<PreparedLlmCall>
 
 /**
- * Stream one model call as raw chunks (token-level deltas). Replay state is
- * retained only when the same adapter instance owns its historical provider
- * and the target provider. Final adapter selection remains fixed through
- * asynchronous exact-model resolution and dispatch. Adapter selection,
- * dispatch, and iteration failures become terminal `error` or `aborted`
- * finish chunks; middleware, nested-call, cleanup, and consumer failures
- * remain thrown.
- * @param options - the full request; `options.provider` selects the adapter.
- * @returns the chunk stream, possibly wrapped by `llm/stream` listeners.
+ * 把一次模型调用流式输出为原始 Chunk（Token 级增量）。只有同一个 Adapter 实例同时拥有
+ * 历史 Provider 和目标 Provider 时才保留 Replay 状态。异步解析精确模型和 Dispatch
+ * 期间，最终 Adapter 选择保持固定。Adapter 选择、Dispatch 与迭代失败会转换为终止的
+ * `error` 或 `aborted` Finish Chunk；中间件、嵌套调用、清理和消费者失败继续向外抛出。
+ * @param options - 完整请求；`options.provider` 用于选择 Adapter。
+ * @returns Chunk 流，可能被 `llm/stream` 监听器包装。
  */
 stream(options: GenerateOptions): AsyncIterable<StreamChunk>
 ```

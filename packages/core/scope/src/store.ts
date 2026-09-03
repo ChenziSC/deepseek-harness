@@ -1,5 +1,6 @@
 /**
- * Shared insertion-ordered storage and effect ownership for scope-aware registries.
+ * 为支持 Scope 的注册表提供共享的插入顺序存储与 Effect 所有权。保存一份全局层和若干按
+ * Scope Key 区分的覆盖层；读取时沿父链合并，写入时按调用 Context 自动选择所属层。
  *
  * @module @deepseek-ai/dsh-scope
  */
@@ -150,11 +151,8 @@ export class AnonymousEntries<V> implements EntryValues<V> {
 }
 
 /**
- * Own the global and exact-scope layers for one registry.
- *
- * Reads never create scoped layers. Registrations derive both visibility and
- * effect ownership from the supplied Cordis context, collect undo before
- * notification, and reclaim only a completely empty aggregate layer.
+ * 管理一个注册表的全局层和精确 Scope 层。读取不会创建 Scope 层；注册同时从传入的 Cordis
+ * Context 推导可见性与 Effect 所有权，在通知前取得撤销函数，并且只回收完全为空的聚合层。
  */
 export class ScopedLayers<L extends ScopeLayer> {
   /** The eagerly constructed context-global layer. */
@@ -199,16 +197,16 @@ export class ScopedLayers<L extends ScopeLayer> {
   }
 
   /**
-   * Materialize global named entries followed by scope-chain shadows,
-   * farthest ancestor first, so the nearest scope's entry wins a name.
-   * @param scope - viewing scope, or `undefined` for the global view.
-   * @param pick - select the named table from a layer.
-   * @returns an insertion-ordered effective map.
+   * 先物化全局命名条目，再按最远祖先到最近 Scope 的顺序应用覆盖，使最近 Scope 的同名条目胜出。
+   * @param scope - 查看结果的 Scope；`undefined` 表示全局视图。
+   * @param pick - 从一层中选择命名条目表。
+   * @returns 按插入顺序保存的最终 Map。
    */
   merge<V>(
     scope: ScopeKey | undefined,
     pick: (layer: L) => NamedEntries<V>,
   ): Map<string, V> {
+    // 先放全局值，再从最远父 Scope 到当前 Scope 覆盖同名项；离 Agent 最近的定义最终胜出。
     const merged = new Map(pick(this.global).entries())
     for (const layer of this.chainLayers(scope)) {
       for (const [name, value] of pick(layer).entries()) merged.set(name, value)
@@ -217,17 +215,18 @@ export class ScopedLayers<L extends ScopeLayer> {
   }
 
   /**
-   * Attach one synchronous layer mutation to its registration context.
-   * @param ctx - context that determines both scope visibility and effect ownership.
-   * @param action - atomic mutation returning its synchronous undo.
-   * @param options - Cordis effect label and optional change notification.
-   * @returns the exact disposer returned by `ctx.effect()`.
+   * 把一次同步分层修改绑定到注册它的 Context。
+   * @param ctx - 同时决定 Scope 可见性和 Effect 所有权的 Context。
+   * @param action - 原子修改操作，并返回同步撤销函数。
+   * @param options - Cordis Effect 标签以及是否发送变化通知。
+   * @returns `ctx.effect()` 返回的原始 disposer。
    */
   effect(
     ctx: Context,
     action: (layer: L) => () => void,
     options: { label: string; notify?: boolean },
   ): () => void {
+    // 注册与撤销在同一个 Effect 中完成：撤销最后一个条目时删除空层，并发出一次变更通知。
     const scope = scopeOf(ctx)
     const notify = options.notify ?? true
     const dispose = ctx.effect(function* (this: ScopedLayers<L>) {

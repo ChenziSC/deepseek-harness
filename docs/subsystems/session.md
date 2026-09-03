@@ -366,11 +366,10 @@ The body-stripped declaration keeps the plain class's detached factory, state ac
 
 ```ts public-api
 /**
- * An event-sourced session: an append-only log of {@link SessionEvent}s.
- *
- * Plain class (not a Service) — create live instances via
- * `ctx.sessions.create()` and detached instances via {@link create}.
- * Seeding with an existing event log replays/forks a session.
+ * 事件溯源的 Session：由 {@link SessionEvent} 组成的只追加日志。它是普通类而非 Service；
+ * 通过 `ctx.sessions.create()` 创建实时实例，通过 {@link create} 创建未挂载实例。传入已有
+ * 事件日志作为 Seed 可以重放或 Fork Session。log 保存全部事实，Surface 只决定哪些事件
+ * 以何种顺序进入模型上下文；Compaction 通过 Surface Replace 隐藏旧节点，不修改原日志。
  * @typert object
  */
 declare class Session {
@@ -439,39 +438,22 @@ declare class Session {
   /** The next event's sequence number — always the log length (the `seq = log.length` contiguity contract). */
   get seq(): number;
   /**
-   * Append one typed event to the log and synchronously notify observers via
-   * the store-owned, module-private publication hooks. The hot path never blocks
-   * on I/O — persistence plugins buffer asynchronously. Once the event enters
-   * the log, the append is committed: observer failures are logged and
-   * contained per listener, so they do not change the return value or prevent
-   * later listeners from observing the same accepted event.
+   * 向日志追加一个带类型事件，并通过 Store 私有的发布 Hook 同步通知观察者。热路径不等待
+   * I/O，持久化插件异步缓冲。事件进入日志即视为提交；各监听器失败会分别记录并隔离，不会
+   * 改变返回值，也不会阻止后续监听器观察同一事件。
    *
-   * @param type - The event type (key of {@link SessionEventMap}).
-   * @param data - The event payload; must be JSON-serializable.
-   * @param opts - Surface metadata: `surfaceOp` controls how the event enters
-   *   the ordered surface; `sourceEventSeqs` lists the seq numbers of earlier
-   *   events this one derives from. REQUIRED for
-   *   {@link SurfaceEventType} events (every message-producing event must
-   *   declare how it joins the surface, the sole source of derived model
-   *   history) and
-   *   rejected by the compiler for non-surface types like `turn/start` or
-   *   `assistant/chunk`.
-   * @returns the logged event — its assigned `seq`/`time` plus the SNAPSHOT of
-   *   `data` that entered the log, so reading `event.data` back sees the logged
-   *   value, never the caller's still-mutable input.
-   * @throws if `data` or surface metadata is not losslessly JSON-serializable
-   *   (BigInt, function, symbol, undefined, negative zero, non-finite number,
-   *   circular reference, sparse array, or an exotic object such as
-   *   Map/Set/Date/class instance), or when the candidate violates the
-   *   canonical surface contract (marker shape and eligibility, unique
-   *   earlier source-event references, positional replacement validity, and complete
-   *   shadowed-node coverage). One recursive pass reads, validates, and
-   *   copies each nested value once, so a stateful getter cannot supply one value
-   *   to validation and another to storage. The event log is the durable source
-   *   of truth, so a bad event fails at the append site rather than later during
-   *   a backend flush. A synchronous internal dispatch validation failure or an
-   *   append reentered while this acceptance/publication boundary is open also
-   *   rejects before the log changes.
+   * @param type - 事件类型，即 {@link SessionEventMap} 的键。
+   * @param data - 事件数据，必须可无损 JSON 序列化。
+   * @param opts - Surface 元数据。`surfaceOp` 决定事件怎样进入有序 Surface；
+   * `sourceEventSeqs` 列出该事件派生自哪些更早事件。所有 {@link SurfaceEventType} 都必须
+   * 提供，因为每个生成模型消息的事件都要声明怎样加入派生历史；`turn/start`、
+   * `assistant/chunk` 等非 Surface 事件由编译器禁止传入该参数。
+   * @returns 已记录事件，包含分配后的 `seq`、`time` 以及真正进入日志的 `data` 快照；
+   * 后续读取 `event.data` 不会看到调用方继续修改后的输入。
+   * @throws `data` 或 Surface 元数据无法无损 JSON 序列化，候选事件违反 Surface 约定，
+   * 同步内部分发校验失败，或者在接收与发布尚未结束时重入 append。校验会在一次递归遍历中
+   * 完成读取、验证与复制，防止有状态 getter 向校验和存储提供不同值；所有失败都发生在
+   * 日志变化之前。
    */
   append<T extends SessionEventType>(
     type: T,
@@ -494,22 +476,16 @@ declare class Session {
    */
   requestContext(): RequestContext | undefined;
   /**
-   * Derive the LLM message history by walking the ordered sequences of
-   * message-producing events maintained by `surfaceOp` markers. The
-   * surface is the single source of derived history: every message-producing
-   * append records its `surfaceOp`, so a raw event with no marker (a chunk, a
-   * turn boundary) is correctly absent, and a compaction `replace` deletes the
-   * shadowed nodes from the derivation. The projection rules are
-   * {@link deriveEventMessage}, folded per node.
+   * 遍历由 `surfaceOp` 标记维护的有序消息事件，派生 LLM 消息历史。Surface 是派生历史的
+   * 唯一来源：每个生成消息的 append 都记录 `surfaceOp`，未标记的原始 Chunk 或 Turn 边界
+   * 不会进入历史，Compaction 的 `replace` 会从派生结果中移除被覆盖节点。每个节点按
+   * {@link deriveEventMessage} 规则投影。
    *
-   * CACHED: each surface node is projected exactly once, when first seen — a
-   * call costs O(new nodes), and a surface rewrite (a `replace`;
-   * {@link SessionSurface.replaceGeneration}) rebuilds. The returned array is
-   * a fresh snapshot per call (later appends never grow an array a caller
-   * already holds); the `Message` objects in it are SHARED and **deep-frozen**.
-   * Their content reuses the already frozen durable event data, so the cache
-   * needs no second deep clone and consumers still cannot mutate the log.
-   * @returns a fresh array of the shared, frozen derived history.
+   * 结果按 Surface 节点缓存：每个节点首次出现时只投影一次，调用成本为 O(新增节点数)；
+   * Surface Replace（{@link SessionSurface.replaceGeneration}）会重建缓存。每次返回新的数组
+   * 快照，因此后续 append 不会扩展调用方已经持有的数组；其中的 Message 对象共享且深度
+   * 冻结，并复用已经冻结的持久事件数据，不需要再次深克隆，消费者也无法修改日志。
+   * @returns 由共享、冻结消息组成的新数组快照。
    */
   deriveMessages(): Message[];
   /**
@@ -620,9 +596,7 @@ Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnp
 
 ### `ctx.sessions` — `SessionStore`
 
-In-memory session store (`ctx.sessions`).
-
-Persistence is intentionally not implemented here — persistence plugins subscribe to `session/event` and flush on `session/flush` / dispose.
+内存 Session Store（`ctx.sessions`），管理当前进程中正在运行的 Session。这里刻意不实现 持久化；持久化插件订阅 `session/event`，并在 `session/flush` 或释放时写盘。内存生命周期 与 JSONL、SQLite 等存储实现因此可以独立替换。
 
 ```ts cordis-catalog
 /**

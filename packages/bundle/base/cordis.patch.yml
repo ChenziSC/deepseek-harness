@@ -1,16 +1,12 @@
-# The dsh-base bundle patch: the shared core of every dsh profile, applied as
-# ONE insert over the empty profile root. Later bundle patches and the user's
-# profile cordis.patch.yml address these rows by id, with the last write
-# winning per row.
+# dsh-base Bundle Patch：所有 DSH Profile 共用的基础能力，以一次 insert 加入空的 Profile
+# 根配置。后续 Bundle Patch 和用户的 profile cordis.patch.yml 通过 id 定位这些行；同一行
+# 出现多次时，以最后一层写入为准。
 #
-# A patch replaces the targeted row's whole `config` rather than merging into
-# it, so a row whose value differs by mode does NOT live here: it belongs to
-# each mode bundle, keeping any single row down to one bundle layer plus the
-# user's. Mode-specific rows appear below only with shared plugin identity and
-# neutral defaults; each mode bundle restates its complete configuration.
+# Patch 会替换目标行的整份 config，而不是递归合并。因此，不同运行模式取值不同的行不在
+# 这里配置，而应放在各自模式的 Bundle 中；每行只经过一个 Bundle 层和用户层。下方若出现
+# 与模式有关的行，只提供共享插件身份和中性默认值，各模式 Bundle 会重新声明完整配置。
 #
-# Row order carries no load semantics (activation is service-availability
-# driven); the grouping is for readers.
+# 行顺序不代表加载顺序；插件是否激活由所需 Service 是否可用决定。这里分组只是为了阅读。
 
 - insert:
     - id: timer

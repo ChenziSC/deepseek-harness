@@ -1,0 +1,322 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1160" viewBox="0 0 1800 1160">
+  <defs>
+    <linearGradient id="titleBand" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#EEF3FC"/>
+      <stop offset="50%" stop-color="#F0EAFF"/>
+      <stop offset="100%" stop-color="#E7F7EC"/>
+    </linearGradient>
+    <linearGradient id="loopCore" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5578C7"/>
+      <stop offset="100%" stop-color="#8B68C9"/>
+    </linearGradient>
+    <marker id="arrowGray" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#A9B0BA"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#8A70CF"/>
+    </marker>
+  </defs>
+
+  <rect x="18" y="18" width="1764" height="1124" rx="30" fill="#F7F8FA" stroke="#E5E8ED" stroke-width="2"/>
+
+  <!-- 标题带 -->
+  <rect x="52" y="42" width="1696" height="70" rx="18" fill="url(#titleBand)" stroke="#D8DEE8" stroke-width="2"/>
+  <text x="900" y="76" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="28" font-weight="700" fill="#1F2329">DeepSeek Harness · 整体架构与运行时序</text>
+  <text x="900" y="99" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" fill="#6B7280">从插件装配到可恢复 Agent Loop：入口、会话、模型、工具与状态统一由 Cordis 插件协作</text>
+
+  <!-- 左侧层标签 -->
+  <text x="132" y="153" text-anchor="end" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="700" fill="#1F2329">入口适配</text>
+  <text x="132" y="245" text-anchor="end" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="700" fill="#1F2329">装配宿主</text>
+  <text x="132" y="355" text-anchor="end" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="700" fill="#1F2329">运行核心</text>
+  <text x="132" y="890" text-anchor="end" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="700" fill="#1F2329">能力适配</text>
+  <text x="132" y="1013" text-anchor="end" font-family="Noto Sans SC, sans-serif" font-size="18" font-weight="700" fill="#1F2329">状态底座</text>
+
+  <!-- 入口适配 -->
+  <rect x="154" y="126" width="1370" height="76" rx="14" fill="#F0F4FC" stroke="#6E8FC6" stroke-width="2"/>
+  <g>
+    <rect x="178" y="140" width="308" height="48" rx="10" fill="#FFFFFF" stroke="#6E8FC6" stroke-width="2"/>
+    <circle cx="203" cy="164" r="11" fill="#E9F0FC" stroke="#5178C6" stroke-width="2"/>
+    <path d="M198 164h10M203 159v10" stroke="#5178C6" stroke-width="2"/>
+    <text x="222" y="160" font-family="Noto Sans SC, sans-serif" font-size="15" font-weight="700" fill="#1F2329">CLI</text>
+    <text x="222" y="178" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#6B7280">headless / dsh 命令入口</text>
+  </g>
+  <g>
+    <rect x="510" y="140" width="308" height="48" rx="10" fill="#FFFFFF" stroke="#6E8FC6" stroke-width="2"/>
+    <circle cx="535" cy="164" r="11" fill="#E9F0FC" stroke="#5178C6" stroke-width="2"/>
+    <path d="M529 164h12M535 158v12" stroke="#5178C6" stroke-width="2"/>
+    <text x="554" y="160" font-family="Noto Sans SC, sans-serif" font-size="15" font-weight="700" fill="#1F2329">Web</text>
+    <text x="554" y="178" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#6B7280">Host + Browser Client</text>
+  </g>
+  <g>
+    <rect x="842" y="140" width="308" height="48" rx="10" fill="#FFFFFF" stroke="#6E8FC6" stroke-width="2"/>
+    <polygon points="865,151 877,158 877,171 865,178 853,171 853,158" fill="#E9F0FC" stroke="#5178C6" stroke-width="2"/>
+    <text x="890" y="160" font-family="Noto Sans SC, sans-serif" font-size="15" font-weight="700" fill="#1F2329">ACP</text>
+    <text x="890" y="178" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#6B7280">自动化 Agent Client Protocol</text>
+  </g>
+  <g>
+    <rect x="1174" y="140" width="326" height="48" rx="10" fill="#FFFFFF" stroke="#6E8FC6" stroke-width="2"/>
+    <path d="M1197 155l-8 9 8 9M1207 155l8 9-8 9" fill="none" stroke="#5178C6" stroke-width="2"/>
+    <text x="1228" y="160" font-family="Noto Sans SC, sans-serif" font-size="15" font-weight="700" fill="#1F2329">SDK</text>
+    <text x="1228" y="178" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#6B7280">JSON-RPC · TypeScript / Python</text>
+  </g>
+
+  <!-- 装配与会话宿主 -->
+  <rect x="154" y="218" width="1370" height="102" rx="14" fill="#F8F6FC" stroke="#8FA6C4" stroke-width="2"/>
+  <g>
+    <rect x="178" y="234" width="404" height="70" rx="11" fill="#FFFFFF" stroke="#9277D5" stroke-width="2"/>
+    <circle cx="203" cy="255" r="12" fill="#EAE2FE"/>
+    <text x="203" y="260" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#7557BC">1</text>
+    <text x="224" y="255" font-family="Noto Sans SC, sans-serif" font-size="15" font-weight="700" fill="#1F2329">Profile + Bundle + cordis.yml</text>
+    <text x="198" y="281" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#6B7280">Patch layers 组合产品能力，生成插件装配树</text>
+  </g>
+  <g>
+    <rect x="598" y="234" width="404" height="70" rx="11" fill="#FFFFFF" stroke="#67A77C" stroke-width="2"/>
+    <circle cx="623" cy="255" r="12" fill="#DFF5E5"/>
+    <text x="623" y="260" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#3E7E52">2</text>
+    <text x="644" y="255" font-family="Noto Sans SC, sans-serif" font-size="15" font-weight="700" fill="#1F2329">Cordis Context / 插件树</text>
+    <text x="618" y="281" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#6B7280">Service · Effect · Event · Scope 管理生命周期</text>
+  </g>
+  <g>
+    <rect x="1018" y="234" width="482" height="70" rx="11" fill="#FFFFFF" stroke="#6E8FC6" stroke-width="2"/>
+    <circle cx="1043" cy="255" r="12" fill="#E9F0FC"/>
+    <text x="1043" y="260" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#5178C6">3</text>
+    <text x="1064" y="255" font-family="Noto Sans SC, sans-serif" font-size="15" font-weight="700" fill="#1F2329">Session + AgentRegistry + AgentLoop</text>
+    <text x="1038" y="281" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#6B7280">事件事实 · live handle · 单一 Driver 驱动</text>
+  </g>
+  <polyline points="839,202 839,218" fill="none" stroke="#A9B0BA" stroke-width="2" marker-end="url(#arrowGray)"/>
+  <polyline points="839,320 839,337" fill="none" stroke="#A9B0BA" stroke-width="2" marker-end="url(#arrowGray)"/>
+
+  <!-- 主运行核心 -->
+  <rect x="154" y="338" width="1032" height="482" rx="20" fill="#F1EAFF" stroke="#9277D5" stroke-width="2"/>
+  <text x="178" y="372" font-family="Noto Sans SC, sans-serif" font-size="20" font-weight="700" fill="#1F2329">Agent Loop：一个 Turn 可包含多个 Step</text>
+  <text x="178" y="394" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#6B7280">输入领取、上下文投影、模型流、工具调度与停止条件形成可恢复状态机</text>
+
+  <!-- 环形路径 -->
+  <path d="M365 500 C430 415 552 391 670 417 C805 385 950 434 1002 522 C1066 618 988 736 878 762 C754 802 584 793 455 735 C350 689 305 589 365 500" fill="none" stroke="#B6A7DF" stroke-width="3" stroke-dasharray="8 8" marker-end="url(#arrowPurple)"/>
+
+  <!-- Step 1 -->
+  <g>
+    <rect x="192" y="430" width="232" height="68" rx="12" fill="#FFFFFF" stroke="#9277D5" stroke-width="2"/>
+    <circle cx="216" cy="454" r="14" fill="#8A70CF"/>
+    <text x="216" y="459" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">1</text>
+    <text x="240" y="451" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="700" fill="#1F2329">Inbox / 领取输入</text>
+    <text x="240" y="473" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#6B7280">claim 后进入当前 Turn</text>
+  </g>
+  <!-- Step 2 -->
+  <g>
+    <rect x="440" y="404" width="242" height="68" rx="12" fill="#FFFFFF" stroke="#9277D5" stroke-width="2"/>
+    <circle cx="464" cy="428" r="14" fill="#8A70CF"/>
+    <text x="464" y="433" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">2</text>
+    <text x="488" y="425" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="700" fill="#1F2329">Pre-Step / 动态上下文</text>
+    <text x="488" y="447" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#6B7280">先写 Session Log 再使用</text>
+  </g>
+  <!-- Step 3 -->
+  <g>
+    <rect x="698" y="404" width="256" height="68" rx="12" fill="#FFFFFF" stroke="#9277D5" stroke-width="2"/>
+    <circle cx="722" cy="428" r="14" fill="#8A70CF"/>
+    <text x="722" y="433" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">3</text>
+    <text x="746" y="425" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="700" fill="#1F2329">Surface + Prompt / Schema</text>
+    <text x="746" y="447" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#6B7280">deriveMessages 构造模型请求</text>
+  </g>
+  <!-- Step 4 -->
+  <g>
+    <rect x="934" y="490" width="220" height="68" rx="12" fill="#FFFFFF" stroke="#9277D5" stroke-width="2"/>
+    <circle cx="958" cy="514" r="14" fill="#8A70CF"/>
+    <text x="958" y="519" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">4</text>
+    <text x="982" y="511" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="700" fill="#1F2329">LLM stream</text>
+    <text x="982" y="533" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#6B7280">Request Header + 增量响应</text>
+  </g>
+  <!-- Step 5 -->
+  <g>
+    <rect x="932" y="582" width="222" height="68" rx="12" fill="#FFFFFF" stroke="#9277D5" stroke-width="2"/>
+    <circle cx="956" cy="606" r="14" fill="#8A70CF"/>
+    <text x="956" y="611" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">5</text>
+    <text x="980" y="603" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="700" fill="#1F2329">Assistant / tool call</text>
+    <text x="980" y="625" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#6B7280">发布输出并识别调用</text>
+  </g>
+  <!-- Step 6 -->
+  <g>
+    <rect x="790" y="690" width="294" height="68" rx="12" fill="#FFFFFF" stroke="#9277D5" stroke-width="2"/>
+    <circle cx="814" cy="714" r="14" fill="#8A70CF"/>
+    <text x="814" y="719" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">6</text>
+    <text x="838" y="711" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="700" fill="#1F2329">Tools：pre → execute → post</text>
+    <text x="838" y="733" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#6B7280">结果按模型调用顺序写入</text>
+  </g>
+  <!-- Step 7 -->
+  <g>
+    <rect x="500" y="716" width="270" height="68" rx="12" fill="#FFFFFF" stroke="#9277D5" stroke-width="2"/>
+    <circle cx="524" cy="740" r="14" fill="#8A70CF"/>
+    <text x="524" y="745" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">7</text>
+    <text x="548" y="737" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="700" fill="#1F2329">Next Step / turn-stopping</text>
+    <text x="548" y="759" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#6B7280">判断继续、停止或等待</text>
+  </g>
+  <!-- Step 8 -->
+  <g>
+    <rect x="192" y="672" width="282" height="68" rx="12" fill="#FFFFFF" stroke="#9277D5" stroke-width="2"/>
+    <circle cx="216" cy="696" r="14" fill="#8A70CF"/>
+    <text x="216" y="701" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">8</text>
+    <text x="240" y="693" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="700" fill="#1F2329">step/end + turn/end</text>
+    <text x="240" y="715" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#6B7280">结束事件成为可恢复事实</text>
+  </g>
+
+  <!-- 核心圆 -->
+  <circle cx="654" cy="588" r="104" fill="url(#loopCore)" stroke="#3F3A63" stroke-width="2"/>
+  <text x="654" y="570" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="24" font-weight="700" fill="#FFFFFF">Agent Loop</text>
+  <text x="654" y="596" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#FFFFFF">单一 Driver 状态机</text>
+  <text x="654" y="621" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#EDE9FE">Turn → Step → Event</text>
+
+  <!-- 模型与 API -->
+  <rect x="1202" y="338" width="322" height="226" rx="18" fill="#E9F8EF" stroke="#67A77C" stroke-width="2"/>
+  <text x="1226" y="370" font-family="Noto Sans SC, sans-serif" font-size="19" font-weight="700" fill="#1F2329">模型与 API</text>
+  <text x="1226" y="391" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#5F6B63">Provider 可替换，调用语义保持一致</text>
+  <g>
+    <rect x="1226" y="407" width="274" height="42" rx="10" fill="#FFFFFF" stroke="#67A77C" stroke-width="2"/>
+    <text x="1363" y="425" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="700" fill="#1F2329">LLM Adapter</text>
+    <text x="1363" y="441" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#6B7280">Service Definition / Provider</text>
+  </g>
+  <g>
+    <rect x="1226" y="457" width="274" height="42" rx="10" fill="#FFFFFF" stroke="#67A77C" stroke-width="2"/>
+    <text x="1363" y="475" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="700" fill="#1F2329">Request Header / stream</text>
+    <text x="1363" y="491" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#6B7280">请求快照与增量响应</text>
+  </g>
+  <g>
+    <rect x="1226" y="507" width="274" height="42" rx="10" fill="#FFFFFF" stroke="#67A77C" stroke-width="2"/>
+    <text x="1363" y="525" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="700" fill="#1F2329">Prompt / Tool Schema</text>
+    <text x="1363" y="541" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#6B7280">从日志派生模型可见输入</text>
+  </g>
+
+  <!-- 工具执行面 -->
+  <rect x="1202" y="580" width="322" height="240" rx="18" fill="#FFF6DC" stroke="#D1AA45" stroke-width="2"/>
+  <text x="1226" y="612" font-family="Noto Sans SC, sans-serif" font-size="19" font-weight="700" fill="#1F2329">工具执行面</text>
+  <text x="1226" y="633" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#756A4A">生命周期钩子、并发与结果顺序协同</text>
+  <g>
+    <circle cx="1247" cy="668" r="18" fill="#FFFFFF" stroke="#D1AA45" stroke-width="2"/>
+    <text x="1247" y="673" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="700" fill="#9A761D">pre</text>
+    <polyline points="1266,668 1302,668" fill="none" stroke="#C4A24A" stroke-width="2" marker-end="url(#arrowGray)"/>
+    <circle cx="1322" cy="668" r="18" fill="#FFFFFF" stroke="#D1AA45" stroke-width="2"/>
+    <text x="1322" y="673" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" font-weight="700" fill="#9A761D">run</text>
+    <polyline points="1341,668 1377,668" fill="none" stroke="#C4A24A" stroke-width="2" marker-end="url(#arrowGray)"/>
+    <circle cx="1397" cy="668" r="18" fill="#FFFFFF" stroke="#D1AA45" stroke-width="2"/>
+    <text x="1397" y="673" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" font-weight="700" fill="#9A761D">post</text>
+    <polyline points="1416,668 1452,668" fill="none" stroke="#C4A24A" stroke-width="2" marker-end="url(#arrowGray)"/>
+    <circle cx="1472" cy="668" r="18" fill="#FFFFFF" stroke="#D1AA45" stroke-width="2"/>
+    <text x="1472" y="673" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" font-weight="700" fill="#9A761D">result</text>
+  </g>
+  <rect x="1226" y="704" width="126" height="38" rx="9" fill="#FFFFFF" stroke="#D1AA45" stroke-width="2"/>
+  <text x="1289" y="727" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="700" fill="#1F2329">有界并发</text>
+  <rect x="1368" y="704" width="132" height="38" rx="9" fill="#FFFFFF" stroke="#D1AA45" stroke-width="2"/>
+  <text x="1434" y="727" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="700" fill="#1F2329">安全工具池</text>
+  <rect x="1226" y="752" width="126" height="38" rx="9" fill="#FFFFFF" stroke="#D1AA45" stroke-width="2"/>
+  <text x="1289" y="775" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="700" fill="#1F2329">Barrier</text>
+  <rect x="1368" y="752" width="132" height="38" rx="9" fill="#FFFFFF" stroke="#D1AA45" stroke-width="2"/>
+  <text x="1434" y="775" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" font-weight="700" fill="#1F2329">模型顺序记录</text>
+
+  <!-- 主流程至模型与工具 -->
+  <polyline points="954,438 1188,438 1188,451 1202,451" fill="none" stroke="#A9B0BA" stroke-width="2" marker-end="url(#arrowGray)"/>
+  <polyline points="1202,520 1176,520 1176,524 1154,524" fill="none" stroke="#A9B0BA" stroke-width="2" marker-end="url(#arrowGray)"/>
+  <polyline points="1154,616 1178,616 1178,690 1202,690" fill="none" stroke="#A9B0BA" stroke-width="2" marker-end="url(#arrowGray)"/>
+  <polyline points="1202,786 1178,786 1178,724 1084,724" fill="none" stroke="#A9B0BA" stroke-width="2" marker-end="url(#arrowGray)"/>
+
+  <!-- 横切不变量 -->
+  <rect x="1544" y="126" width="204" height="694" rx="20" fill="#23262D" stroke="#23262D" stroke-width="2"/>
+  <text x="1646" y="166" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="19" font-weight="700" fill="#FFFFFF">横切不变量</text>
+  <line x1="1572" y1="184" x2="1720" y2="184" stroke="#656B76" stroke-width="1.5"/>
+  <g>
+    <circle cx="1576" cy="220" r="7" fill="#68A0DC"/>
+    <text x="1594" y="216" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">注册可撤销</text>
+    <text x="1594" y="237" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C9CDD4">effect / listener / registry</text>
+    <text x="1594" y="253" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C9CDD4">都有 disposer</text>
+  </g>
+  <g>
+    <circle cx="1576" cy="292" r="7" fill="#9A7BE0"/>
+    <text x="1594" y="288" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">单一 Driver</text>
+    <text x="1594" y="309" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C9CDD4">一个 AgentLoop 驱动</text>
+    <text x="1594" y="325" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C9CDD4">当前 live handle</text>
+  </g>
+  <g>
+    <circle cx="1576" cy="364" r="7" fill="#6CB383"/>
+    <text x="1594" y="360" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">model-visible ⇔ logged</text>
+    <text x="1594" y="381" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C9CDD4">模型可见内容必须能</text>
+    <text x="1594" y="397" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C9CDD4">从事件日志重建</text>
+  </g>
+  <g>
+    <circle cx="1576" cy="436" r="7" fill="#D6B54D"/>
+    <text x="1594" y="432" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">事实 / 投影 / UI 分离</text>
+    <text x="1594" y="453" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C9CDD4">日志是事实，Surface</text>
+    <text x="1594" y="469" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C9CDD4">与界面均为派生视图</text>
+  </g>
+  <g>
+    <circle cx="1576" cy="508" r="7" fill="#DD7B70"/>
+    <text x="1594" y="504" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">完整 Capability Seam</text>
+    <text x="1594" y="525" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C9CDD4">Definition + Provider</text>
+    <text x="1594" y="541" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C9CDD4">+ Consumer 缺一不可</text>
+  </g>
+  <g>
+    <circle cx="1576" cy="580" r="7" fill="#68A0DC"/>
+    <text x="1594" y="576" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">Provider 可替换</text>
+    <text x="1594" y="597" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C9CDD4">但生命周期、取消和</text>
+    <text x="1594" y="613" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C9CDD4">失败语义必须明确</text>
+  </g>
+  <line x1="1572" y1="646" x2="1720" y2="646" stroke="#656B76" stroke-width="1.5"/>
+  <text x="1574" y="675" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="700" fill="#FFFFFF">运行时纪律</text>
+  <text x="1574" y="700" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C9CDD4">• 输入只被领取一次</text>
+  <text x="1574" y="723" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C9CDD4">• 工具结果保持模型顺序</text>
+  <text x="1574" y="746" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C9CDD4">• 关闭时释放受管资源</text>
+  <text x="1574" y="769" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C9CDD4">• 跨进程输入先验证</text>
+
+  <!-- 能力适配泳道 -->
+  <rect x="154" y="840" width="1594" height="116" rx="18" fill="#FFF0EC" stroke="#D57A6B" stroke-width="2"/>
+  <text x="180" y="869" font-family="Noto Sans SC, sans-serif" font-size="16" font-weight="700" fill="#1F2329">完整 Capability Seam</text>
+  <text x="180" y="889" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#79625E">Definition + Provider + Consumer</text>
+  <g fill="#FFFFFF" stroke="#D57A6B" stroke-width="2">
+    <rect x="384" y="860" width="150" height="72" rx="10"/>
+    <rect x="548" y="860" width="150" height="72" rx="10"/>
+    <rect x="712" y="860" width="150" height="72" rx="10"/>
+    <rect x="876" y="860" width="150" height="72" rx="10"/>
+    <rect x="1040" y="860" width="150" height="72" rx="10"/>
+    <rect x="1204" y="860" width="150" height="72" rx="10"/>
+    <rect x="1368" y="860" width="356" height="72" rx="10"/>
+  </g>
+  <g font-family="Noto Sans SC, sans-serif" fill="#1F2329" text-anchor="middle">
+    <text x="459" y="891" font-size="14" font-weight="700">LLM</text><text x="459" y="912" font-size="11" fill="#6B7280">模型调用</text>
+    <text x="623" y="891" font-size="14" font-weight="700">Shell</text><text x="623" y="912" font-size="11" fill="#6B7280">命令能力</text>
+    <text x="787" y="891" font-size="14" font-weight="700">FS</text><text x="787" y="912" font-size="11" fill="#6B7280">文件策略</text>
+    <text x="951" y="891" font-size="14" font-weight="700">Web</text><text x="951" y="912" font-size="11" fill="#6B7280">搜索 / 获取</text>
+    <text x="1115" y="891" font-size="14" font-weight="700">Subagent</text><text x="1115" y="912" font-size="11" fill="#6B7280">委派与 Job</text>
+    <text x="1279" y="891" font-size="14" font-weight="700">Workflow</text><text x="1279" y="912" font-size="11" fill="#6B7280">Worker 执行</text>
+    <text x="1546" y="891" font-size="14" font-weight="700">Credentials / Sandbox</text><text x="1546" y="912" font-size="11" fill="#6B7280">授权引用 · 隔离运行环境</text>
+  </g>
+
+  <!-- 状态底座泳道 -->
+  <rect x="154" y="974" width="1594" height="132" rx="18" fill="#F0F4FC" stroke="#6E8FC6" stroke-width="2"/>
+  <text x="180" y="1002" font-family="Noto Sans SC, sans-serif" font-size="16" font-weight="700" fill="#1F2329">可持久化、可投影、可恢复</text>
+  <text x="180" y="1022" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#6B7280">append-only 事件事实驱动投影与恢复</text>
+  <g fill="#FFFFFF" stroke="#6E8FC6" stroke-width="2">
+    <rect x="382" y="994" width="250" height="88" rx="12"/>
+    <rect x="648" y="994" width="250" height="88" rx="12"/>
+    <rect x="914" y="994" width="250" height="88" rx="12"/>
+    <rect x="1180" y="994" width="250" height="88" rx="12"/>
+    <rect x="1446" y="994" width="278" height="88" rx="12"/>
+  </g>
+  <g font-family="Noto Sans SC, sans-serif" text-anchor="middle">
+    <text x="507" y="1025" font-size="14" font-weight="700" fill="#1F2329">Session Event Log</text>
+    <text x="507" y="1047" font-size="11" fill="#6B7280">turn / step / assistant / tool</text>
+    <text x="507" y="1065" font-size="11" fill="#6B7280">唯一事实来源</text>
+    <text x="773" y="1025" font-size="14" font-weight="700" fill="#1F2329">Surface / deriveMessages</text>
+    <text x="773" y="1047" font-size="11" fill="#6B7280">从事件派生模型上下文</text>
+    <text x="773" y="1065" font-size="11" fill="#6B7280">不持有第二份真相</text>
+    <text x="1039" y="1025" font-size="14" font-weight="700" fill="#1F2329">Persistence</text>
+    <text x="1039" y="1047" font-size="11" fill="#6B7280">JSONL / SQLite</text>
+    <text x="1039" y="1065" font-size="11" fill="#6B7280">flush 与修复</text>
+    <text x="1305" y="1025" font-size="14" font-weight="700" fill="#1F2329">Projection / Recovery</text>
+    <text x="1305" y="1047" font-size="11" fill="#6B7280">回放重建状态</text>
+    <text x="1305" y="1065" font-size="11" fill="#6B7280">resume / fork / replay</text>
+    <text x="1585" y="1025" font-size="14" font-weight="700" fill="#1F2329">Transcript / Telemetry</text>
+    <text x="1585" y="1047" font-size="11" fill="#6B7280">客户端视图 · 标题 · 成本</text>
+    <text x="1585" y="1065" font-size="11" fill="#6B7280">可观测但不篡改事实</text>
+  </g>
+
+  <polyline points="654,820 654,834 654,840" fill="none" stroke="#A9B0BA" stroke-width="2" marker-end="url(#arrowGray)"/>
+  <polyline points="654,956 654,968 654,974" fill="none" stroke="#A9B0BA" stroke-width="2" marker-end="url(#arrowGray)"/>
+  <text x="900" y="1128" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#7B818C">阅读方式：自上而下理解分层；沿 1–8 环形步骤追踪一次 Turn；右侧检查设计不变量</text>
+</svg>

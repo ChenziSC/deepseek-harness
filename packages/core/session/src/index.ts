@@ -1,7 +1,8 @@
 /**
- * Event-sourced session service: append-only session log, in-memory store, and
- * the derived LLM message history. Persistence is a plugin concern (subscribe
- * to `session/event`, drain on `session/flush`).
+ * 事件溯源的 Session Service：提供只追加的 Session 日志、内存注册表，以及从日志派生的
+ * LLM 消息历史。持久化由插件负责：订阅 `session/event`，并在 `session/flush` 时排空写入。
+ * Turn、Step、模型输出和工具结果都先成为事件，因此恢复、Fork、UI 重放和下一次模型请求
+ * 共用同一事实来源。
  *
  * @module @deepseek-ai/dsh-session
  */
@@ -178,7 +179,7 @@ export function adoptSessionEvent<T extends SessionEvent>(event: T): T {
       deepFreeze(event.data.message)
       break
     default:
-      // SessionEventMap is merge-extensible; plugin-owned events carry no core message.
+      // SessionEventMap 可通过声明合并扩展；插件自有事件不生成核心消息。
       break
   }
   return event
@@ -197,7 +198,7 @@ export function snapshotSessionEvent<T extends SessionEvent>(event: T): T {
 function freezeRestoredObject<T extends object>(value: T): T {
   const pending: object[] = [value]
   while (pending.length > 0) {
-    // The non-empty check proves an object remains to visit.
+    // 上面的非空检查保证这里仍有一个对象可继续遍历。
     // oxlint-disable-next-line typescript/no-non-null-assertion
     const current = pending.pop()!
     Object.freeze(current)
@@ -415,11 +416,10 @@ interface SessionEntry {
 const attachments = new WeakMap<Session, SessionEntry>()
 
 /**
- * An event-sourced session: an append-only log of {@link SessionEvent}s.
- *
- * Plain class (not a Service) — create live instances via
- * `ctx.sessions.create()` and detached instances via {@link create}.
- * Seeding with an existing event log replays/forks a session.
+ * 事件溯源的 Session：由 {@link SessionEvent} 组成的只追加日志。它是普通类而非 Service；
+ * 通过 `ctx.sessions.create()` 创建实时实例，通过 {@link create} 创建未挂载实例。传入已有
+ * 事件日志作为 Seed 可以重放或 Fork Session。log 保存全部事实，Surface 只决定哪些事件
+ * 以何种顺序进入模型上下文；Compaction 通过 Surface Replace 隐藏旧节点，不修改原日志。
  * @typert object
  */
 export class Session {
@@ -506,16 +506,12 @@ export class Session {
       ? validateRestoredSessionHeader(id, header)
       : undefined
     if (seed !== undefined) {
-      // Validate the seed to the SAME invariants `append` enforces, so a
-      // replay/fork (`ctx.sessions.create(id, { seed })`) cannot construct a
-      // live log that no persistence backend could store: each event's `data`
-      // must be JSON-serializable, and `seq` must be contiguous from 0 (the
-      // `seq = log.length` contract the whole system relies on). Without this,
-      // a bad seed would surface only later as a backend rejection or a silent
-      // divergence between the live log and disk.
+      // Seed 必须满足与 append 完全相同的不变量，防止 replay/fork 创建出任何持久化后端都
+      // 无法保存的运行日志：每个事件的 data 必须可无损 JSON 序列化，seq 必须从 0 连续，
+      // 因为整个系统都依赖 seq = log.length。否则错误 Seed 只会在后续写盘时才暴露，甚至
+      // 造成内存日志与磁盘静默分叉。
       for (const [index, source] of seed.entries()) {
-        // The seed is a persistence/replay boundary: validate and detach the
-        // complete event in one lossless-JSON pass.
+        // Seed 是持久化与重放入口，因此在一次无损 JSON 遍历中校验并复制完整事件。
         const snapshot = mode === 'restore' ? source : snapshotJsonValue(source)
         if (snapshot === undefined) {
           throw new Error(`seed event at index ${index} is not losslessly JSON-serializable`)
@@ -525,9 +521,8 @@ export class Session {
         if (snapshot.seq !== index) {
           throw new Error(`seed event at index ${index} has seq ${snapshot.seq} (expected ${index}); seed must be contiguous from 0`)
         }
-        // A seed is accepted incrementally through the same transition as a
-        // live append and a full-log fold. The candidate is planned before it
-        // enters `log`, so a failure cannot partially mutate the surface.
+        // Seed 按与实时 append 和整段日志折叠相同的状态转换逐个接收。候选事件在进入 log
+        // 前完成规划，因此失败不会只修改一半 Surface。
         try {
           this.surfaceManager.validateNext(snapshot)
         } catch (error: unknown) {
@@ -538,10 +533,8 @@ export class Session {
     }
     this.firstLiveSeq = this.log.length
     this.header = restoredHeader ?? snapshotSessionHeader(id, header)
-    // Appended here so the marker is already in `events` when a backend
-    // captures the creation seed: no load-time write. Re-marking is skipped
-    // because a cold session is resumed on first touch, so repeatedly opening
-    // one must not grow its log per open.
+    // 在这里追加标记，使后端捕获创建 Seed 时 events 已包含它，无需加载时补写。冷 Session
+    // 会在首次访问时恢复，重复打开不能每次都扩展日志，所以已有标记时跳过。
     if (seed !== undefined && this.log.at(-1)?.type !== 'session/end-seed') {
       this.append('session/end-seed', {})
     }
@@ -567,45 +560,30 @@ export class Session {
   }
 
   /**
-   * Append one typed event to the log and synchronously notify observers via
-   * the store-owned, module-private publication hooks. The hot path never blocks
-   * on I/O — persistence plugins buffer asynchronously. Once the event enters
-   * the log, the append is committed: observer failures are logged and
-   * contained per listener, so they do not change the return value or prevent
-   * later listeners from observing the same accepted event.
+   * 向日志追加一个带类型事件，并通过 Store 私有的发布 Hook 同步通知观察者。热路径不等待
+   * I/O，持久化插件异步缓冲。事件进入日志即视为提交；各监听器失败会分别记录并隔离，不会
+   * 改变返回值，也不会阻止后续监听器观察同一事件。
    *
-   * @param type - The event type (key of {@link SessionEventMap}).
-   * @param data - The event payload; must be JSON-serializable.
-   * @param opts - Surface metadata: `surfaceOp` controls how the event enters
-   *   the ordered surface; `sourceEventSeqs` lists the seq numbers of earlier
-   *   events this one derives from. REQUIRED for
-   *   {@link SurfaceEventType} events (every message-producing event must
-   *   declare how it joins the surface, the sole source of derived model
-   *   history) and
-   *   rejected by the compiler for non-surface types like `turn/start` or
-   *   `assistant/chunk`.
-   * @returns the logged event — its assigned `seq`/`time` plus the SNAPSHOT of
-   *   `data` that entered the log, so reading `event.data` back sees the logged
-   *   value, never the caller's still-mutable input.
-   * @throws if `data` or surface metadata is not losslessly JSON-serializable
-   *   (BigInt, function, symbol, undefined, negative zero, non-finite number,
-   *   circular reference, sparse array, or an exotic object such as
-   *   Map/Set/Date/class instance), or when the candidate violates the
-   *   canonical surface contract (marker shape and eligibility, unique
-   *   earlier source-event references, positional replacement validity, and complete
-   *   shadowed-node coverage). One recursive pass reads, validates, and
-   *   copies each nested value once, so a stateful getter cannot supply one value
-   *   to validation and another to storage. The event log is the durable source
-   *   of truth, so a bad event fails at the append site rather than later during
-   *   a backend flush. A synchronous internal dispatch validation failure or an
-   *   append reentered while this acceptance/publication boundary is open also
-   *   rejects before the log changes.
+   * @param type - 事件类型，即 {@link SessionEventMap} 的键。
+   * @param data - 事件数据，必须可无损 JSON 序列化。
+   * @param opts - Surface 元数据。`surfaceOp` 决定事件怎样进入有序 Surface；
+   * `sourceEventSeqs` 列出该事件派生自哪些更早事件。所有 {@link SurfaceEventType} 都必须
+   * 提供，因为每个生成模型消息的事件都要声明怎样加入派生历史；`turn/start`、
+   * `assistant/chunk` 等非 Surface 事件由编译器禁止传入该参数。
+   * @returns 已记录事件，包含分配后的 `seq`、`time` 以及真正进入日志的 `data` 快照；
+   * 后续读取 `event.data` 不会看到调用方继续修改后的输入。
+   * @throws `data` 或 Surface 元数据无法无损 JSON 序列化，候选事件违反 Surface 约定，
+   * 同步内部分发校验失败，或者在接收与发布尚未结束时重入 append。校验会在一次递归遍历中
+   * 完成读取、验证与复制，防止有状态 getter 向校验和存储提供不同值；所有失败都发生在
+   * 日志变化之前。
    */
   append<T extends SessionEventType>(
     type: T,
     data: SessionEventMap[T],
     ...opts: T extends SurfaceEventType ? [opts: SurfaceIntent] : []
   ): SessionEvent<T> {
+    // append 是所有持久事实的统一入口：先做无损 JSON 快照和 Surface 转换校验，再提交到
+    // log，最后通知观察者。事件一旦进入 log，监听器失败也不能把已提交事实撤销。
     const surfaceOpts: SurfaceIntent | undefined = opts[0]
     const surfaceMetadata = {
       ...surfaceOpts?.sourceEventSeqs === undefined ? {} : { sourceEventSeqs: surfaceOpts.sourceEventSeqs },
@@ -669,10 +647,8 @@ export class Session {
    */
   requestHeader(): EpochHeader | undefined {
     if (this.headerFoldSeq < this.log.length) {
-      // Frozen on update: the fold is session state exposed by reference — a
-      // consumer mutating it in place (instead of building a replacement)
-      // would desync every later comparison against the log, so mutation
-      // throws instead.
+      // 每次更新后立即冻结：折叠结果是按引用暴露的 Session 状态。若消费者原地修改它，
+      // 后续与日志的比较都会失去同步，因此这里让修改直接抛错，而不是接受可变别名。
       this.headerFold = deepFreeze(foldRequestHeader(this.log.slice(this.headerFoldSeq), this.headerFold))
       this.headerFoldSeq = this.log.length
     }
@@ -706,24 +682,20 @@ export class Session {
   private derivedGeneration = 0
 
   /**
-   * Derive the LLM message history by walking the ordered sequences of
-   * message-producing events maintained by `surfaceOp` markers. The
-   * surface is the single source of derived history: every message-producing
-   * append records its `surfaceOp`, so a raw event with no marker (a chunk, a
-   * turn boundary) is correctly absent, and a compaction `replace` deletes the
-   * shadowed nodes from the derivation. The projection rules are
-   * {@link deriveEventMessage}, folded per node.
+   * 遍历由 `surfaceOp` 标记维护的有序消息事件，派生 LLM 消息历史。Surface 是派生历史的
+   * 唯一来源：每个生成消息的 append 都记录 `surfaceOp`，未标记的原始 Chunk 或 Turn 边界
+   * 不会进入历史，Compaction 的 `replace` 会从派生结果中移除被覆盖节点。每个节点按
+   * {@link deriveEventMessage} 规则投影。
    *
-   * CACHED: each surface node is projected exactly once, when first seen — a
-   * call costs O(new nodes), and a surface rewrite (a `replace`;
-   * {@link SessionSurface.replaceGeneration}) rebuilds. The returned array is
-   * a fresh snapshot per call (later appends never grow an array a caller
-   * already holds); the `Message` objects in it are SHARED and **deep-frozen**.
-   * Their content reuses the already frozen durable event data, so the cache
-   * needs no second deep clone and consumers still cannot mutate the log.
-   * @returns a fresh array of the shared, frozen derived history.
+   * 结果按 Surface 节点缓存：每个节点首次出现时只投影一次，调用成本为 O(新增节点数)；
+   * Surface Replace（{@link SessionSurface.replaceGeneration}）会重建缓存。每次返回新的数组
+   * 快照，因此后续 append 不会扩展调用方已经持有的数组；其中的 Message 对象共享且深度
+   * 冻结，并复用已经冻结的持久事件数据，不需要再次深克隆，消费者也无法修改日志。
+   * @returns 由共享、冻结消息组成的新数组快照。
    */
   deriveMessages(): Message[] {
+    // 模型历史不是第二份状态；这里只投影 Surface 上可生成消息的事件。Turn/Step 边界与
+    // 原始 chunk 留在日志中用于恢复和展示，但不会作为重复内容再次发送给模型。
     const surface = this.surface
     const nodes = surface.nodes
     const generation = surface.replaceGeneration
@@ -733,13 +705,12 @@ export class Session {
       this.derivedGeneration = generation
     }
     for (const seq of nodes.slice(this.derivedNodes)) {
-      // Surface sequences are built from this.log — seq is always a valid
-      // index by construction. The non-null assertion expresses that invariant.
+      // Surface 序号直接由 this.log 构造，因此 seq 必然是有效索引；非空断言表达的就是
+      // 这条由构造过程保证的不变量。
       // oxlint-disable-next-line typescript/no-non-null-assertion
       const msg = this.deriveEventMessage(this.log[seq]!)
-      // A surface node is one of the five message-producing types, but an
-      // empty-content assistant/message (a max-tokens step that hosts only
-      // usage) derives to null and must not enter the transcript.
+      // Surface 节点属于能够生成消息的五种事件之一，但只有 usage、内容为空的
+      // assistant/message（例如达到 max-tokens 的 Step）会投影为 null，不能进入对话历史。
       if (msg) this.derived.push(msg)
     }
     this.derivedNodes = nodes.length
@@ -784,10 +755,9 @@ export class SessionForkError extends Error {
 }
 
 /**
- * In-memory session store (`ctx.sessions`).
- *
- * Persistence is intentionally not implemented here — persistence plugins
- * subscribe to `session/event` and flush on `session/flush` / dispose.
+ * 内存 Session Store（`ctx.sessions`），管理当前进程中正在运行的 Session。这里刻意不实现
+ * 持久化；持久化插件订阅 `session/event`，并在 `session/flush` 或释放时写盘。内存生命周期
+ * 与 JSONL、SQLite 等存储实现因此可以独立替换。
  */
 export class SessionStore extends Service {
   private store = new Map<SessionId, SessionEntry>()
@@ -829,10 +799,9 @@ export class SessionStore extends Service {
    */
   create(id?: SessionId, options?: CreateSessionOptions): Session {
     const session = this.prepare(id, options)
-    // Single effect owned by the calling fiber. Yield the detach BEFORE
-    // announcing so a throwing `session/created` listener rolls the attach back
-    // (the generator effect disposes already-yielded disposers on a throw)
-    // instead of leaking the store entry and its publication hooks.
+    // 创建一个归调用方 Fiber 所有的 Effect。先 yield detach 再 announce，这样
+    // session/created 监听器抛错时，生成器 Effect 会调用已经 yield 的 disposer 回滚挂载，
+    // 不会泄漏 Store 条目和发布监听器。
     this.ctx.effect(function* (this: SessionStore) {
       yield this.enter(session)
       this.announce(session)
@@ -913,8 +882,7 @@ export class SessionStore extends Service {
   enter(session: Session): () => void {
     const id = session.id
     const carrier = scopeTarget(session, scopeOf(this.ctx))
-    // This is the authoritative collision boundary after arbitrary unpublished
-    // preparation. Only one exact same-id transaction can publish.
+    // 任意未发布准备完成后，这里是唯一权威冲突检查点；同一 id 只能有一个事务成功发布。
     if (this.store.has(id)) throw new Error(`session "${id}" already exists`)
     if (attachments.has(session)) throw new Error(`session "${id}" is already attached to a store`)
     const entry: SessionEntry = {
@@ -934,9 +902,8 @@ export class SessionStore extends Service {
     const detach = (): void => {
       if (!entered) return
       entered = false
-      // A lifecycle listener may own the advanced detach capability. Keep the
-      // entry and its publication hooks live until synchronous creation or append
-      // publication unwinds, then publish the paired disposal edge.
+      // 生命周期监听器可能持有高级 detach 能力。同步创建或 append 发布完全返回前，条目和
+      // 发布 Hook 必须保持存活；之后再发出配对的销毁通知。
       if (entry.announcing || entry.appending) {
         entry.detachRequested = true
         return
@@ -949,8 +916,7 @@ export class SessionStore extends Service {
   /** Remove one exact entered session and emit its paired disposal when announced. */
   private detachEntered(entry: SessionEntry): void {
     entry.detachRequested = false
-    // A stale capability cannot remove observers or storage belonging to a
-    // later same-id lifecycle.
+    // 过期能力不能移除属于后来同 id 生命周期的观察器或存储状态。
     /* v8 ignore next -- enter() rejects replacement while this single-shot detach capability is live. */
     if (this.store.get(entry.id) !== entry) return
     this.store.delete(entry.id)
@@ -970,20 +936,17 @@ export class SessionStore extends Service {
     if (entry.announced || entry.announcing) {
       throw new Error(`session "${entry.id}" was already announced`)
     }
-    // Mark before emit: Cordis emit may deliver to earlier listeners and then
-    // throw. Rollback must still pair that partial creation with disposal, and
-    // a listener cannot recursively create a second lifecycle edge.
+    // emit 前先标记：Cordis 可能通知前面的监听器后再抛错。回滚仍需为这次部分送达的创建
+    // 配对销毁通知，同时阻止监听器递归创建第二条生命周期边。
     entry.announced = true
     const callbackArgs: unknown[] = [session]
     entry.announcing = true
     try {
       const callbacks = collectSessionCallbacks(this.ctx, [entry.carrier, 'session/created', session])
       for (const callback of callbacks) {
-        // Synchronous throws intentionally propagate and veto publication; the
-        // yielded detach then emits the paired disposal edge. An async function
-        // is nevertheless assignable to a void listener, so observe its returned
-        // promise: rejection is too late to roll back and must be logged instead
-        // of becoming unhandled.
+        // 同步异常会故意向上传播并否决发布，之前 yield 的 detach 随后发出配对销毁通知。
+        // 异步函数仍可赋给 void 监听器，所以还要观察其返回 Promise；异步 rejection 已来不及
+        // 回滚，只能记录，不能让它变成未处理异常。
         const returned: unknown = callback(...callbackArgs)
         void Promise.resolve(returned).catch((error: unknown) => {
           this.ctx.logger.warn(`session "${entry.id}": session/created listener rejected: ${String(error)}`)
@@ -1027,8 +990,8 @@ export class SessionStore extends Service {
       try {
         return callback(...callbackArgs)
       } catch (error: unknown) {
-        // Preserve the listener's exact rejection value; flush is a caller-owned
-        // failure boundary, and Cordis listeners may throw arbitrary values.
+        // 保留监听器原始 rejection 值；flush 是由调用方处理的失败边界，而 Cordis 监听器
+        // 可以抛出任意值。
         // oxlint-disable-next-line typescript/prefer-promise-reject-errors
         return Promise.reject(error)
       }

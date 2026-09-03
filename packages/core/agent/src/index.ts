@@ -1,6 +1,7 @@
 /**
- * Agent service: live registry, factory delegation, and process-local
- * initiator scope. Concrete creation and driving belong to the loop.
+ * Agent Service：管理活跃 Agent 注册表、创建工厂委托，以及进程内的发起者 Scope。
+ * 具体 Agent 创建与驱动由 Loop 实现；默认工厂来自 dsh-agent-loop，因此替换 Loop 时
+ * 公共入口不需要依赖新的具体实现。
  *
  * @module @deepseek-ai/dsh-agent
  */
@@ -242,16 +243,14 @@ interface FactorySlot {
 }
 
 /**
- * Agent service (`ctx.agents`): tracks live agents and carries the initiating
- * Agent through one process-local asynchronous driver chain. Agent *creation*
- * is provided by whichever plugin implements the {@link AgentFactory}
- * (`@deepseek-ai/dsh-agent-loop`), registered via {@link setFactory}.
+ * Agent Service（`ctx.agents`）：追踪活跃 Agent，并在一条进程内异步驱动链中传递发起者
+ * Agent。Agent 的创建由实现 {@link AgentFactory} 的插件提供，默认是通过
+ * {@link setFactory} 注册的 `@deepseek-ai/dsh-agent-loop`。
  *
- * Initiator methods provide same-process causal attribution only. Ambient
- * presence is neither liveness proof nor authorization; subjects and owners
- * remain explicit, as does identity at worker, process, persistence, and wire
- * boundaries. Returned Promise boundaries drain during teardown, except a
- * nested lineage that starts an owning-fiber unload is excluded from its own drain.
+ * 发起者相关方法只提供同进程因果归属。上下文中存在发起者既不能证明 Agent 仍存活，也不
+ * 代表已经授权；作用对象与生命周期所有者仍需显式传递，Worker、进程、持久化和传输接口
+ * 上的身份同样如此。清理期间会等待受管理的 Promise；触发所有者 Fiber 卸载的嵌套调用
+ * 不会反过来等待自身。
  */
 export class AgentRegistry extends Service {
   private store = new Map<SessionId, AgentEntry>()
@@ -279,12 +278,9 @@ export class AgentRegistry extends Service {
         resolve: sessionId => this.get(sessionId)?.ctx,
       })
     })
-    // The `ctx.agent` DX accessor: default `undefined` on every context, so a
-    // plain plugin context reads cleanly instead of hitting the Cordis
-    // unknown-property throw. Each Agent.ctx shadows it with an own property
-    // (own properties resolve before the context proxy is consulted), so the
-    // accessor body never needs to resolve a scope itself. Effect-scoped:
-    // unwinds with this service's fiber.
+    // ctx.agent 是便捷访问器，在所有普通 Context 上默认为 undefined，避免读取时触发 Cordis
+    // 未知属性异常。每个 Agent.ctx 都用自身属性覆盖它；自身属性优先于 Context 代理解析，
+    // 因此访问器无需自行查找 Scope。该注册属于 Effect，会随当前 Service Fiber 一起释放。
     ctx.accessor('agent', { get: () => undefined })
     ctx.on('internal/status', (fiber) => {
       if (fiber.state === FiberState.UNLOADING && this.hasLifecycleAncestor(fiber)) {
@@ -358,31 +354,26 @@ export class AgentRegistry extends Service {
   }
 
   /**
-   * Register the agent-creation factory (the loop calls this on construction,
-   * effect-scoped). A traced Cordis service is canonicalized to its concrete
-   * target; each create/resume call is then traced through that caller's
-   * context so ownership follows the caller without stacking proxy layers.
-   * Throws if a factory is already registered. Returns the disposer; on
-   * dispose the factory slot is cleared.
-   * @param factory - the loop-owned factory {@link create}/{@link resume} delegate to.
-   * @returns the disposer that clears the factory slot. The exact
-   *   Cordis effect disposer (single-shot): composite (generator) effects may
-   *   yield it directly — exact identity nests the teardown in order.
+   * 注册 Agent 创建工厂；Loop 会在构造时调用，并由 Effect 管理生命周期。已被 Cordis
+   * 追踪的 Service 会还原为具体对象，之后每次 create/resume 再通过调用方 Context 建立
+   * 追踪，使所有权跟随调用方且不叠加代理。已有工厂时抛错；释放后清空工厂槽位。
+   * @param factory - {@link create} 和 {@link resume} 委托到的 Loop 工厂。
+   * @returns 清空工厂槽位的单次 Cordis Effect disposer；组合式生成器 Effect 可直接 yield，
+   * 从而按原始对象身份把清理嵌入正确顺序。
    */
   setFactory(factory: AgentFactory): () => void {
+    // 工厂注册属于当前插件的 Effect：Loop 插件卸载时，工厂引用会随之清除。禁止同时
+    // 注册两个工厂，使“谁负责创建 Agent”始终只有一个明确答案。
     const dispose = this.ctx.effect(() => {
       if (this.factory !== undefined) throw new Error('an agent factory is already registered')
-      // Avoid stacking two Cordis shadow layers when a caller passes a Service
-      // already read through a context. Calls are re-traced through their
-      // actual owner context below.
+      // 调用方传入的 Service 可能已经从某个 Context 读取过；这里取出原始对象，避免叠加
+      // 两层 Cordis 代理。后续调用会通过实际所有者 Context 重新建立追踪。
       const target = (factory as AgentFactory & { [symbols.original]?: AgentFactory })[symbols.original] ?? factory
       this.factory = { target }
       return () => { this.factory = undefined }
     }, 'agents.setFactory()')
-    // The exact cordis effect disposer (the agents.register() convention): a
-    // caller's composite effect can yield it for in-order teardown; the
-    // loop's constructor effect returns it directly, identity-nesting the
-    // registration under that effect.
+    // 返回 Cordis Effect 的原始 disposer，使调用方的组合 Effect 可以直接 yield 它并按序
+    // 清理；Loop 构造函数也直接返回它，让工厂注册真正归属于外层 Effect。
     // oxlint-disable-next-line typescript/no-misused-promises -- synchronous cleanup; direct return preserves disposer identity
     return dispose
   }
@@ -394,20 +385,17 @@ export class AgentRegistry extends Service {
   }
 
   /**
-   * Create and publish a new agent through the registered factory.
-   * Distinct from {@link register} (which records an already-constructed
-   * agent): this constructs the agent and its session. Rejects if no factory is
-   * registered or creation/setup fails. The resolved {@link AgentHandle} lets
-   * the owner tear down exactly this agent.
-   * @param options - shared identity, session seed/metadata, and agent options.
-   * @returns the handle after setup, rollback-covered publication, and loop start complete.
+   * 通过已注册工厂创建并发布新 Agent。与只记录已构造 Agent 的 {@link register} 不同，
+   * 本方法同时构造 Agent 与 Session。未注册工厂、创建失败或 setup 失败时拒绝。
+   * @param options - 共享身份、Session Seed 与元数据，以及 Agent 选项。
+   * @returns setup、受回滚保护的发布和 Loop 启动全部完成后的句柄；所有者可用它精确释放该 Agent。
    */
   async create(options: CreateAgentOptions): Promise<AgentHandle> {
+    // Registry 不直接创建具体 Agent。它保留稳定入口，再把调用者 Context 一并交给工厂，
+    // 让工厂把新 Agent 的完整生命周期绑定到真正发起创建的插件。
     const ownerCtx = this.ctx
-    // Re-trace a Service-backed factory through the accessing context
-    // explicitly. This preserves AgentLoop's dependency origin while binding
-    // its effects to ownerCtx; plain factories receive ownerCtx as an explicit
-    // capability and need no Cordis tracker magic.
+    // 通过访问方 Context 重新追踪 Service 工厂：AgentLoop 的依赖来源保持不变，但创建出的
+    // Effect 归 ownerCtx 所有。普通工厂则显式接收 ownerCtx，不依赖 Cordis 的代理追踪。
     const { target } = this.requireFactory()
     const receiver = getTraceable(ownerCtx, target)
     // oxlint-disable-next-line typescript/unbound-method -- Reflect.apply intentionally supplies the caller-traced receiver
@@ -477,8 +465,8 @@ export class AgentRegistry extends Service {
       throw new Error(`agent id "${id}" does not match session id "${agent.session.id}"`)
     }
     const carrier = scopeTarget(agent, agent)
-    // This is the authoritative collision boundary. Concurrent create/resume
-    // operations may both prepare, but only one exact entry can publish.
+    // 这里是唯一权威的冲突检查点。并发 create/resume 可以同时完成准备，但同一 id 最终
+    // 只能有一个条目成功发布。
     if (this.store.has(id)) throw new Error(`agent "${id}" is already registered`)
     const entry: AgentEntry = {
       id,
@@ -494,11 +482,9 @@ export class AgentRegistry extends Service {
     const detach = (): void => {
       if (!entered) return
       entered = false
-      // Every callback reached by this creation dispatch must observe the same
-      // live entry, and disposal must follow creation. A listener may own
-      // the advanced detach capability, so make that ordering structural:
-      // visibility and the paired disposal are deferred until announce()'s
-      // synchronous dispatch has unwound.
+      // 本次创建分发触达的所有回调都必须看到同一个存活条目，销毁也必须发生在创建之后。
+      // 监听器可能持有高级 detach 能力，因此通过结构保证顺序：等 announce() 的同步分发
+      // 完全返回后，才允许条目消失并发出配对的销毁通知。
       if (entry.announcing) {
         entry.detachRequested = true
         return
@@ -511,15 +497,12 @@ export class AgentRegistry extends Service {
   /** Remove one exact entered agent and emit its paired disposal when announced. */
   private detachEntered(entry: AgentEntry): void {
     entry.detachRequested = false
-    // A stale capability can never delete a later same-id lifecycle. The
-    // captured entry identity is the final boundary.
+    // 旧的 detach 能力不能删除后来创建的同 id 生命周期；捕获到的 entry 对象身份是最终校验。
     /* v8 ignore next -- enter() rejects replacement while this single-shot detach capability is live. */
     if (this.store.get(entry.id) !== entry) return
     this.store.delete(entry.id)
-    // An insertion rolled back before announce was never externally created,
-    // so emitting disposed would invent an impossible lifecycle edge. Marking
-    // happens before the created emit: if a later created listener throws,
-    // earlier listeners may already have observed it and must see disposal.
+    // announce 前回滚的插入从未对外创建，不能凭空发出 disposed。标记必须在 created 通知前
+    // 写入：若后面的 created 监听器抛错，前面的监听器可能已经观察到创建，必须再看到销毁。
     if (!entry.announced) return
     this.emitDisposed(entry)
   }
@@ -554,16 +537,15 @@ export class AgentRegistry extends Service {
     if (entry.announced || entry.announcing) {
       throw new Error(`agent "${entry.id}" was already announced`)
     }
-    // Mark before dispatch so a listener cannot recursively create a second
-    // lifecycle edge; detach still pairs a partially delivered first edge.
+    // 分发前先标记，防止监听器递归创建第二条生命周期边；即使第一条通知只送达部分监听器，
+    // detach 仍会为它发出配对的销毁通知。
     entry.announcing = true
     entry.announced = true
     const args: unknown[] = [entry.carrier, 'agent/created', { agent: entry.agent }]
     try {
       for (const callback of this.ctx.events.dispatch('emit', args)) {
-        // A synchronous creation failure vetoes publication and rolls back.
-        // Returned-promise rejection happens after this synchronous boundary, so
-        // observe and report it instead of leaking an unhandled rejection.
+        // 同步创建失败会否决发布并回滚。监听器返回的 Promise 若稍后 rejection，已经越过
+        // 同步否决边界，因此这里只观察并报告，避免产生未处理 rejection。
         const returned: unknown = callback(...args)
         void Promise.resolve(returned).catch((error: unknown) => {
           this.ctx.logger.warn(`agent "${entry.id}": agent/created listener rejected: ${String(error)}`)
@@ -659,8 +641,8 @@ export class AgentRegistry extends Service {
           () => { this.releaseInitiatorRun(run) },
         )
       } catch {
-        // A branded Promise may expose a failing @@species. Observer setup did
-        // not attach, so preserve the exact return without leaking the run.
+        // 带品牌的 Promise 可能暴露会抛错的 @@species；此时观察器没有成功挂载，仍需原样
+        // 保留返回值，同时确保运行状态不会泄漏。
         this.releaseInitiatorRun(run)
       }
     } else {

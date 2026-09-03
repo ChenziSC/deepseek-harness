@@ -1,7 +1,7 @@
 /**
- * Shared buffering, serialization, adoption, repair, and disposal orchestration
- * for first-party backends. Third-party backends may implement the public
- * persistence seam directly.
+ * 第一方持久化后端共用的缓冲、串行化、接入、修复和释放协调器。第三方后端也可以直接实现
+ * 公共持久化接口。Session 本身不写磁盘；Coordinator 订阅创建与事件通知建立异步缓冲，
+ * `session/flush` 提供明确的持久化屏障，Session 销毁前会完成最后一次 Drain。
  * @module @deepseek-ai/dsh-session-persistence/coordinator
  */
 
@@ -573,17 +573,14 @@ function adoptStoredEvents(events: SessionEvent[], id: SessionId): SessionEvent[
 }
 
 /**
- * Owns the backend-agnostic session write-path orchestration. A backend
- * constructs one (`new PersistenceCoordinator(ctx, this)`), implements
- * {@link PersistenceBackend}, and delegates its write/read service methods to
- * the matching coordinator methods.
+ * 管理与具体后端无关的 Session 写入流程。后端构造
+ * `new PersistenceCoordinator(ctx, this)`、实现 {@link PersistenceBackend}，并把读写 Service
+ * 方法委托给对应 Coordinator 方法。
  *
- * All per-id operations are serialized (a per-id promise chain) so concurrent
- * flushes / a flush racing a load never interleave storage writes. The
- * constructor installs the write-path listeners, per-session retirement, and
- * the backend dispose effect.
+ * 同一 id 的全部操作通过独立 Promise 链串行化，防止并发 Flush 或 Flush 与 Load 竞争时
+ * 交错写入。构造函数安装写入监听器、每 Session 退休流程和后端释放 Effect。
  *
- * @typeParam TornMarker - the backend's opaque torn-tail repair token.
+ * @typeParam TornMarker - 后端用于修复截断尾部的不透明 Token。
  */
 export class PersistenceCoordinator<TornMarker = unknown> {
   /** Backend bookkeeping keyed by session id (NOT the live Session object). */
@@ -624,14 +621,14 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     this.installWritePath()
   }
 
-  // --- Public API (the backend's service methods delegate here) ---
+  // --- 公共 API：后端 Service 方法统一委托到这里 ---
 
   /**
    * Register detached session metadata for lazy creation on the first append.
    * @param meta - header to snapshot; duplicate tracked or persisted ids reject.
    */
   create(meta: SessionHeader): Promise<void> {
-    // Snapshot before queueing so caller mutation cannot diverge the key and header.
+    // 入队前创建快照，避免调用方修改对象后造成 key 与 Header 不一致。
     const snapshot = snapshotJsonValue(meta)
     if (snapshot === undefined) {
       return Promise.reject(new TypeError('session metadata must be losslessly JSON-serializable'))
@@ -643,22 +640,21 @@ export class PersistenceCoordinator<TornMarker = unknown> {
   }
 
   private async createCore(meta: SessionHeader): Promise<void> {
-    // Do NOT clobber an existing session: the SessionId IS the identity.
+    // 不能覆盖已有 Session；SessionId 本身就是身份。
     if (this.states.has(meta.id) || this.preparations.has(meta.id)) {
       throw new Error(`session "${meta.id}" already exists in this backend`)
     }
-    // A persisted artifact under this id (in ANY scope) blocks creation: load/
-    // resume identify a session by id alone, so a second artifact would make
-    // resume nondeterministic.
+    // 任意存储 Scope 中只要已有该 id 的持久化数据，就必须阻止创建。load/resume 只通过 id
+    // 识别 Session；若允许第二份数据存在，恢复结果将不确定。
     if (await this.backend.loadStored(meta.id) !== undefined) {
       throw new Error(`session "${meta.id}" already has a persisted log on disk; load/resume it instead of creating`)
     }
-    // Pure lazy: record intent only. No artifact until the first append.
+    // 完全惰性创建：这里只记录意图，首次 append 前不生成存储数据。
     this.states.set(meta.id, { meta, cursor: 0, materialized: false })
   }
 
-  // `async` so synchronous materialization failures below reject (not throw) per
-  // the Promise<void> contract — callers use `await expect(...).rejects`.
+  // 使用 async，使下方同步物化失败按 Promise<void> 约定转成 rejection，而不是直接 throw；
+  // 调用方会通过 await ...rejects 断言它。
   /**
    * Durably persist a batch of events. Honors the append-only and contiguous-seq
    * contracts; rejects non-JSON-serializable `event.data`.
@@ -667,11 +663,9 @@ export class PersistenceCoordinator<TornMarker = unknown> {
    *   as a detached lossless-JSON snapshot at call time.
    */
   async append(id: SessionId, events: readonly SessionEvent[]): Promise<void> {
-    // Validate and deep-snapshot the complete batch HERE, in one traversal,
-    // before the op waits behind the per-session chain. A check followed by
-    // structuredClone would reread accessors and could sanitize an exotic value
-    // into an apparently valid record; the single-pass materializer makes the
-    // checked value exactly the value persisted.
+    // 在操作进入每 Session 串行队列前，就在这里通过一次遍历校验并深度快照整个批次。若先
+    // 检查再 structuredClone，会重复读取 getter，可能把特殊对象转换成看似合法的数据；
+    // 单遍物化保证被校验的值就是最终持久化的值。
     const batch = snapshotJsonValue(events)
     if (batch === undefined) {
       throw new TypeError('session event batch is not losslessly JSON-serializable because it contains non-JSON-serializable data')
@@ -680,21 +674,17 @@ export class PersistenceCoordinator<TornMarker = unknown> {
   }
 
   private async appendCore(id: SessionId, events: readonly SessionEvent[]): Promise<void> {
-    // Every append route converges here: the public service, live write-behind
-    // drains, and HMR seed/suffix adoption. Legacy-shape rejection stays at
-    // this shared boundary so a stale JavaScript plugin cannot persist a
-    // retired shape this backend refuses to load. The unknown-type guard is
-    // deliberately read-side only: an append-time refusal would stall a live
-    // session's durability mid-flight, which costs more than a loud refusal at
-    // the log's next load (trade-off owned by the session-log-version-mechanism
-    // Agent Note).
+    // 所有 append 路径都汇聚到这里：公共 Service、实时预写缓冲 drain，以及 HMR 的 Seed/
+    // 后缀接入。旧数据结构在这个共享入口统一拒绝，防止过期 JavaScript 插件写入后端已无法
+    // 加载的格式。未知事件类型只在读取侧检查；若写入时拒绝，会让运行中 Session 的持久化
+    // 半途停滞，代价高于下次加载时明确拒绝。该取舍由 Session 日志版本机制说明。
     assertSupportedEvents(events, id)
     if (events.length === 0) return
     this.preparations.assertWritable(id)
     let state = this.states.get(id)
     if (state === undefined) state = await this.adopt(id)
 
-    // Contiguity contract: each event's seq must continue the stored log.
+    // 连续性要求：每个事件的 seq 必须紧接已存储日志末尾。
     for (const [i, event] of events.entries()) {
       if (event.seq !== state.cursor + i) {
         throw new Error(`append seq mismatch for "${id}": expected ${state.cursor + i} at index ${i}, got ${event.seq}`)
@@ -702,8 +692,7 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     }
 
     await this.backend.appendBatch(state.meta, events, state.materialized)
-    // The durable write is the transaction: mark materialized + advance the
-    // cursor as soon as it commits (uniform across backends).
+    // 持久写入本身就是事务；提交后立即标记已物化并推进游标，所有后端保持相同语义。
     state.materialized = true
     state.cursor += events.length
     this.preparations.invalidate(id)
@@ -865,7 +854,7 @@ export class PersistenceCoordinator<TornMarker = unknown> {
       return { meta: structuredClone(suffix.meta), events }
     }
     const whole = await this.readStoredPrefix(id, signal)
-    // Sequential fallback: contiguous seqs from 0 make the suffix an index slice.
+    // 顺序读取兜底：seq 从 0 连续，因此后缀可以直接按数组索引切片。
     return { meta: whole.meta, events: whole.events.slice(fromSeq) }
   }
 
@@ -899,7 +888,7 @@ export class PersistenceCoordinator<TornMarker = unknown> {
       const storedEvents = adoptStoredEvents(events, id)
       this.assertEventsSupported(meta, storedEvents)
 
-      // Preserve complete interrupted events and synthesize only missing closers.
+      // 保留已经完整记录的中断事件，只合成缺失的结束事件。
       const closers = interruptedTurnClosers(storedEvents).map(adoptSessionEvent)
       const balanced = [...storedEvents, ...closers]
       const session = this.ctx.sessions.prepare(id, {
@@ -920,8 +909,8 @@ export class PersistenceCoordinator<TornMarker = unknown> {
         closers,
       }
     } catch (error: unknown) {
-      // An unsupported format is a refusal over an intact log, not damage —
-      // surface it unwrapped so callers can point at the raw artifact.
+      // 不支持的格式表示拒绝读取一份结构完整的日志，不属于数据损坏；原样向外抛出，方便
+      // 调用方定位原始存储文件。
       if (error instanceof SessionFormatUnsupportedError) throw error
       throw new SessionPersistenceCorruptionError(
         `stored session "${id}" failed validation: ${String(error)}`,
@@ -943,8 +932,8 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     if (!await this.isPreparedSourceCurrent(source)) return undefined
     if (source.tornMarker !== undefined || source.closers.length > 0) {
       await this.backend.commitRepair(source.inspection.meta, source.tornMarker, source.closers)
-      // The repair changed the durable revision. Reload the exact committed
-      // graph instead of associating the old in-memory view with a newer revision.
+      // 修复已改变持久化版本，因此重新加载精确的已提交对象图，不能把旧内存视图错误关联到
+      // 新版本号。
       return undefined
     }
     const state = existing ?? {
@@ -997,9 +986,9 @@ export class PersistenceCoordinator<TornMarker = unknown> {
       : observeQueuedAbort(retired, signal, () => false)
   }
 
-  // Listing is a direct backend read and needs no coordinator state.
+  // 列表查询直接读取后端，不需要 Coordinator 状态。
 
-  // --- per-id serialization + adoption helpers ---
+  // --- 按 id 串行化与接入帮助函数 ---
 
   /**
    * Run `op` after any in-flight operation for the same session id, so writes for
@@ -1020,12 +1009,12 @@ export class PersistenceCoordinator<TornMarker = unknown> {
       return op()
     }
     const next = prior.then(run, run)
-    // Keep the chain alive but swallow this op's rejection for the NEXT waiter
-    // (the caller still sees the real rejection via `next`).
+    // 保持串行链可继续使用，但为下一个等待者吞掉本次操作的 rejection；当前调用方仍会通过
+    // next 收到真实错误。
     const tail = next.then(() => undefined, () => undefined)
     this.chains.set(id, tail)
-    // Settled tails carry no serialization value. Delete only the exact tail
-    // installed above: a later operation may already have replaced it.
+    // 已完成的队尾不再提供串行化价值。只删除上方安装的同一个 tail，因为后续操作可能已经
+    // 用新 Promise 替换它。
     void tail.then(() => {
       if (this.chains.get(id) === tail) this.chains.delete(id)
     })
@@ -1034,8 +1023,8 @@ export class PersistenceCoordinator<TornMarker = unknown> {
 
   /** Build a state for a session discovered in storage but not yet in memory. */
   private async adopt(id: SessionId): Promise<SessionState> {
-    // This runs inside the id's serialization chain, so it uses core helpers
-    // instead of re-entering through public prepare/load methods.
+    // 当前代码已在该 id 的串行链内部，因此直接使用核心帮助函数，不能再次进入公共
+    // prepare/load 方法形成嵌套排队。
     for (;;) {
       const source = this.preparations.takeReady(id) ?? await this.prepareCore(id)
       const committed = await this.commitPrepared(source)
@@ -1081,14 +1070,15 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     }
   }
 
-  // --- write path (session/event → flush drain) ---
+  // --- 写入路径：session/event → flush drain ---
 
   private installWritePath(): void {
+    // 这里一次安装写入、flush 和销毁监听器。注册顺序同时决定卸载时的逆序关闭顺序，
+    // 确保先停止接收新事件，再排空缓冲，最后关闭后端。
     const ctx = this.ctx
 
-    // Register the disposer BEFORE the listeners. Cordis tears effects down in
-    // reverse registration order, so event admission closes before this final
-    // drain reaches quiescence and closes the backend.
+    // 必须先注册 disposer，再注册监听器。Cordis 按注册顺序逆序清理，因此卸载时会先停止
+    // 接收事件，再执行最终 drain 并等待静止，最后关闭存储后端。
     ctx.effect(() => async () => {
       let disposeError: unknown
       try {
@@ -1104,9 +1094,8 @@ export class PersistenceCoordinator<TornMarker = unknown> {
         try {
           await this.backend.close?.()
         } catch (closeError: unknown) {
-          // A close failure can only add teardown context; keep the already-
-          // captured drain AggregateError as the primary failure rather than
-          // masking it. Only surface the close error if the drain succeeded.
+          // close 失败只能补充清理阶段的信息，不能覆盖已经捕获的 drain AggregateError；
+          // 只有 drain 成功时，才把 close 错误作为主错误抛出。
           /* v8 ignore start -- close failure racing disposal is a defensive teardown edge */
           if (disposeError === undefined) throw closeError
           /* v8 ignore stop */
@@ -1114,25 +1103,25 @@ export class PersistenceCoordinator<TornMarker = unknown> {
       }
     }, `${this.backend.name} write path`)
 
-    // Capture the header on creation and persist a fork's seed once.
+    // Session 创建时捕获 Header，并且只持久化一次 Fork 的种子事件。
     ctx.on('session/created', (session) => {
       void this.initFor(session)
     })
 
-    // Keep a persistence-owned copy of each frozen event and start its bounded window.
+    // 为每个冻结事件保存一份由持久化层所有的副本，并启动有上限的批量写入窗口。
     ctx.on('session/event', (session, event) => {
       const live = this.initFor(session)
       live.writes.enqueue(event)
     })
 
-    // Callers use flush as the immediate durability barrier for buffered writes.
+    // 调用方通过 flush 建立立即持久化屏障，等待缓冲中的写入落盘。
     ctx.on('session/flush', session => this.flush(session))
 
-    // Session disposal is observe-only, so retirement contains its own failure.
+    // session/disposed 只是观察通知，因此退休流程必须自行捕获并报告失败。
     ctx.on('session/disposed', (session) => { this.retire(session) })
 
-    // HMR: a hot reload does not replay session/created, so seed existing live
-    // sessions (mirrors dsh-invariants).
+    // HMR 不会重放 session/created，因此热更新后要主动接入现有 Session；该处理与
+    // dsh-invariants 的做法一致。
     for (const session of ctx.sessions.list()) void this.initFor(session)
   }
 
@@ -1170,7 +1159,7 @@ export class PersistenceCoordinator<TornMarker = unknown> {
       this.live.set(session, restored)
       return restored
     }
-    // Session owns this stable deep-frozen snapshot; backends only serialize it.
+    // 这份稳定的深度冻结快照归 Session 所有，后端只负责序列化。
     const seed = session.events
     const live: LiveSessionState = {
       init: Promise.resolve(),
@@ -1238,17 +1227,14 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     const id = session.header.id
     const tracked = this.states.get(id)
     if (tracked !== undefined) {
-      // case 1: already tracked.
+      // 情况 1：该 id 已被追踪。
       /* v8 ignore next -- initFor dedupes per session object; same-object re-entry can't occur */
       if (tracked.owner === session) return
       if (tracked.owner === undefined) {
-        // Ownerless state from the public create()/load() API. The FIRST live
-        // session claims it — but ONLY if BOTH the cwd scope and the seed match.
-        // A same-id ownerless artifact at a different cwd is a collision, not a
-        // claim: accepting it would append this live session's events through
-        // the stored header's cwd. The seed guard then ensures the live events
-        // reproduce the persisted prefix; otherwise a fresh session reusing the
-        // id could have its leading events filtered as already written.
+        // 这是公共 create/load API 创建、尚无所有者的状态。第一个实时 Session 只有在 cwd
+        // Scope 和 Seed 同时匹配时才能认领它。若同 id 数据属于不同 cwd，应视为冲突；否则
+        // 会按已存 Header 的 cwd 写入当前 Session 事件。Seed 校验还保证实时事件重现已持久化
+        // 前缀，避免复用 id 的新 Session 把开头事件误判为已经写入。
         if (tracked.meta.cwd !== session.header.cwd) {
           throw new Error(`session "${id}" is already persisted at a different cwd (persisted: ${String(tracked.meta.cwd)}, live: ${String(session.header.cwd)}) (id collision)`)
         }
@@ -1256,8 +1242,8 @@ export class PersistenceCoordinator<TornMarker = unknown> {
           throw new Error(`session "${id}" is already persisted with ${tracked.cursor} event(s) that do not match this live session (id collision)`)
         }
         tracked.owner = session
-        // Persist the seed SUFFIX beyond the persisted prefix. Constructor seed
-        // events never emit session/event, so the buffer never sees them.
+        // 持久化已存前缀之后的 Seed 后缀。构造函数传入的 Seed 事件不会发出 session/event，
+        // 因此写入缓冲无法自行观察到它们。
         const suffix = seed.slice(tracked.cursor)
         if (suffix.length > 0) await this.appendCore(id, suffix)
         return
@@ -1270,23 +1256,20 @@ export class PersistenceCoordinator<TornMarker = unknown> {
       }
     }
 
-    // case 2/3: resolve the id once across storage, then let adoption reject a
-    // cwd mismatch before repair or state publication.
+    // 情况 2/3：先在存储中统一解析一次 id，再由接入逻辑在修复或发布状态前拒绝 cwd 不匹配。
     const live = await this.backend.loadStored(id)
     if (live !== undefined) {
-      // Do NOT route through cold preparation: that crash-repairs open turns as
-      // interrupted, which is wrong for HMR while the live Session is still the
-      // authority and may append the real step/turn end later.
+      // 不能走冷准备流程，它会把未结束 Turn 按崩溃恢复为 interrupted；HMR 期间实时 Session
+      // 仍是权威来源，之后还可能追加真正的 Step/Turn 结束事件。
       await this.adoptLivePrefix(session, seed, live)
       return
     }
 
-    // case 4: a genuinely new session. Register its meta (lazy), then persist its
-    // seed (events present at creation time) once.
+    // 情况 4：真正的新 Session。先惰性注册元数据，再一次性持久化创建时已有的 Seed 事件。
     const meta: SessionHeader = { ...session.header }
     await this.createCore(meta)
-    // Bind this state to the live session so a later DIFFERENT session reusing
-    // the id is detected as a collision (case 1) rather than silently no-opped.
+    // 把状态绑定到当前实时 Session；以后其他 Session 复用该 id 时会按情况 1 检测为冲突，
+    // 而不是静默跳过。
     const created = this.states.get(id)
     /* v8 ignore next -- create() always sets the state for the id */
     if (created !== undefined) created.owner = session
@@ -1311,7 +1294,7 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     if (!seedCoversPrefix(seed, storedEvents)) {
       throw new Error(`session "${session.header.id}" already has a persisted log on disk that does not match this live session (id collision)`)
     }
-    // Truncate-only repair (no closers): the open turn is NOT closed here.
+    // 这里只截断修复，不补结束事件；未结束 Turn 不会在这里关闭。
     if (tornMarker !== undefined) await this.backend.commitRepair(meta, tornMarker, [])
     this.states.set(session.header.id, {
       meta: { ...meta },
@@ -1329,8 +1312,8 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     try {
       await live.init
     } catch (error: unknown) {
-      // Admission is closed during retirement/teardown, but an ordinary flush
-      // may have raced one last enqueue while initialization was pending.
+      // 退休或清理期间已经停止接收新事件，但普通 flush 可能在初始化等待时与最后一次入队
+      // 发生竞争，因此仍需再次检查缓冲。
       live.writes.cancelAutomaticWait()
       throw error
     }

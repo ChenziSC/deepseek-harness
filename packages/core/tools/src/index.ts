@@ -1,6 +1,7 @@
 /**
- * Tool registry, model presentation modes, and pre/guard/around/post/result
- * execution pipeline.
+ * Tool 注册表、模型展示模式，以及 pre/guard/around/post/result 执行管线。ToolRuntime
+ * 同时负责按 Agent Scope 解析可见工具；具体工具只提供 Schema 与 execute，审批、权限、
+ * 超时和结果裁剪等行为通过 `tools/*` 事件从外层扩展，不进入 AgentLoop。
  * @module @deepseek-ai/dsh-tools
  */
 
@@ -15,8 +16,8 @@ import { snapshotJsonValue } from '@deepseek-ai/dsh-session'
 import type { JsonValue, UserMessage } from '@deepseek-ai/dsh-session'
 import type { ToolProviderResult } from '@deepseek-ai/dsh-system-prompt'
 import type { CodeRuntime } from '@deepseek-ai/dsh-code-runtime'
-// Type-only: makes `ctx.get('approval')` resolve to the ApprovalService
-// augmentation. The seam stays optional at runtime — see `serviceAsk`.
+// 仅导入类型副作用，使 ctx.get('approval') 能解析 ApprovalService 扩展；运行时仍是可选
+// 能力，具体处理见 serviceAsk。
 import type {} from '@deepseek-ai/dsh-user-approval'
 import type { ToolCallView, ToolResultView } from './presentation.ts'
 import { assertSupportedJsonSchema, validateJsonSchemaValue } from './json-schema.ts'
@@ -109,9 +110,8 @@ export { jsonSchemaToTs, renderToolsSdk } from './ts-types.ts'
 export { jsonSchemaToPy, renderToolsSdkPy } from './py-types.ts'
 export { defineContentToolFixture, type ContentToolFixtureOptions } from './testing.ts'
 
-// The render-intent vocabulary a tool declares via `presentCall`/`presentResult`
-// lives in its own UI-facing module; re-export it so `@deepseek-ai/dsh-tools`
-// stays the single public API for tool producers and UI adapters.
+// 工具通过 presentCall/presentResult 声明的展示意图定义在独立 UI 模块中；这里重新导出，
+// 使 dsh-tools 继续作为工具提供方和 UI Adapter 的单一公共 API。
 export type {
   ToolCallKind,
   FileLocation,
@@ -617,9 +617,8 @@ function errorMessage(error: unknown): string {
     }
     return String(error)
   } catch {
-    // A hostile thrown value can trap `instanceof`, property access, or string
-    // coercion. Error normalization is the outermost safety boundary, so its
-    // fallback must itself be total.
+    // 恶意抛出的值可能让 instanceof、属性访问或字符串转换再次抛错。错误规范化是最外层
+    // 安全处理，因此它自己的兜底逻辑必须对所有输入都有结果。
     return '<unprintable thrown value>'
   }
 }
@@ -784,8 +783,8 @@ function resolveMaxParallelSubCalls(value: number | undefined): number {
 }
 
 /**
- * Tool registry and execution pipeline. Scoped registrations shadow globals;
- * one visibility resolver feeds presentation, lookup, and dispatch.
+ * Tool 注册表与执行管线。Scope 注册会覆盖全局注册；展示、名称查找和 Dispatch 共用同一个
+ * 可见性解析器，使模型看到的 Tool Schema 与运行时真正可调用的工具来自同一来源。
  */
 export class ToolRuntime extends Service {
   static inject = ['systemPrompt']
@@ -828,8 +827,8 @@ export class ToolRuntime extends Service {
 
   constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'tools')
-    // The schema already defaulted an omitted mode; the ?? narrows the
-    // optional-input type for direct (non-Loader) construction in tests.
+    // Schema 已为省略的 mode 设置默认值；这里的 ?? 只用于缩窄测试中绕过 Loader 直接构造
+    // 时的可选输入类型。
     this.defaultMode = config.mode ?? 'native'
     this.maxParallelSubCalls = resolveMaxParallelSubCalls(config.maxParallelSubCalls)
     ctx.systemPrompt.tools(context => this.wireSchemas(context.scope))
@@ -886,8 +885,8 @@ export class ToolRuntime extends Service {
         const mode = this.modeFor(context.scope)
         if (mode === 'native') return ''
         const runtime = this.requireCodeRuntime(mode)
-        // Own-property read: a language like `toString`/`constructor` would
-        // otherwise resolve an inherited Object.prototype member as a renderer.
+        // 必须读取自身属性，否则名为 toString 或 constructor 的语言会错误解析到继承自
+        // Object.prototype 的成员，并被当作 Renderer。
         const render = SDK_RENDERERS[runtime.language]
         /* v8 ignore next -- requireCodeRuntime rejects an unknown language before this runs. */
         if (render === undefined) throw new Error(`dsh-tools: no SDK renderer for ${runtime.language}`)
@@ -903,10 +902,8 @@ export class ToolRuntime extends Service {
    * @returns the resolved presentation mode.
    */
   private modeFor(scope?: ScopeKey): ToolPresentationMode {
-    // Nearest scope wins along the chain: a preset's standing declaration
-    // covers every agent parented under it, and an agent's own (were one ever
-    // declared) would override its preset's. The mode decides what the model
-    // SEES, which is exactly the class of fact the chain inherits.
+    // Scope 链上离 Agent 最近的声明胜出：Preset 的常驻声明覆盖挂在它下面的所有 Agent；
+    // 若 Agent 自己声明，则覆盖 Preset。Mode 决定模型能看见什么，正属于应沿父链继承的信息。
     const layers = this.layers.chainLayers(scope)
     for (let index = layers.length - 1; index >= 0; index -= 1) {
       const mode = layers[index]?.mode
@@ -927,9 +924,8 @@ export class ToolRuntime extends Service {
   private requireCodeTransport(): ToolDefinition {
     this.codeTransport ??= createRunCodeTool(this, {
       requireRuntime: () => this.requireCodeRuntime(this.defaultMode),
-      // The language-aware description/parameters getters read the runtime
-      // without demanding one, so a native-default process can still project
-      // the transport for an agent that chose code.
+      // 与语言相关的 description/parameters getter 会读取 Runtime，但不会强制要求全局存在；
+      // 因此默认 Native Mode 的进程仍能为选择 Code Mode 的 Agent 展示 run_code。
       peekRuntime: () => this.ctx.get('codeRuntime'),
       maxParallel: this.maxParallelSubCalls,
       shapeDispatchLog: dispatch => this.shapeDispatchLog(dispatch),
@@ -965,10 +961,8 @@ export class ToolRuntime extends Service {
         },
         { label: 'tools.presentAs()' },
       )
-      // The SDK and collapse sections are per scope for the same reason the
-      // mode is. Under a deployment that already defaults to a code mode this
-      // shadows the global registration with an identical body, which costs
-      // nothing and keeps one rule instead of a case analysis.
+      // SDK 和工具折叠段与 Mode 一样按 Scope 注册。若部署默认已是 Code Mode，这会用相同
+      // 内容覆盖全局注册，没有额外行为成本，也避免为该情况维护单独分支。
       if (mode !== 'native') {
         yield ctx.systemPrompt.section(this.collapseSection())
         yield ctx.systemPrompt.section(this.sdkSection())
@@ -989,11 +983,9 @@ export class ToolRuntime extends Service {
       const schemas = [...view.visible.values()].map(definition => this.schemaOf(definition, false))
       return { schemas, knownNames: [...view.knownNames] }
     }
-    // Validate the runtime language BEFORE projecting schemas: schemaOf reads
-    // run_code's language-aware description/parameters getters, whose own
-    // flavor-table guard would otherwise surface first. This keeps the
-    // renderer-table rejection the canonical assembly-time error for a
-    // language with no SDK renderer.
+    // 投影 Schema 前先校验 Runtime 语言。schemaOf 会读取 run_code 中与语言相关的 getter，
+    // 否则它自己的 flavor 表检查会先报错。当前顺序保证缺少 SDK Renderer 时，统一由
+    // Renderer 表在组装阶段给出权威错误。
     this.requireCodeRuntime(mode)
     const schemas = [...view.visible.values()].map(definition => this.schemaOf(definition, false))
     if (mode === 'code') {
@@ -1034,12 +1026,14 @@ export class ToolRuntime extends Service {
   }
 
   /**
-   * Register globally or in the calling agent scope. Scoped tools shadow
-   * globals; duplicates within one layer and the reserved `run_code` name fail.
-   * @param definition - tool schema, execution, and optional finalization/presentation callbacks.
-   * @returns the exact disposer that unregisters the tool.
+   * 在全局层或调用方 Agent Scope 中注册工具。Scope 工具覆盖全局工具；同一层重复名称或
+   * 使用保留名称 `run_code` 会失败。
+   * @param definition - Tool Schema、执行函数，以及可选的最终处理与展示回调。
+   * @returns 精确注销该工具的 disposer。
    */
   register(definition: ToolDefinition): () => void {
+    // 注册位置来自调用者 Context：根 Context 注册全局工具，agent.ctx 注册该 Agent 的
+    // 局部工具。返回的 disposer 与插件 Fiber 绑定，卸载后 schema 和执行能力同时消失。
     const name = definition.name
     const output = (definition as Partial<ToolDefinition>).output
     if (output === undefined || typeof output !== 'object'
@@ -1053,9 +1047,8 @@ export class ToolRuntime extends Service {
       && (!Number.isFinite(timeoutMs) || timeoutMs <= 0)) {
       throw new TypeError(`tool "${name}" timeoutMs must be a positive finite number`)
     }
-    // Reserved unconditionally: any agent may select a code mode for itself,
-    // so a name free to take under the deployment default would become a
-    // collision the moment a preset mounted.
+    // run_code 始终保留：任意 Agent 都可能自行选择 Code Mode。若仅按部署默认模式判断名称
+    // 可用，某个 Preset 一挂载就可能产生名称冲突。
     if (name === RUN_CODE_NAME) {
       throw new Error(`tool name "${RUN_CODE_NAME}" is reserved for the Code Mode presentation transport and cannot be registered or shadowed`)
     }
@@ -1155,14 +1148,12 @@ export class ToolRuntime extends Service {
    * @returns the complete derived view for that scope.
    */
   private view(scope?: ScopeKey): ToolView {
-    // Scope-chain layers, farthest ancestor first, the exact scope last.
+    // Scope 链按最远祖先到当前 Scope 排列。
     const layers = this.layers.chainLayers(scope)
-    // Chain-blind on purpose: this is the ONE layer whose registrations the
-    // scope owns rather than inherits, and it is absent until the scope
-    // contributes something.
+    // 这里故意不读取父链：这是当前 Scope 自己拥有、而非继承注册的唯一一层；Scope 尚未
+    // 贡献任何内容时，该层甚至不存在。
     const own = this.layers.peek(scope)
-    // Inherited surface, nearest ancestor last: a nearer scope's same-name
-    // entry shadows a farther one, and the global layer is the farthest.
+    // 继承视图中最近祖先排在最后，同名条目会覆盖更远祖先；全局层位于最外层。
     const inherited = new Map<string, ToolDefinition>(this.layers.global.tools.entries())
     for (const layer of layers) {
       if (layer === own) continue
@@ -1174,23 +1165,19 @@ export class ToolRuntime extends Service {
     for (const [name, definition] of inherited) {
       knownNames.add(name)
       restrictableNames.add(name)
-      // Restrictions intersect across the whole chain: any scope on it may
-      // mask an inherited name for everything nested inside it.
+      // 整条链上的限制取交集：任一 Scope 都可以对嵌套在其下的所有对象屏蔽继承工具。
       if (layers.every(layer => layer.admits(name))) visible.set(name, definition)
     }
-    // The scope's own registrations last, shadowing an inherited name and
-    // outside the filter above.
+    // 当前 Scope 自己的注册最后加入，可覆盖继承的同名工具，并且不受上方全局工具过滤影响。
     if (own !== undefined) {
       for (const [name, definition] of own.tools.entries()) {
         knownNames.add(name)
         visible.set(name, definition)
       }
     }
-    // Presentation infrastructure is resolved last and outside capability
-    // filtering. Registration rejects this reserved name, so the insertion is
-    // an invariant assertion as well as protection against future layer
-    // changes. Per scope: a native agent must not find `run_code` in its
-    // dispatch table because some other agent in the process presents it.
+    // 展示基础设施最后解析，位于能力过滤之外。普通注册会拒绝这个保留名称，因此插入既是
+    // 不变量检查，也防止未来分层变化破坏规则。它必须按 Scope 计算：不能因为同进程另一
+    // Agent 展示 run_code，就让 Native Mode Agent 在自己的执行表中找到它。
     if (this.modeFor(scope) !== 'native') {
       visible.set(RUN_CODE_NAME, this.requireCodeTransport())
     }
@@ -1331,20 +1318,17 @@ export class ToolRuntime extends Service {
   }
 
   /**
-   * Execute through pre-policy, guards, around-dispatch, post-policy,
-   * definition-owned content finalization, and final notification. Tool and
-   * listener failures resolve as materialized error results; an invisible tool
-   * reports `UNKNOWN_TOOL`. The returned outcome is the same lossless, frozen
-   * snapshot final observers receive. Cancellation
-   * arriving after entry and before final result materialization skips a
-   * not-yet-started body with `ABORTED_BEFORE_DISPATCH` or replaces a
-   * successful started outcome with `ABORTED`; already-started work is still
-   * drained and may retain a tool-owned structured error.
-   * @param exec - the typed same-process call input. The registry assigns its
-   *   correlation token before policy begins.
-   * @returns the materialized final result.
+   * 依次经过前置策略、Guard、Around Dispatch、后置策略、工具定义拥有的内容最终处理，
+   * 最后发布结果通知。工具或监听器失败会物化为错误结果；不可见工具返回 `UNKNOWN_TOOL`。
+   * 返回值与最终观察者收到的是同一份无损冻结快照。进入管线后、结果物化前发生取消时，
+   * 尚未启动的工具返回 `ABORTED_BEFORE_DISPATCH`，已成功启动的结果改为 `ABORTED`；
+   * 已启动工作仍会等待结束，并可保留工具自身的结构化错误。
+   * @param exec - 带类型的同进程调用输入；注册表会在策略运行前分配关联 Token。
+   * @returns 物化后的最终结果。
    */
   async execute(exec: ToolExecutionInput): Promise<ToolExecutionResult> {
+    // 普通调用只看见一个 execute；内部依次完成参数快照、pre-execute、不可绕过的 Guard、
+    // execute 包装、工具主体、post-execute、结果冻结和通知。
     return this.prepareExecution(exec, prepared => this.completeScheduledExecution(prepared))
   }
 
@@ -1375,13 +1359,10 @@ export class ToolRuntime extends Service {
     const agent = exec.agent
     const parent = exec.parent
     const signal = exec.signal
-    // Distinguish a mode-collapsed call (visible in the scope, denied only by
-    // the `code` collapse) from a genuinely unknown tool. A collapsed call is
-    // deterministically denied, so it terminates BEFORE the extensible policy
-    // pipeline: pre-execute listeners, approval `ask`, and guards must never
-    // observe — or worse, approve — a call that can only fail. An unknown tool
-    // keeps the historical dispatch-stage `UNKNOWN_TOOL` path so policy
-    // listeners still see every name that reaches the registry.
+    // 区分“Scope 中可见、但因 Code Mode 折叠而禁止”的调用和真正不存在的工具。前者必然
+    // 被拒绝，所以要在可扩展策略管线之前终止，不能让 pre-execute、人工审批或 Guard 看见
+    // 甚至批准一个注定失败的调用。真正未知的工具仍沿用 dispatch 阶段的 UNKNOWN_TOOL
+    // 路径，让策略监听器可以观察所有到达注册表的名称。
     const visible = this.get(name, agent)
     const collapsed = visible !== undefined && this.collapses(name, agent, parent !== undefined)
     const concludingExecutions = this.concludingExecutions
@@ -1400,16 +1381,10 @@ export class ToolRuntime extends Service {
         concludingExecutions.add(this as unknown as ToolExecution)
       },
     }
-    // Capture the finalizer BEFORE argument materialization: the
-    // `finalizeContent` contract snapshots the callback when the call starts,
-    // and an arguments getter can replace or clear the registered callback
-    // during `snapshotJsonValue`. The collapse only decides whether the
-    // CAPTURED callback is retained: the pre-dispatch abort path keeps it
-    // (the cancellation contract routes aborted results through it — a getter
-    // that aborts mid-materialization before an invalid-args failure lands in
-    // the same retained path), while the `UNKNOWN_TOOL` denial and the
-    // invalid-args failure of a NON-ABORTED collapsed call drop it (the call
-    // could never execute).
+    // 必须在参数物化前捕获 finalizer：finalizeContent 约定在调用开始时固定回调，而参数
+    // getter 可能在 snapshotJsonValue 期间替换或清除已注册回调。折叠逻辑只决定是否保留
+    // 已捕获的回调：执行前取消仍保留，因为取消结果也必须经过它；UNKNOWN_TOOL 以及未取消
+    // 的折叠调用发生参数错误时则丢弃，因为该调用本来就不可能执行。
     const capturedFinalizer = visible?.finalizeContent?.bind(visible)
     const finalizerFor = (): ToolDefinition['finalizeContent'] | undefined =>
       collapsed && !signal.aborted ? undefined : capturedFinalizer
@@ -1426,18 +1401,14 @@ export class ToolRuntime extends Service {
         bodyInvoked: false,
       })
       if (collapsed) {
-        // The collapse denies the call before the policy pipeline, but a
-        // pre-dispatch abort still keeps the established cancellation
-        // contract: `prepare`'s caller-cancellation check is skipped for
-        // final-results, so honor the abort here instead of surfacing
-        // `UNKNOWN_TOOL` on an already-cancelled call.
+        // 折叠调用在策略管线前被拒绝，但 dispatch 前取消仍要遵守既定取消语义。final-result
+        // 不会再经过 prepare 的调用方取消检查，因此这里优先返回取消，而不是给已取消调用
+        // 报 UNKNOWN_TOOL。
         if (signal.aborted) {
           return { kind: 'final-result', exec: execution, result: toolAbortedBeforeDispatchResult() }
         }
-        // The name IS visible here, so the denial carries the route the model
-        // must take instead. Without it the model reads a bare `unknown tool`
-        // for a tool the prompt just declared and concludes the deployment is
-        // broken rather than correcting itself.
+        // 此处工具名实际可见，所以拒绝结果要告诉模型应改走 run_code。否则模型会看到一个
+        // Prompt 刚声明过的工具却返回 unknown tool，从而误判为部署损坏而无法自行纠正。
         return {
           kind: 'final-result',
           exec: execution,
@@ -1456,9 +1427,9 @@ export class ToolRuntime extends Service {
   }
 
   /**
-   * Run the ordered pre-execute and monotonic guard stages for the scheduler.
-   * @param input - the caller-supplied execution input.
-   * @returns the prepared execution plus the next scheduler stage.
+   * 为调度器运行有序的 pre-execute 和单调 Guard 阶段。
+   * @param input - 调用方提供的执行输入。
+   * @returns 准备后的执行对象和下一调度阶段。
    * @internal
    */
   private async prepareScheduledExecution(input: ToolExecutionInput): Promise<ScheduledToolPreparation> {
@@ -1469,6 +1440,8 @@ export class ToolRuntime extends Service {
     input: ToolExecutionInput,
     next: (prepared: ScheduledToolPreparation) => T | PromiseLike<T>,
   ): Promise<T> {
+    // pre-execute 是可组合策略；Guard 是单调拒绝层，任何 Guard 拒绝后都不能被后续插件
+    // 重新允许。需要人工批准的 ask 也在工具主体运行前解析。
     const created = this.createExecution(input)
     if (created.kind !== 'ready') return next(created)
     const exec = created.exec
@@ -1565,13 +1538,15 @@ export class ToolRuntime extends Service {
   }
 
   /**
-   * Run around-dispatch and the tool body. Tool and unknown-tool failures still
-   * receive post-execute; pipeline failures are already final.
-   * @param exec - the prepared execution.
-   * @returns whether the result still needs post-execute.
+   * 运行 Around Dispatch 与工具主体。工具失败和未知工具仍进入 post-execute；管线自身失败
+   * 已经是最终结果。
+   * @param exec - 准备完成的执行对象。
+   * @returns 结果是否仍需经过 post-execute。
    * @internal
    */
   private async dispatchScheduledExecution(exec: ToolRunContext): Promise<ScheduledToolDispatch> {
+    // tools/execute 是 around middleware：超时、重试和指标插件调用 next() 包裹工具主体；
+    // 不调用 next() 的监听器可以接管本次执行，但返回值仍必须经过统一结果规范化。
     try {
       const mutableExec = exec as MutableToolRunContext
       const carrier = scopeTarget(this, exec.agent)
@@ -1604,11 +1579,10 @@ export class ToolRuntime extends Service {
   }
 
   /**
-   * Run ordered post-execute, then apply definition-owned content finalization,
-   * materialize, and notify the final outcome.
-   * @param exec - the prepared execution.
-   * @param result - dispatch/pre result that still needs post-execute.
-   * @returns the materialized final result.
+   * 运行有序的 post-execute，再执行工具定义拥有的内容最终处理，物化并通知最终结果。
+   * @param exec - 准备完成的执行对象。
+   * @param result - 仍需经过 post-execute 的 Dispatch 或前置阶段结果。
+   * @returns 物化后的最终结果。
    * @internal
    */
   private async finalizeScheduledExecution(exec: ToolRunContext, result: ToolExecutionResult): Promise<ToolExecutionResult> {
@@ -1660,8 +1634,7 @@ export class ToolRuntime extends Service {
 
   /** Notify observers without exposing a mutation or error channel into the outcome. */
   private notifyResult(exec: ToolExecution, result: ToolExecutionResult): void {
-    // Freeze the registry's live object before observers receive its readonly
-    // WeakMap-keyable view.
+    // 在观察者收到可作为 WeakMap key 的只读视图前，先冻结注册表内部的实时结果对象。
     Object.freeze(exec)
     const { name: toolName, callId } = exec
     const reportFailure = (error: unknown): void => {
@@ -1734,17 +1707,15 @@ export class ToolRuntime extends Service {
   }
 
   /**
-   * Run the `tools/post-execute` waterfall over a dispatched `result` and apply
-   * its {@link PostToolDecision}: `accept` keeps the call successful (replacing
-   * `content` when given), `block` turns it into an `isError` whose content is
-   * the corrective `feedback`. Either decision may attach `additionalContexts`,
-   * which are ferried on the returned result for the loop's active-batch FIFO.
-   * Context deferred by the tool body survives an accepted result but is
-   * discarded when the outer call is blocked; a block exposes only context the
-   * blocking decision explicitly supplied.
-   * Runs inside `execute`'s outer try/catch (a throwing listener → isError).
+   * 对 Dispatch 结果运行 `tools/post-execute` Waterfall，并应用 {@link PostToolDecision}。
+   * `accept` 保持成功，并可替换 `content`；`block` 使用纠正性 `feedback` 把结果改为
+   * `isError`。两种决策都可附加 `additionalContexts`，由返回结果带入 Loop 当前批次的 FIFO。
+   * 工具主体延迟提交的上下文在接受时保留，在外层阻止时丢弃；阻止结果只暴露该决策显式
+   * 提供的上下文。本方法运行在 execute 的外层 try/catch 中，监听器异常会变成错误结果。
    */
   private async postExecute(exec: ToolExecution, result: ToolExecutionResult): Promise<ToolExecutionResult> {
+    // post-execute 只能接受、替换或阻止已规范化结果。它还可以附加下一 Step 的上下文，
+    // 但最终写入 Session 的内容仍由 ToolRuntime 做无损 JSON 快照。
     const decision = await this.ctx.waterfall(
       scopeTarget(this, exec.agent), 'tools/post-execute', exec, result,
       () => Promise.resolve<PostToolDecision>({ kind: 'accept' }),

@@ -479,7 +479,7 @@ Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnp
 
 ### `ctx.tools` — `ToolRuntime`
 
-Tool registry and execution pipeline. Scoped registrations shadow globals; one visibility resolver feeds presentation, lookup, and dispatch.
+Tool 注册表与执行管线。Scope 注册会覆盖全局注册；展示、名称查找和 Dispatch 共用同一个 可见性解析器，使模型看到的 Tool Schema 与运行时真正可调用的工具来自同一来源。
 
 ```ts cordis-catalog
 /**
@@ -496,10 +496,10 @@ Tool registry and execution pipeline. Scoped registrations shadow globals; one v
 presentAs(mode: ToolPresentationMode): () => void
 
 /**
- * Register globally or in the calling agent scope. Scoped tools shadow
- * globals; duplicates within one layer and the reserved `run_code` name fail.
- * @param definition - tool schema, execution, and optional finalization/presentation callbacks.
- * @returns the exact disposer that unregisters the tool.
+ * 在全局层或调用方 Agent Scope 中注册工具。Scope 工具覆盖全局工具；同一层重复名称或
+ * 使用保留名称 `run_code` 会失败。
+ * @param definition - Tool Schema、执行函数，以及可选的最终处理与展示回调。
+ * @returns 精确注销该工具的 disposer。
  */
 register(definition: ToolDefinition): () => void
 
@@ -553,18 +553,13 @@ schemas(scope?: ScopeKey): ToolSchema[]
 executionMode(exec: ToolExecutionInput): ToolExecutionMode
 
 /**
- * Execute through pre-policy, guards, around-dispatch, post-policy,
- * definition-owned content finalization, and final notification. Tool and
- * listener failures resolve as materialized error results; an invisible tool
- * reports `UNKNOWN_TOOL`. The returned outcome is the same lossless, frozen
- * snapshot final observers receive. Cancellation
- * arriving after entry and before final result materialization skips a
- * not-yet-started body with `ABORTED_BEFORE_DISPATCH` or replaces a
- * successful started outcome with `ABORTED`; already-started work is still
- * drained and may retain a tool-owned structured error.
- * @param exec - the typed same-process call input. The registry assigns its
- *   correlation token before policy begins.
- * @returns the materialized final result.
+ * 依次经过前置策略、Guard、Around Dispatch、后置策略、工具定义拥有的内容最终处理，
+ * 最后发布结果通知。工具或监听器失败会物化为错误结果；不可见工具返回 `UNKNOWN_TOOL`。
+ * 返回值与最终观察者收到的是同一份无损冻结快照。进入管线后、结果物化前发生取消时，
+ * 尚未启动的工具返回 `ABORTED_BEFORE_DISPATCH`，已成功启动的结果改为 `ABORTED`；
+ * 已启动工作仍会等待结束，并可保留工具自身的结构化错误。
+ * @param exec - 带类型的同进程调用输入；注册表会在策略运行前分配关联 Token。
+ * @returns 物化后的最终结果。
  */
 async execute(exec: ToolExecutionInput): Promise<ToolExecutionResult>
 ```
