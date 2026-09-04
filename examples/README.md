@@ -16,6 +16,10 @@ A non-interactive agent that accepts one task, runs it, and emits a selected mac
 
 An unattended coding agent driven through the Python SDK and JSON-RPC. See the [JSON-RPC example reference](jsonrpc-agent/README.md).
 
+## rag-knowledge
+
+An opt-in headless overlay with a checked-in two-document BM25 index and the experimental `knowledge_search` tool. See the [RAG knowledge example](rag-knowledge/README.md).
+
 ## web-cordis
 
 A self-referential agent that can inspect and change its in-memory Cordis plugin tree. See the [web-cordis example reference](web-cordis/README.md).

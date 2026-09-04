@@ -60,6 +60,11 @@ import * as ToolSessionQuery from '@deepseek-ai/dsh-tool-session-query'
 import * as ToolTasks from '@deepseek-ai/dsh-tool-jobs'
 import type TeamService from '@deepseek-ai/dsh-experimental-agent-team'
 import * as ToolTeam from '@deepseek-ai/dsh-experimental-tool-agent-team'
+import Knowledge, {
+  type KnowledgeSearchRequest,
+  type KnowledgeSearchResult,
+} from '@deepseek-ai/dsh-experimental-knowledge'
+import * as ToolKnowledge from '@deepseek-ai/dsh-experimental-tool-knowledge'
 import * as ToolTodo from '@deepseek-ai/dsh-tool-todo'
 import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
 import * as ToolWeb from '@deepseek-ai/dsh-tool-web'
@@ -89,6 +94,13 @@ class CatalogAttachmentStore extends AttachmentStore {
 
   override readImage(_ref: ImageAttachmentRef): Promise<StoredImageAttachment> {
     return Promise.reject(new Error('gen-tool-catalog: attachment reads are unreachable during schema harvest'))
+  }
+}
+
+/** Inert knowledge provider used only to satisfy tool registration. */
+class CatalogKnowledge extends Knowledge {
+  override search(_request: KnowledgeSearchRequest, _signal?: AbortSignal): Promise<KnowledgeSearchResult> {
+    return Promise.reject(new Error('gen-tool-catalog: knowledge search is unreachable during schema harvest'))
   }
 }
 
@@ -560,6 +572,17 @@ const TOOL_PACKAGES: ToolPackage[] = [
     scope: ctx => catalogChildScopes.get(ctx) as Agent,
     note:
       'All ten tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-experimental-tool-knowledge',
+    dir: 'tool-knowledge',
+    source: 'packages/experimental/tool-knowledge/src/index.ts',
+    requires: ['ctx.tools', 'ctx.knowledge', 'ctx.systemPrompt'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(CatalogKnowledge)
+      await ctx.plugin(ToolKnowledge)
+    },
   },
   {
     pkg: '@deepseek-ai/dsh-tool-todo',

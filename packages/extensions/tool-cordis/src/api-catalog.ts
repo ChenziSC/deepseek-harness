@@ -955,6 +955,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'knowledge',
+    summary: 'Abstract read-only knowledge retrieval service.',
+    description: 'Abstract read-only knowledge retrieval service.',
+    methods: [
+      {
+        signature: 'abstract search(request: KnowledgeSearchRequest, signal?: AbortSignal): Promise<KnowledgeSearchResult>',
+        description: 'Retrieve ranked evidence for one query.',
+        parameters: [{ name: 'request', description: 'validated query text and caller-owned result limit.' }, { name: 'signal', description: 'optional cooperative cancellation signal.' }],
+        returns: 'provider-neutral ranked evidence.',
+      },
+    ],
+  },
+  {
     key: 'llm',
     summary: 'The abstract `llm` service: an adapter registry plus a streaming model-call API, interceptable via the `llm/stream` waterfall.',
     description: 'The abstract `llm` service: an adapter registry plus a streaming model-call API, interceptable via the `llm/stream` waterfall.',
@@ -3576,6 +3589,26 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'KnobState',
     declaration: 'export interface KnobState {\n    preset: string | null;\n    sandbox: SandboxMode | null;\n    approval: ApprovalPolicy | null;\n}',
+  },
+  {
+    name: 'KnowledgeChunkId',
+    declaration: 'export type KnowledgeChunkId = Branded<\'KnowledgeChunkId\'>;',
+  },
+  {
+    name: 'KnowledgeDocumentId',
+    declaration: 'export type KnowledgeDocumentId = Branded<\'KnowledgeDocumentId\'>;',
+  },
+  {
+    name: 'KnowledgeHit',
+    declaration: 'export interface KnowledgeHit {\n    readonly documentId: KnowledgeDocumentId;\n    readonly chunkId: KnowledgeChunkId;\n    readonly title?: string;\n    readonly text: string;\n    readonly source?: string;\n    readonly score: number;\n}',
+  },
+  {
+    name: 'KnowledgeSearchRequest',
+    declaration: 'export interface KnowledgeSearchRequest {\n    readonly query: string;\n    readonly maxResults: number;\n}',
+  },
+  {
+    name: 'KnowledgeSearchResult',
+    declaration: 'export interface KnowledgeSearchResult {\n    readonly hits: readonly KnowledgeHit[];\n}',
   },
   {
     name: 'KvFacet',

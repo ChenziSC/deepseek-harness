@@ -1,0 +1,13 @@
+# Add the immutable BM25 provider and its model-facing tool to a profile.
+- insert:
+    - id: knowledge-local
+      name: '@deepseek-ai/dsh-experimental-knowledge-local'
+      config:
+        indexDir: ./examples/rag-knowledge/index
+        mode: bm25
+        rerank: false
+        candidateCount: 5
+    - id: tool-knowledge
+      name: '@deepseek-ai/dsh-experimental-tool-knowledge'
+      config:
+        maxResults: 2

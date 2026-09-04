@@ -7,6 +7,9 @@
 | 包 | 职责 | ctx key |
 |---|---|---|
 | `agent-team/` | 隐式 root Agent Teams roster、持久 peer mailbox、共享任务 DAG 与运行时协调 | `ctx.agentTeams` |
+| `knowledge/` | 与提供方无关的只读外部知识检索 Service Definition | `ctx.knowledge` |
+| `knowledge-local/` | 不可变本地 BM25 与 Dense 知识提供方及离线索引命令 | `ctx.knowledge` |
 | `tool-agent-team/` | 按 Agent 作用域提供的 Agent Teams 模型工具与协作指引 | — |
+| `tool-knowledge/` | 有输入输出上限的模型工具 `knowledge_search` Consumer | — |
 
 [子树规则](AGENTS.md)规定依赖隔离、发布排除与 promotion。

@@ -322,6 +322,31 @@
       "source": "packages/experimental/agent-team/src/types.ts"
     },
     {
+      "doc": "docs/subsystems/knowledge.md",
+      "symbol": "KnowledgeDocumentId",
+      "source": "packages/experimental/knowledge/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/knowledge.md",
+      "symbol": "KnowledgeChunkId",
+      "source": "packages/experimental/knowledge/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/knowledge.md",
+      "symbol": "KnowledgeSearchRequest",
+      "source": "packages/experimental/knowledge/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/knowledge.md",
+      "symbol": "KnowledgeHit",
+      "source": "packages/experimental/knowledge/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/knowledge.md",
+      "symbol": "KnowledgeSearchResult",
+      "source": "packages/experimental/knowledge/src/types.ts"
+    },
+    {
       "doc": "docs/subsystems/commands.md",
       "symbol": "CommandInputDescriptor",
       "source": "packages/interaction/commands/src/types.ts"

@@ -237,6 +237,12 @@
       "@deepseek-ai/dsh-sdk-jsonrpc-server": ["./packages/sdk/server/src"],
       "@deepseek-ai/dsh-experimental-agent-team": ["./packages/experimental/agent-team/src"],
       "@deepseek-ai/dsh-experimental-tool-agent-team": ["./packages/experimental/tool-agent-team/src"],
+      "@deepseek-ai/dsh-experimental-knowledge": ["./packages/experimental/knowledge/src"],
+      "@deepseek-ai/dsh-experimental-knowledge/invariant": ["./packages/experimental/knowledge/src/invariant.ts"],
+      "@deepseek-ai/dsh-experimental-knowledge-local": ["./packages/experimental/knowledge-local/src"],
+      "@deepseek-ai/dsh-experimental-knowledge-local/invariant": ["./packages/experimental/knowledge-local/src/invariant.ts"],
+      "@deepseek-ai/dsh-experimental-tool-knowledge": ["./packages/experimental/tool-knowledge/src"],
+      "@deepseek-ai/dsh-experimental-tool-knowledge/invariant": ["./packages/experimental/tool-knowledge/src/invariant.ts"],
       "@deepseek-ai/dsh-*": [
         "./packages/core/*/src",
         "./packages/prompt/*/src",

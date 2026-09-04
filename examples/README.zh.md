@@ -16,6 +16,10 @@
 
 由 Python SDK 和 JSON-RPC 驱动的无人值守编码 agent。详见 [JSON-RPC 示例参考](jsonrpc-agent/README.zh.md)。
 
+## rag-knowledge
+
+可选的 headless overlay，包含仓库内两文档 BM25 索引和实验性 `knowledge_search` 工具。详见 [RAG 知识示例](rag-knowledge/README.zh.md)。
+
 ## web-cordis
 
 能够检查并更改内存中 Cordis 插件树的自指 agent。详见 [web-cordis 示例参考](web-cordis/README.zh.md)。

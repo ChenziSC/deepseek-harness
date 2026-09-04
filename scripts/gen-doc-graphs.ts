@@ -566,6 +566,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Provider registration and selection plus normalized query execution over exactly four operations; the seam offers no protocol escape hatch, so a backend translates into the normalized request and result.',
   },
   {
+    key: 'knowledge',
+    pkg: 'knowledge',
+    title: 'Read-only knowledge retrieval seam',
+    mode: 'seam',
+    implementations: ['knowledge-local'],
+    consumers: ['tool-knowledge'],
+    note: 'The provider returns ranked source fragments; the tool owns query limits, model-visible evidence, and call-local citations.',
+  },
+  {
     key: 'apiProxy',
     pkg: 'apiproxy',
     title: 'Host API dispatch',

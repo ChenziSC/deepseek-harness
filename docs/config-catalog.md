@@ -617,6 +617,55 @@ export interface Config {
 
 Source: [`packages/experimental/agent-team/src/types.ts:125`](../packages/experimental/agent-team/src/types.ts)
 
+<a id="deepseek-aidsh-experimental-knowledge-local"></a>
+
+## `@deepseek-ai/dsh-experimental-knowledge-local`
+
+```ts config-catalog
+/** Loader configuration for local BM25, Dense, and Hybrid retrieval. */
+export type Config = LocalKnowledgeConfig
+
+/** Local BM25, Dense, and Hybrid retrieval configuration. */
+export interface LocalKnowledgeConfig {
+  /** Directory containing one completed immutable index. */
+  indexDir: string
+  /** Retrieval mode selected for all requests. */
+  mode?: 'bm25' | 'dense' | 'hybrid'
+  /** Whether to rerank recalled candidates with the configured cross-encoder. */
+  rerank?: boolean
+  /** Number of candidates retained before the caller result limit is applied. */
+  candidateCount?: number
+  /** BM25 term-frequency saturation parameter. */
+  bm25K1?: number
+  /** BM25 document-length normalization parameter. */
+  bm25B?: number
+  /** Reciprocal Rank Fusion constant used by Hybrid mode. */
+  rrfK?: number
+  /** Explicit Transformers.js cache required by Dense, Hybrid, and reranked modes. */
+  modelCacheDir?: string
+  /** Dense embedding model repository. */
+  denseModelId?: string
+  /** Full immutable Dense model revision. */
+  denseModelRevision?: string
+  /** Dense ONNX model data type. */
+  denseDtype?: 'q8'
+  /** Maximum model tokens for one Dense input. */
+  denseMaxTokens?: number
+  /** Cross-encoder reranker model repository. */
+  rerankerModelId?: string
+  /** Full immutable reranker model revision. */
+  rerankerModelRevision?: string
+  /** Reranker ONNX model data type. */
+  rerankerDtype?: 'q8'
+  /** Number of candidate pairs submitted per reranker inference. */
+  rerankerBatchSize?: number
+  /** Maximum model tokens for one reranker text pair. */
+  rerankerMaxTokens?: number
+}
+```
+
+Source: [`packages/experimental/knowledge-local/src/index.ts:24`](../packages/experimental/knowledge-local/src/index.ts)
+
 <a id="deepseek-aidsh-experimental-tool-agent-team"></a>
 
 ## `@deepseek-ai/dsh-experimental-tool-agent-team`
@@ -634,6 +683,32 @@ export interface Config {
 ```
 
 Source: [`packages/experimental/tool-agent-team/src/index.ts:17`](../packages/experimental/tool-agent-team/src/index.ts)
+
+<a id="deepseek-aidsh-experimental-tool-knowledge"></a>
+
+## `@deepseek-ai/dsh-experimental-tool-knowledge`
+
+Requires: `knowledge` · `tools` · `systemPrompt`
+
+```ts config-catalog
+/** Deployment-owned bounds for `knowledge_search`. */
+export interface Config {
+  /** Whether to register the tool and its prompt guidance. */
+  enabled?: boolean
+  /** Maximum evidence items requested from the provider. */
+  maxResults?: number
+  /** Maximum query length in Unicode code points. */
+  queryMaxChars?: number
+  /** Maximum rendered length of one evidence item. */
+  hitMaxChars?: number
+  /** Maximum rendered length of the complete tool result. */
+  outputMaxChars?: number
+  /** Cooperative tool deadline in milliseconds. */
+  timeoutMs?: number
+}
+```
+
+Source: [`packages/experimental/tool-knowledge/src/index.ts:24`](../packages/experimental/tool-knowledge/src/index.ts)
 
 <a id="deepseek-aidsh-file-reference-local"></a>
 
@@ -3301,6 +3376,7 @@ Abstract service classes — a deployment loads a concrete implementation packag
 - `@deepseek-ai/dsh-code-runtime` — abstract `CodeRuntime` ([`packages/code-runtime/code-runtime/src/index.ts`](../packages/code-runtime/code-runtime/src/index.ts))
 - `@deepseek-ai/dsh-compaction` — abstract `CompactionEngine` ([`packages/compaction/compaction/src/index.ts`](../packages/compaction/compaction/src/index.ts))
 - `@deepseek-ai/dsh-credentials` — abstract `CredentialProvider` ([`packages/credentials/credentials/src/index.ts`](../packages/credentials/credentials/src/index.ts))
+- `@deepseek-ai/dsh-experimental-knowledge` — abstract `Knowledge` ([`packages/experimental/knowledge/src/index.ts`](../packages/experimental/knowledge/src/index.ts))
 - `@deepseek-ai/dsh-file-reference` — abstract `FileReferenceService` ([`packages/context/file-reference/src/index.ts`](../packages/context/file-reference/src/index.ts))
 - `@deepseek-ai/dsh-fs` — abstract `FileSystem` ([`packages/fs/fs/src/index.ts`](../packages/fs/fs/src/index.ts))
 - `@deepseek-ai/dsh-host-directory-picker` — abstract `DirectoryPicker` ([`packages/host/directory-picker/src/index.ts`](../packages/host/directory-picker/src/index.ts))

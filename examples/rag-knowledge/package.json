@@ -1,0 +1,7 @@
+{
+  "name": "rag-knowledge-example",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Runnable experimental BM25 knowledge retrieval composition"
+}

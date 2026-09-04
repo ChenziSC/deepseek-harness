@@ -1,0 +1,98 @@
+/** Knowledge-tool output projection and bounded model text rendering. */
+
+import type { KnowledgeHit } from '@deepseek-ai/dsh-experimental-knowledge'
+
+/** One numbered evidence item exposed by the model-facing tool. */
+export interface KnowledgeEvidence {
+  readonly citation: string
+  readonly documentId: string
+  readonly chunkId: string
+  readonly title?: string
+  readonly source?: string
+  readonly text: string
+}
+
+/** Canonical successful value of `knowledge_search`. */
+export interface KnowledgeToolResult {
+  readonly evidence: KnowledgeEvidence[]
+  readonly truncated: boolean
+}
+
+function codePoints(value: string): string[] {
+  return Array.from(value)
+}
+
+function clip(value: string, maxChars: number): { text: string; truncated: boolean } {
+  const points = codePoints(value)
+  if (points.length <= maxChars) return { text: value, truncated: false }
+  if (maxChars <= 1) return { text: '…'.slice(0, maxChars), truncated: true }
+  return { text: `${points.slice(0, maxChars - 1).join('')}…`, truncated: true }
+}
+
+function renderEvidence(evidence: KnowledgeEvidence): string {
+  return [
+    `[${evidence.citation}]`,
+    `Document: ${evidence.documentId}`,
+    `Chunk: ${evidence.chunkId}`,
+    ...(evidence.title === undefined ? [] : [`Title: ${evidence.title}`]),
+    ...(evidence.source === undefined ? [] : [`Source: ${evidence.source}`]),
+    evidence.text,
+  ].join('\n')
+}
+
+/**
+ * Render the canonical value into the exact text sent to the model.
+ * @param result - bounded structured tool result.
+ * @returns stable model-visible evidence text.
+ */
+export function renderKnowledgeResult(result: KnowledgeToolResult): string {
+  if (result.evidence.length === 0) return 'No relevant evidence found.'
+  return `${result.evidence.map(renderEvidence).join('\n\n')}\n\nCite relevant evidence using its K<n> identifier.`
+}
+
+function evidenceFromHit(hit: KnowledgeHit, citation: string, hitMaxChars: number): { evidence?: KnowledgeEvidence; truncated: boolean } {
+  const fixed: KnowledgeEvidence = {
+    citation,
+    documentId: hit.documentId,
+    chunkId: hit.chunkId,
+    ...(hit.title === undefined ? {} : { title: hit.title }),
+    ...(hit.source === undefined ? {} : { source: hit.source }),
+    text: '',
+  }
+  const fixedLength = codePoints(renderEvidence(fixed)).length
+  if (fixedLength >= hitMaxChars) return { truncated: true }
+  const clipped = clip(hit.text, hitMaxChars - fixedLength)
+  return { evidence: { ...fixed, text: clipped.text }, truncated: clipped.truncated }
+}
+
+/**
+ * Project ranked provider hits into a completely bounded tool result.
+ * @param hits - provider-ranked retrieval hits.
+ * @param hitMaxChars - maximum rendered Unicode code points per evidence item.
+ * @param outputMaxChars - maximum rendered Unicode code points for the complete result.
+ * @returns evidence that fits both limits plus a truncation indicator.
+ */
+export function collectKnowledgeResult(
+  hits: readonly KnowledgeHit[],
+  hitMaxChars: number,
+  outputMaxChars: number,
+): KnowledgeToolResult {
+  const evidence: KnowledgeEvidence[] = []
+  let truncated = false
+  for (const hit of hits) {
+    const projected = evidenceFromHit(hit, `K${evidence.length + 1}`, hitMaxChars)
+    if (projected.evidence === undefined) {
+      truncated = true
+      continue
+    }
+    const candidate = { evidence: [...evidence, projected.evidence], truncated: truncated || projected.truncated }
+    if (codePoints(renderKnowledgeResult(candidate)).length > outputMaxChars) {
+      truncated = true
+      break
+    }
+    evidence.push(projected.evidence)
+    truncated ||= projected.truncated
+  }
+  if (evidence.length < hits.length) truncated = true
+  return { evidence, truncated }
+}
