@@ -7,13 +7,15 @@ import Knowledge, {
   type KnowledgeSearchRequest,
   type KnowledgeSearchResult,
 } from '@deepseek-ai/dsh-experimental-knowledge'
-import { searchBm25 } from './bm25.ts'
 import { resolveConfig, type LocalKnowledgeConfig, type ResolvedConfig } from './config.ts'
 import { searchDense } from './dense.ts'
 import { searchHybrid } from './hybrid.ts'
-import { loadKnowledgeIndex, type LoadedKnowledgeIndex } from './index-format.ts'
+import { HnswIndex } from './hnsw.ts'
+import { loadDenseVectors, loadKnowledgeIndex, type LoadedKnowledgeIndex } from './index-format.ts'
 import { DenseEncoder, loadDenseEncoder } from './model-runtime.ts'
 import { loadReranker, Reranker, type RerankMatch } from './reranker.ts'
+import { resolveKnowledgeSearchStrategy } from './strategy.ts'
+import { compareCodePoints } from './bm25.ts'
 
 function cancelled(): KnowledgeError {
   return new KnowledgeError('Knowledge search was cancelled.', 'KNOWLEDGE_CANCELLED')
@@ -29,8 +31,12 @@ export class LocalKnowledgeProvider extends Knowledge {
   readonly config: ResolvedConfig
 
   private index: LoadedKnowledgeIndex | undefined
+  private denseVectors: Float32Array | undefined
+  private denseVectorsPromise: Promise<Float32Array> | undefined
   private denseEncoder: DenseEncoder | undefined
   private denseEncoderPromise: Promise<DenseEncoder> | undefined
+  private hnsw: HnswIndex | undefined
+  private hnswPromise: Promise<HnswIndex> | undefined
   private reranker: Reranker | undefined
   private rerankerPromise: Promise<Reranker> | undefined
   private closed = false
@@ -47,7 +53,12 @@ export class LocalKnowledgeProvider extends Knowledge {
     }
     ctx.effect(() => async () => {
       this.closed = true
+      const index = this.index
       this.index = undefined
+      this.denseVectors = undefined
+      this.denseVectorsPromise = undefined
+      this.hnsw = undefined
+      this.hnswPromise = undefined
       const denseEncoder = this.denseEncoder
       const reranker = this.reranker
       this.denseEncoder = undefined
@@ -58,28 +69,56 @@ export class LocalKnowledgeProvider extends Knowledge {
         denseEncoder?.dispose(),
         reranker?.dispose(),
       ])
+      index?.sqlite.close()
     }, 'knowledgeLocal.close')
   }
 
   /** Load and validate the complete immutable index before publishing readiness. */
   protected async [Service.init](): Promise<void> {
-    const index = await loadKnowledgeIndex(this.config.indexDir)
-    if (index.manifest.bm25.k1 !== this.config.bm25K1 || index.manifest.bm25.b !== this.config.bm25B) {
-      throw new KnowledgeError('Knowledge index BM25 configuration does not match the provider configuration.', 'KNOWLEDGE_SEARCH_FAILED')
-    }
-    if (this.config.mode !== 'bm25') {
-      const manifest = index.manifest.dense
-      if (manifest === undefined || index.dense === undefined) {
-        throw new KnowledgeError('Knowledge index does not contain Dense embeddings.', 'KNOWLEDGE_SEARCH_FAILED')
+    const index = await loadKnowledgeIndex(this.config.indexDir, {
+      verifyPayloadHashes: this.config.verifyPayloadHashes,
+    })
+    try {
+      const denseAllowed = this.config.allowedRetrieval.some(value => value !== 'bm25')
+      if (denseAllowed) {
+        const manifest = index.manifest.dense
+        if (manifest === undefined || (index.dense === undefined && index.hnsw === undefined)) {
+          throw new KnowledgeError('Knowledge index does not contain Dense embeddings.', 'KNOWLEDGE_SEARCH_FAILED')
+        }
+        if (
+          manifest.modelId !== this.config.denseModelId
+          || manifest.revision !== this.config.denseModelRevision
+          || manifest.modelFile !== this.config.denseModelFile
+          || manifest.dimensions !== this.config.denseDimensions
+          || manifest.maxTokens !== this.config.denseMaxTokens
+          || manifest.queryPrefix !== this.config.denseQueryPrefix
+        ) {
+          throw new KnowledgeError('Knowledge index Dense model does not match the provider configuration.', 'KNOWLEDGE_SEARCH_FAILED')
+        }
       }
-      if (
-        manifest.modelId !== this.config.denseModelId
-        || manifest.revision !== this.config.denseModelRevision
-      ) {
-        throw new KnowledgeError('Knowledge index Dense model does not match the provider configuration.', 'KNOWLEDGE_SEARCH_FAILED')
-      }
+      this.index = index
+    } catch (error) {
+      index.sqlite.close()
+      throw error
     }
-    this.index = index
+  }
+
+  private async getDenseVectors(index: LoadedKnowledgeIndex): Promise<Float32Array> {
+    if (this.denseVectors !== undefined) return this.denseVectors
+    if (this.denseVectorsPromise !== undefined) return this.denseVectorsPromise
+    const loading = loadDenseVectors(index).then((vectors) => {
+      /* v8 ignore next -- requires disposal to race the single local file read after search starts. */
+      if (this.closed) throw new KnowledgeError('Knowledge provider is closed.', 'KNOWLEDGE_SEARCH_FAILED')
+      this.denseVectors = vectors
+      return vectors
+    })
+    this.denseVectorsPromise = loading
+    try {
+      return await loading
+    } finally {
+      /* v8 ignore next -- this field can only contain the one loading Promise installed above. */
+      if (this.denseVectorsPromise === loading) this.denseVectorsPromise = undefined
+    }
   }
 
   /**
@@ -88,6 +127,7 @@ export class LocalKnowledgeProvider extends Knowledge {
    */
   protected createDenseEncoder(): Promise<DenseEncoder> {
     const cacheDir = this.config.modelCacheDir
+    /* v8 ignore next -- resolved configuration requires this path for every Dense-capable mode. */
     if (cacheDir === undefined) {
       throw new KnowledgeError('Dense retrieval requires a model cache directory.', 'KNOWLEDGE_SEARCH_FAILED')
     }
@@ -97,6 +137,9 @@ export class LocalKnowledgeProvider extends Knowledge {
       modelId: this.config.denseModelId,
       revision: this.config.denseModelRevision,
       dtype: this.config.denseDtype,
+      modelFile: this.config.denseModelFile,
+      dimensions: this.config.denseDimensions,
+      queryPrefix: this.config.denseQueryPrefix,
       maxTokens: this.config.denseMaxTokens,
     })
   }
@@ -120,12 +163,36 @@ export class LocalKnowledgeProvider extends Knowledge {
     }
   }
 
+  private async getHnsw(index: LoadedKnowledgeIndex): Promise<HnswIndex> {
+    if (this.hnsw !== undefined) return this.hnsw
+    if (this.hnswPromise !== undefined) return this.hnswPromise
+    const path = index.hnsw?.path
+    if (path === undefined) throw new KnowledgeError('Knowledge index does not contain an HNSW index.', 'KNOWLEDGE_SEARCH_FAILED')
+    const loading = Promise.resolve().then(() => {
+      const dimensions = index.manifest.dense?.dimensions
+      /* v8 ignore next -- the validated index format requires Dense metadata whenever an HNSW payload exists. */
+      if (dimensions === undefined) throw new KnowledgeError('Knowledge index does not contain Dense metadata.', 'KNOWLEDGE_SEARCH_FAILED')
+      const hnsw = new HnswIndex(path, dimensions, this.config.hnswExpansionSearch)
+      if (this.closed) throw new KnowledgeError('Knowledge provider is closed.', 'KNOWLEDGE_SEARCH_FAILED')
+      this.hnsw = hnsw
+      return hnsw
+    })
+    this.hnswPromise = loading
+    try {
+      return await loading
+    } finally {
+      /* v8 ignore next -- this field can only contain the one loading Promise installed above. */
+      if (this.hnswPromise === loading) this.hnswPromise = undefined
+    }
+  }
+
   /**
    * Create the configured reranker. Subclasses may replace this in keyless tests.
    * @returns a reranker loaded only from the configured local cache.
    */
   protected createReranker(): Promise<Reranker> {
     const cacheDir = this.config.modelCacheDir
+    /* v8 ignore next -- resolved configuration requires this path whenever reranking is enabled. */
     if (cacheDir === undefined) {
       throw new KnowledgeError('Reranking requires a model cache directory.', 'KNOWLEDGE_SEARCH_FAILED')
     }
@@ -169,37 +236,35 @@ export class LocalKnowledgeProvider extends Knowledge {
       throw new KnowledgeError('Knowledge search result limit exceeds the configured candidate count.', 'KNOWLEDGE_INVALID_REQUEST')
     }
     const index = this.index
+    /* v8 ignore next -- Cordis publishes the service only after Service.init completes. */
     if (index === undefined) throw new KnowledgeError('Knowledge index is not ready.', 'KNOWLEDGE_SEARCH_FAILED')
     try {
-      const chunkIds = index.chunks.map(chunk => chunk.chunkId)
-      const searchBm25Candidates = () => searchBm25(
-        index.bm25,
-        query,
-        chunkIds,
-        this.config.candidateCount,
-        this.config.bm25K1,
-        this.config.bm25B,
-      )
-      const matches = this.config.mode === 'bm25'
+      const strategy = resolveKnowledgeSearchStrategy(request.strategy, this.config, {
+        autoDenseIndex: index.manifest.dense?.autoDenseIndex ?? 'exact',
+        availableDenseIndexes: [
+          ...(index.dense === undefined ? [] : ['exact' as const]),
+          ...(index.hnsw === undefined ? [] : ['hnsw' as const]),
+        ],
+      })
+      const searchBm25Candidates = () => index.sqlite.searchBm25(query, this.config.candidateCount)
+      const matches = strategy.retrieval === 'bm25'
         ? searchBm25Candidates()
-        : this.config.mode === 'dense'
-          ? await this.searchDense(index, query, signal)
+        : strategy.retrieval === 'dense'
+          ? await this.searchDense(index, query, strategy.denseIndex as 'exact' | 'hnsw', signal)
           : await searchHybrid(
             searchBm25Candidates,
-            () => this.searchDense(index, query, signal),
-            chunkIds,
+            () => this.searchDense(index, query, strategy.denseIndex as 'exact' | 'hnsw', signal),
+            undefined,
             this.config.rrfK,
             this.config.candidateCount,
           )
-      const finalMatches = this.config.rerank
+      const finalMatches = strategy.rerank
         ? await this.rerank(query, matches, index, signal)
         : matches
-      const hits = finalMatches.slice(0, request.maxResults).map(({ ordinal, score }) => {
-        const chunk = index.chunks[ordinal]
-        if (chunk === undefined) throw new KnowledgeError('Knowledge index returned an invalid chunk.', 'KNOWLEDGE_SEARCH_FAILED')
-        return { ...chunk, score }
-      })
-      return { hits }
+      const selected = finalMatches.slice(0, request.maxResults)
+      const chunks = index.sqlite.chunks(selected.map(match => match.ordinal))
+      const hits = chunks.map((chunk, position) => ({ ...chunk, score: (selected[position] as RerankMatch).score }))
+      return { hits, strategy }
     } catch (error) {
       if (error instanceof KnowledgeError) throw error
       throw new KnowledgeError('Knowledge search failed.', 'KNOWLEDGE_SEARCH_FAILED', { cause: error })
@@ -216,29 +281,47 @@ export class LocalKnowledgeProvider extends Knowledge {
     throwIfCancelled(signal)
     const reranker = await this.getReranker()
     throwIfCancelled(signal)
-    return reranker.rerank(query, matches, index.chunks, this.config.rerankerBatchSize, signal)
+    const candidates = matches.slice(0, this.config.rerankerCandidateCount)
+    const chunks = index.sqlite.chunks(candidates.map(match => match.ordinal))
+    const byOrdinal = new Map(candidates.map((match, position) => [match.ordinal, chunks[position] as KnowledgeSearchResult['hits'][number]]))
+    return [
+      ...await reranker.rerank(query, candidates, byOrdinal, this.config.rerankerBatchSize, signal),
+      ...matches.slice(candidates.length),
+    ]
   }
 
   private async searchDense(
     index: LoadedKnowledgeIndex,
     query: string,
+    denseIndex: 'exact' | 'hnsw',
     signal: AbortSignal | undefined,
   ): Promise<Array<{ ordinal: number; score: number }>> {
-    const dense = index.dense
+    const dense = index.manifest.dense
+    /* v8 ignore next -- activation verifies a Dense payload for every Dense-capable mode. */
     if (dense === undefined) throw new KnowledgeError('Knowledge index does not contain Dense embeddings.', 'KNOWLEDGE_SEARCH_FAILED')
     throwIfCancelled(signal)
     const encoder = await this.getDenseEncoder()
     throwIfCancelled(signal)
     const queryVector = await encoder.embedQuery(query)
     throwIfCancelled(signal)
-    return searchDense(
-      dense.vectors,
-      queryVector,
-      index.chunks.map(chunk => chunk.chunkId),
-      dense.dimensions,
-      this.config.candidateCount,
-      signal,
-    )
+    if (denseIndex === 'hnsw') {
+      const hnsw = await this.getHnsw(index)
+      throwIfCancelled(signal)
+      const matches = hnsw.search(queryVector, this.config.candidateCount, index.manifest.corpus.chunkCount)
+      throwIfCancelled(signal)
+      const chunks = index.sqlite.chunks(matches.map(match => match.ordinal))
+      return matches
+        .map((match, position) => ({ ...match, chunkId: chunks[position]?.chunkId as string }))
+        .sort((left, right) => right.score - left.score || compareCodePoints(left.chunkId, right.chunkId))
+        .map(({ ordinal, score }) => ({ ordinal, score }))
+    }
+    /* v8 ignore next -- strategy resolution rejects Exact before this method when the Exact payload is absent. */
+    if (index.dense === undefined) {
+      throw new KnowledgeError('Knowledge index does not contain Exact Dense vectors.', 'KNOWLEDGE_SEARCH_FAILED')
+    }
+    const vectors = await this.getDenseVectors(index)
+    throwIfCancelled(signal)
+    return searchDense(vectors, queryVector, undefined, dense.dimensions, this.config.candidateCount, signal)
   }
 }
 

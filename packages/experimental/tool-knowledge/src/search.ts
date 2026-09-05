@@ -1,6 +1,9 @@
 /** Knowledge-tool output projection and bounded model text rendering. */
 
-import type { KnowledgeHit } from '@deepseek-ai/dsh-experimental-knowledge'
+import type {
+  KnowledgeHit,
+  ResolvedKnowledgeSearchStrategy,
+} from '@deepseek-ai/dsh-experimental-knowledge'
 
 /** One numbered evidence item exposed by the model-facing tool. */
 export interface KnowledgeEvidence {
@@ -16,6 +19,7 @@ export interface KnowledgeEvidence {
 export interface KnowledgeToolResult {
   readonly evidence: KnowledgeEvidence[]
   readonly truncated: boolean
+  readonly strategy: ResolvedKnowledgeSearchStrategy
 }
 
 function codePoints(value: string): string[] {
@@ -46,8 +50,10 @@ function renderEvidence(evidence: KnowledgeEvidence): string {
  * @returns stable model-visible evidence text.
  */
 export function renderKnowledgeResult(result: KnowledgeToolResult): string {
-  if (result.evidence.length === 0) return 'No relevant evidence found.'
-  return `${result.evidence.map(renderEvidence).join('\n\n')}\n\nCite relevant evidence using its K<n> identifier.`
+  const dense = result.strategy.denseIndex === undefined ? '' : `, ${result.strategy.denseIndex}`
+  const strategy = `Strategy: ${result.strategy.retrieval}${dense}, rerank ${result.strategy.rerank ? 'on' : 'off'}.`
+  if (result.evidence.length === 0) return `${strategy}\nNo relevant evidence found.`
+  return `${strategy}\n\n${result.evidence.map(renderEvidence).join('\n\n')}\n\nCite relevant evidence using its K<n> identifier.`
 }
 
 function evidenceFromHit(hit: KnowledgeHit, citation: string, hitMaxChars: number): { evidence?: KnowledgeEvidence; truncated: boolean } {
@@ -70,12 +76,14 @@ function evidenceFromHit(hit: KnowledgeHit, citation: string, hitMaxChars: numbe
  * @param hits - provider-ranked retrieval hits.
  * @param hitMaxChars - maximum rendered Unicode code points per evidence item.
  * @param outputMaxChars - maximum rendered Unicode code points for the complete result.
+ * @param strategy - resolved retrieval strategy reported with the evidence.
  * @returns evidence that fits both limits plus a truncation indicator.
  */
 export function collectKnowledgeResult(
   hits: readonly KnowledgeHit[],
   hitMaxChars: number,
   outputMaxChars: number,
+  strategy: ResolvedKnowledgeSearchStrategy,
 ): KnowledgeToolResult {
   const evidence: KnowledgeEvidence[] = []
   let truncated = false
@@ -85,7 +93,11 @@ export function collectKnowledgeResult(
       truncated = true
       continue
     }
-    const candidate = { evidence: [...evidence, projected.evidence], truncated: truncated || projected.truncated }
+    const candidate = {
+      evidence: [...evidence, projected.evidence],
+      truncated: truncated || projected.truncated,
+      strategy,
+    }
     if (codePoints(renderKnowledgeResult(candidate)).length > outputMaxChars) {
       truncated = true
       break
@@ -94,5 +106,5 @@ export function collectKnowledgeResult(
     truncated ||= projected.truncated
   }
   if (evidence.length < hits.length) truncated = true
-  return { evidence, truncated }
+  return { evidence, truncated, strategy }
 }

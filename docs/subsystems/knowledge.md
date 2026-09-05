@@ -20,9 +20,52 @@ type KnowledgeDocumentId = Branded<'KnowledgeDocumentId'>
 type KnowledgeChunkId = Branded<'KnowledgeChunkId'>
 ```
 
+## Search strategy
+
+Callers may request only provider-neutral choices. The provider applies its allowed sets and defaults, resolves `auto`, and returns the strategy it actually executed. Dense index details are absent from a resolved BM25 strategy.
+
+```ts type-equiv
+/** Provider-neutral recall algorithm requested for one search. */
+type KnowledgeRetrieval = 'bm25' | 'dense' | 'hybrid'
+```
+
+```ts type-equiv
+/** Provider-neutral Dense index preference requested for one search. */
+type KnowledgeDenseIndex = 'auto' | 'exact' | 'hnsw'
+```
+
+```ts type-equiv
+/** Provider-neutral reranking preference requested for one search. */
+type KnowledgeRerank = 'auto' | 'on' | 'off'
+```
+
+```ts type-equiv
+/** Optional high-level retrieval choices for one search. */
+interface KnowledgeSearchStrategy {
+  /** Recall algorithm; the provider default applies when omitted. */
+  readonly retrieval?: KnowledgeRetrieval
+  /** Dense index preference; meaningful only for Dense and Hybrid recall. */
+  readonly denseIndex?: KnowledgeDenseIndex
+  /** Reranking preference; `auto` uses the provider default. */
+  readonly rerank?: KnowledgeRerank
+}
+```
+
+```ts type-equiv
+/** High-level retrieval choices executed by a provider. */
+interface ResolvedKnowledgeSearchStrategy {
+  /** Recall algorithm used for this result. */
+  readonly retrieval: KnowledgeRetrieval
+  /** Dense index used by Dense or Hybrid recall. */
+  readonly denseIndex?: Exclude<KnowledgeDenseIndex, 'auto'>
+  /** Whether neural reranking was applied. */
+  readonly rerank: boolean
+}
+```
+
 ## Search request
 
-The caller supplies a non-empty natural-language query and the maximum number of ranked hits. Providers reject invalid requests through the error codes documented by the [Service Definition README](../../packages/experimental/knowledge/README.md).
+The caller supplies a non-empty natural-language query, the maximum number of ranked hits, and optional high-level retrieval choices. Providers reject invalid or disallowed requests through the error codes documented by the [Service Definition README](../../packages/experimental/knowledge/README.md).
 
 ```ts type-equiv
 /** One provider-neutral retrieval request. */
@@ -31,6 +74,8 @@ interface KnowledgeSearchRequest {
   readonly query: string
   /** Maximum number of ranked hits the provider may return. */
   readonly maxResults: number
+  /** Optional high-level retrieval choices interpreted by the provider. */
+  readonly strategy?: KnowledgeSearchStrategy
 }
 ```
 
@@ -61,6 +106,8 @@ interface KnowledgeHit {
 interface KnowledgeSearchResult {
   /** Hits in final descending rank order. */
   readonly hits: readonly KnowledgeHit[]
+  /** High-level retrieval choices executed for this result. */
+  readonly strategy: ResolvedKnowledgeSearchStrategy
 }
 ```
 

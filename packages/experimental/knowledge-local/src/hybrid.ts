@@ -37,7 +37,7 @@ function addRanks(
  * Fuse two ranked candidate lists using Reciprocal Rank Fusion.
  * @param bm25Matches - BM25 candidates in rank order.
  * @param denseMatches - Dense candidates in rank order.
- * @param chunkIds - ordinal-aligned chunk identifiers used for deterministic ties.
+ * @param chunkIds - optional ordinal-aligned chunk identifiers used for deterministic ties.
  * @param rrfK - positive Reciprocal Rank Fusion constant.
  * @param limit - maximum fused candidates to return.
  * @returns fused matches ordered by score, best input rank, and chunk identifier.
@@ -45,7 +45,7 @@ function addRanks(
 export function fuseRrf(
   bm25Matches: readonly Bm25Match[],
   denseMatches: readonly DenseMatch[],
-  chunkIds: readonly string[],
+  chunkIds: readonly string[] | undefined,
   rrfK: number,
   limit: number,
 ): HybridMatch[] {
@@ -55,7 +55,9 @@ export function fuseRrf(
   return [...candidates.values()]
     .sort((left, right) => right.score - left.score
       || left.bestRank - right.bestRank
-      || compareCodePoints(chunkIds[left.ordinal] ?? '', chunkIds[right.ordinal] ?? ''))
+      || (chunkIds === undefined
+        ? left.ordinal - right.ordinal
+        : compareCodePoints(chunkIds[left.ordinal] ?? '', chunkIds[right.ordinal] ?? '')))
     .slice(0, limit)
     .map(({ ordinal, score }) => ({ ordinal, score }))
 }
@@ -64,7 +66,7 @@ export function fuseRrf(
  * Run BM25 then Dense retrieval and fuse only after both routes succeed.
  * @param searchBm25Candidates - synchronous BM25 candidate operation.
  * @param searchDenseCandidates - Dense candidate operation started after BM25 completes.
- * @param chunkIds - ordinal-aligned chunk identifiers used for deterministic ties.
+ * @param chunkIds - optional ordinal-aligned chunk identifiers used for deterministic ties.
  * @param rrfK - positive Reciprocal Rank Fusion constant.
  * @param limit - maximum fused candidates to return.
  * @returns fused candidates after both retrieval routes complete.
@@ -72,7 +74,7 @@ export function fuseRrf(
 export async function searchHybrid(
   searchBm25Candidates: () => readonly Bm25Match[],
   searchDenseCandidates: () => Promise<readonly DenseMatch[]>,
-  chunkIds: readonly string[],
+  chunkIds: readonly string[] | undefined,
   rrfK: number,
   limit: number,
 ): Promise<HybridMatch[]> {

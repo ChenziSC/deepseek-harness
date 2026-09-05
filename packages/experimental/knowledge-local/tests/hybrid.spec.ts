@@ -39,6 +39,22 @@ describe('Hybrid Reciprocal Rank Fusion', () => {
       { ordinal: 0, score: 1 / 61 },
     ])
     expect(run()).toEqual(run())
+
+    expect(fuseRrf(
+      [{ ordinal: 0, score: 1 }],
+      [{ ordinal: 1, score: 1 }],
+      [],
+      60,
+      2,
+    ).map(match => match.ordinal)).toEqual([0, 1])
+
+    expect(fuseRrf(
+      [{ ordinal: 1, score: 1 }],
+      [{ ordinal: 0, score: 1 }],
+      undefined,
+      60,
+      2,
+    ).map(match => match.ordinal)).toEqual([0, 1])
   })
 
   it('fails without partial results when either retrieval route fails', async () => {
@@ -59,5 +75,15 @@ describe('Hybrid Reciprocal Rank Fusion', () => {
       60,
       50,
     )).rejects.toThrow('Dense failed')
+  })
+
+  it('returns fused candidates after both routes succeed', async () => {
+    await expect(searchHybrid(
+      () => [{ ordinal: 0, score: 2 }],
+      () => Promise.resolve([{ ordinal: 0, score: 1 }]),
+      ['chunk'],
+      60,
+      1,
+    )).resolves.toEqual([{ ordinal: 0, score: 2 / 61 }])
   })
 })

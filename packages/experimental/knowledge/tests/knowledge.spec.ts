@@ -11,6 +11,7 @@ import Knowledge, {
 class FixtureKnowledge extends Knowledge {
   async search(request: KnowledgeSearchRequest): Promise<KnowledgeSearchResult> {
     return Promise.resolve({
+      strategy: { retrieval: 'bm25', rerank: false },
       hits: [{
         documentId: KnowledgeDocumentId('doc-1'),
         chunkId: KnowledgeChunkId('doc-1:0-1'),
@@ -27,6 +28,7 @@ describe('Knowledge', () => {
     await ctx.plugin(FixtureKnowledge)
 
     await expect(ctx.knowledge.search({ query: 'evidence', maxResults: 1 })).resolves.toEqual({
+      strategy: { retrieval: 'bm25', rerank: false },
       hits: [{
         documentId: 'doc-1',
         chunkId: 'doc-1:0-1',

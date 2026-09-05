@@ -26,12 +26,43 @@ export function KnowledgeChunkId(value: string): KnowledgeChunkId {
   return value as KnowledgeChunkId
 }
 
+/** Provider-neutral recall algorithm requested for one search. */
+export type KnowledgeRetrieval = 'bm25' | 'dense' | 'hybrid'
+
+/** Provider-neutral Dense index preference requested for one search. */
+export type KnowledgeDenseIndex = 'auto' | 'exact' | 'hnsw'
+
+/** Provider-neutral reranking preference requested for one search. */
+export type KnowledgeRerank = 'auto' | 'on' | 'off'
+
+/** Optional high-level retrieval choices for one search. */
+export interface KnowledgeSearchStrategy {
+  /** Recall algorithm; the provider default applies when omitted. */
+  readonly retrieval?: KnowledgeRetrieval
+  /** Dense index preference; meaningful only for Dense and Hybrid recall. */
+  readonly denseIndex?: KnowledgeDenseIndex
+  /** Reranking preference; `auto` uses the provider default. */
+  readonly rerank?: KnowledgeRerank
+}
+
+/** High-level retrieval choices executed by a provider. */
+export interface ResolvedKnowledgeSearchStrategy {
+  /** Recall algorithm used for this result. */
+  readonly retrieval: KnowledgeRetrieval
+  /** Dense index used by Dense or Hybrid recall. */
+  readonly denseIndex?: Exclude<KnowledgeDenseIndex, 'auto'>
+  /** Whether neural reranking was applied. */
+  readonly rerank: boolean
+}
+
 /** One provider-neutral retrieval request. */
 export interface KnowledgeSearchRequest {
   /** Non-empty natural-language query. */
   readonly query: string
   /** Maximum number of ranked hits the provider may return. */
   readonly maxResults: number
+  /** Optional high-level retrieval choices interpreted by the provider. */
+  readonly strategy?: KnowledgeSearchStrategy
 }
 
 /** One ranked fragment returned by a knowledge provider. */
@@ -54,4 +85,6 @@ export interface KnowledgeHit {
 export interface KnowledgeSearchResult {
   /** Hits in final descending rank order. */
   readonly hits: readonly KnowledgeHit[]
+  /** High-level retrieval choices executed for this result. */
+  readonly strategy: ResolvedKnowledgeSearchStrategy
 }

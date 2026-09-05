@@ -20,9 +20,52 @@ type KnowledgeDocumentId = Branded<'KnowledgeDocumentId'>
 type KnowledgeChunkId = Branded<'KnowledgeChunkId'>
 ```
 
+## 检索策略
+
+调用方只能请求与提供方无关的选项。提供方应用允许集合和默认值、解析 `auto`，并返回实际执行的策略。解析后的 BM25 策略不包含 Dense 索引信息。
+
+```ts type-equiv
+/** Provider-neutral recall algorithm requested for one search. */
+type KnowledgeRetrieval = 'bm25' | 'dense' | 'hybrid'
+```
+
+```ts type-equiv
+/** Provider-neutral Dense index preference requested for one search. */
+type KnowledgeDenseIndex = 'auto' | 'exact' | 'hnsw'
+```
+
+```ts type-equiv
+/** Provider-neutral reranking preference requested for one search. */
+type KnowledgeRerank = 'auto' | 'on' | 'off'
+```
+
+```ts type-equiv
+/** Optional high-level retrieval choices for one search. */
+interface KnowledgeSearchStrategy {
+  /** Recall algorithm; the provider default applies when omitted. */
+  readonly retrieval?: KnowledgeRetrieval
+  /** Dense index preference; meaningful only for Dense and Hybrid recall. */
+  readonly denseIndex?: KnowledgeDenseIndex
+  /** Reranking preference; `auto` uses the provider default. */
+  readonly rerank?: KnowledgeRerank
+}
+```
+
+```ts type-equiv
+/** High-level retrieval choices executed by a provider. */
+interface ResolvedKnowledgeSearchStrategy {
+  /** Recall algorithm used for this result. */
+  readonly retrieval: KnowledgeRetrieval
+  /** Dense index used by Dense or Hybrid recall. */
+  readonly denseIndex?: Exclude<KnowledgeDenseIndex, 'auto'>
+  /** Whether neural reranking was applied. */
+  readonly rerank: boolean
+}
+```
+
 ## 检索请求
 
-调用方提供非空自然语言查询和最大排序命中数量。提供方通过 [Service Definition README](../../packages/experimental/knowledge/README.zh.md) 记录的错误码拒绝无效请求。
+调用方提供非空自然语言查询、最大排序命中数量和可选的高层检索选项。提供方通过 [Service Definition README](../../packages/experimental/knowledge/README.zh.md) 记录的错误码拒绝无效或不允许的请求。
 
 ```ts type-equiv
 /** One provider-neutral retrieval request. */
@@ -31,6 +74,8 @@ interface KnowledgeSearchRequest {
   readonly query: string
   /** Maximum number of ranked hits the provider may return. */
   readonly maxResults: number
+  /** Optional high-level retrieval choices interpreted by the provider. */
+  readonly strategy?: KnowledgeSearchStrategy
 }
 ```
 
@@ -61,6 +106,8 @@ interface KnowledgeHit {
 interface KnowledgeSearchResult {
   /** Hits in final descending rank order. */
   readonly hits: readonly KnowledgeHit[]
+  /** High-level retrieval choices executed for this result. */
+  readonly strategy: ResolvedKnowledgeSearchStrategy
 }
 ```
 

@@ -29,7 +29,7 @@ describe('dsh-knowledge CLI', () => {
 
     stderr.output = ''
     await expect(runCli(['prepare'], stdout, stderr)).resolves.toBe(2)
-    expect(stderr.output).toContain('positional dataset name scifact')
+    expect(stderr.output).toContain('prepare requires one dataset name')
   })
 
   it('reports missing index options without loading a model', async () => {

@@ -629,16 +629,24 @@ export type Config = LocalKnowledgeConfig
 export interface LocalKnowledgeConfig {
   /** Directory containing one completed immutable index. */
   indexDir: string
-  /** Retrieval mode selected for all requests. */
-  mode?: 'bm25' | 'dense' | 'hybrid'
-  /** Whether to rerank recalled candidates with the configured cross-encoder. */
-  rerank?: boolean
+  /** Recompute all payload hashes during activation instead of checking sizes only. */
+  verifyPayloadHashes?: boolean
+  /** Recall algorithm used when a request omits it. */
+  defaultRetrieval?: KnowledgeRetrieval
+  /** Dense index preference used when a request omits it. */
+  defaultDenseIndex?: KnowledgeDenseIndex
+  /** Reranking preference used when a request omits it or requests `auto`. */
+  defaultRerank?: Exclude<KnowledgeRerank, 'auto'>
+  /** Recall algorithms callers may request. */
+  allowedRetrieval?: KnowledgeRetrieval[]
+  /** Concrete Dense indexes callers may request. */
+  allowedDenseIndexes?: Array<Exclude<KnowledgeDenseIndex, 'auto'>>
+  /** Whether callers may request reranking. */
+  allowedRerank?: boolean
   /** Number of candidates retained before the caller result limit is applied. */
   candidateCount?: number
-  /** BM25 term-frequency saturation parameter. */
-  bm25K1?: number
-  /** BM25 document-length normalization parameter. */
-  bm25B?: number
+  /** Maximum leading recall candidates submitted to the reranker. */
+  rerankerCandidateCount?: number
   /** Reciprocal Rank Fusion constant used by Hybrid mode. */
   rrfK?: number
   /** Explicit Transformers.js cache required by Dense, Hybrid, and reranked modes. */
@@ -649,6 +657,14 @@ export interface LocalKnowledgeConfig {
   denseModelRevision?: string
   /** Dense ONNX model data type. */
   denseDtype?: 'q8'
+  /** Fixed ONNX file identity recorded in the index. */
+  denseModelFile?: typeof BGE_DENSE_MODEL_FILE
+  /** Embedding width expected from the configured model. */
+  denseDimensions?: number
+  /** Text prepended to each Dense query. */
+  denseQueryPrefix?: string
+  /** HNSW query expansion used for each native search. */
+  hnswExpansionSearch?: number
   /** Maximum model tokens for one Dense input. */
   denseMaxTokens?: number
   /** Cross-encoder reranker model repository. */
@@ -664,7 +680,9 @@ export interface LocalKnowledgeConfig {
 }
 ```
 
-Source: [`packages/experimental/knowledge-local/src/index.ts:24`](../packages/experimental/knowledge-local/src/index.ts)
+Depends on: [`KnowledgeDenseIndex`](../packages/experimental/knowledge/src/index.ts) · [`KnowledgeRerank`](../packages/experimental/knowledge/src/index.ts) · [`KnowledgeRetrieval`](../packages/experimental/knowledge/src/index.ts)
+
+Source: [`packages/experimental/knowledge-local/src/index.ts:35`](../packages/experimental/knowledge-local/src/index.ts)
 
 <a id="deepseek-aidsh-experimental-tool-agent-team"></a>
 

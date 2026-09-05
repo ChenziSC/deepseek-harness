@@ -2,12 +2,14 @@
 
 import type { PreTrainedTokenizer } from '@huggingface/transformers'
 import { DENSE_DIMENSIONS, validateDenseVectors } from './dense.ts'
-import { BGE_SMALL_EN_MODEL_ID, BGE_SMALL_EN_REVISION } from './tokenizer.ts'
+import { BGE_M3_MODEL_ID, BGE_M3_REVISION } from './tokenizer.ts'
 
 /** Query instruction required by `bge-small-en-v1.5`. */
-export const BGE_QUERY_PREFIX = 'Represent this sentence for searching relevant passages: '
+export const BGE_QUERY_PREFIX = ''
 /** Fixed quantized ONNX data type used by the first Dense experiment. */
 export const BGE_DENSE_DTYPE = 'q8'
+/** Fixed quantized ONNX file selected by the BGE-M3 revision. */
+export const BGE_DENSE_MODEL_FILE = 'onnx/model_quantized.onnx'
 /** Default BGE input limit, including special tokens. */
 export const DEFAULT_DENSE_MAX_TOKENS = 512
 
@@ -47,6 +49,9 @@ export interface DenseEncoderLoadOptions {
   readonly revision?: string
   readonly dtype?: 'q8'
   readonly maxTokens?: number
+  readonly dimensions?: number
+  readonly queryPrefix?: string
+  readonly modelFile?: string
 }
 
 /** Factory seam used to verify model loading without downloading weights. */
@@ -58,19 +63,26 @@ function resolvedOptions(options: DenseEncoderLoadOptions): Required<DenseEncode
   const resolved = {
     cacheDir: options.cacheDir,
     localFilesOnly: options.localFilesOnly,
-    modelId: options.modelId ?? BGE_SMALL_EN_MODEL_ID,
-    revision: options.revision ?? BGE_SMALL_EN_REVISION,
+    modelId: options.modelId ?? BGE_M3_MODEL_ID,
+    revision: options.revision ?? BGE_M3_REVISION,
     dtype: options.dtype ?? BGE_DENSE_DTYPE,
     maxTokens: options.maxTokens ?? DEFAULT_DENSE_MAX_TOKENS,
+    dimensions: options.dimensions ?? DENSE_DIMENSIONS,
+    queryPrefix: options.queryPrefix ?? BGE_QUERY_PREFIX,
+    modelFile: options.modelFile ?? BGE_DENSE_MODEL_FILE,
   } as const
   if (resolved.cacheDir.trim().length === 0) throw new TypeError('knowledge-local: dense cacheDir must be non-empty')
   if (resolved.modelId.trim().length === 0) throw new TypeError('knowledge-local: dense modelId must be non-empty')
   if (!/^[a-f0-9]{40}$/u.test(resolved.revision)) {
     throw new TypeError('knowledge-local: dense revision must be a full lowercase commit SHA')
   }
-  if (!Number.isSafeInteger(resolved.maxTokens) || resolved.maxTokens < 1 || resolved.maxTokens > 512) {
-    throw new TypeError('knowledge-local: dense maxTokens must be an integer from 1 through 512')
+  if (!Number.isSafeInteger(resolved.maxTokens) || resolved.maxTokens < 1 || resolved.maxTokens > 8192) {
+    throw new TypeError('knowledge-local: dense maxTokens must be an integer from 1 through 8192')
   }
+  if (!Number.isSafeInteger(resolved.dimensions) || resolved.dimensions < 1) {
+    throw new TypeError('knowledge-local: dense dimensions must be a positive safe integer')
+  }
+  if (resolved.modelFile !== BGE_DENSE_MODEL_FILE) throw new TypeError('knowledge-local: dense modelFile is unsupported')
   return resolved
 }
 
@@ -78,16 +90,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function tensorData(output: DenseTensorOutput, rows: number): Float32Array {
+function tensorData(output: DenseTensorOutput, rows: number, dimensions: number): Float32Array {
   if (output.type !== 'float32') throw new TypeError('knowledge-local: Dense model output must be float32')
-  if (output.dims.length !== 2 || output.dims[0] !== rows || output.dims[1] !== DENSE_DIMENSIONS) {
-    throw new TypeError(`knowledge-local: Dense model output must have dimensions [${rows}, ${DENSE_DIMENSIONS}]`)
+  if (output.dims.length !== 2 || output.dims[0] !== rows || output.dims[1] !== dimensions) {
+    throw new TypeError(`knowledge-local: Dense model output must have dimensions [${rows}, ${dimensions}]`)
   }
   if (!(output.data instanceof Float32Array)) {
     throw new TypeError('knowledge-local: Dense model output data must be Float32Array')
   }
   const vectors = new Float32Array(output.data)
-  validateDenseVectors(vectors, rows, DENSE_DIMENSIONS, 'knowledge-local: Dense model output')
+  validateDenseVectors(vectors, rows, dimensions, 'knowledge-local: Dense model output')
   return vectors
 }
 
@@ -124,6 +136,8 @@ export class DenseEncoder {
   constructor(
     private readonly extractor: DenseFeatureExtractor,
     private readonly maxTokens: number,
+    readonly dimensions: number = DENSE_DIMENSIONS,
+    private readonly queryPrefix: string = BGE_QUERY_PREFIX,
   ) {}
 
   /**
@@ -139,7 +153,7 @@ export class DenseEncoder {
       truncation: true,
       maxLength: this.maxTokens,
     })
-    return tensorData(output, texts.length)
+    return tensorData(output, texts.length, this.dimensions)
   }
 
   /**
@@ -148,8 +162,8 @@ export class DenseEncoder {
    * @returns one normalized query embedding.
    */
   async embedQuery(query: string): Promise<Float32Array> {
-    const vectors = await this.embedDocuments([`${BGE_QUERY_PREFIX}${query}`])
-    return vectors.slice(0, DENSE_DIMENSIONS)
+    const vectors = await this.embedDocuments([`${this.queryPrefix}${query}`])
+    return vectors.slice(0, this.dimensions)
   }
 
   /** Release the underlying model resources. */
@@ -169,5 +183,5 @@ export async function loadDenseEncoder(
   factory: DenseFeatureExtractorFactory = loadTransformersFeatureExtractor,
 ): Promise<DenseEncoder> {
   const resolved = resolvedOptions(options)
-  return new DenseEncoder(await factory(resolved), resolved.maxTokens)
+  return new DenseEncoder(await factory(resolved), resolved.maxTokens, resolved.dimensions, resolved.queryPrefix)
 }

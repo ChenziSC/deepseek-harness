@@ -3,13 +3,24 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import {
-  DEFAULT_BM25_B,
-  DEFAULT_BM25_K1,
+  DEFAULT_ALLOWED_DENSE_INDEXES,
+  DEFAULT_ALLOWED_RETRIEVAL,
   DEFAULT_CANDIDATE_COUNT,
+  DEFAULT_RERANKER_CANDIDATE_COUNT,
+  DEFAULT_DENSE_INDEX,
+  DEFAULT_RERANK,
+  DEFAULT_RETRIEVAL,
   type LocalKnowledgeConfig,
 } from './config.ts'
 import { DEFAULT_RRF_K } from './hybrid.ts'
-import { BGE_DENSE_DTYPE, DEFAULT_DENSE_MAX_TOKENS } from './model-runtime.ts'
+import { DENSE_DIMENSIONS } from './dense.ts'
+import { DEFAULT_HNSW_EXPANSION_SEARCH } from './hnsw.ts'
+import {
+  BGE_DENSE_DTYPE,
+  BGE_DENSE_MODEL_FILE,
+  BGE_QUERY_PREFIX,
+  DEFAULT_DENSE_MAX_TOKENS,
+} from './model-runtime.ts'
 import LocalKnowledgeProvider from './provider.ts'
 import {
   BGE_RERANKER_DTYPE,
@@ -18,7 +29,7 @@ import {
   DEFAULT_RERANKER_BATCH_SIZE,
   DEFAULT_RERANKER_MAX_TOKENS,
 } from './reranker.ts'
-import { BGE_SMALL_EN_MODEL_ID, BGE_SMALL_EN_REVISION } from './tokenizer.ts'
+import { BGE_M3_MODEL_ID, BGE_M3_REVISION } from './tokenizer.ts'
 
 /** Loader configuration for local BM25, Dense, and Hybrid retrieval. */
 export type Config = LocalKnowledgeConfig
@@ -26,17 +37,25 @@ export type Config = LocalKnowledgeConfig
 /** Schemastery loader schema for local BM25, Dense, and Hybrid retrieval. */
 export const Config: z<Config> = z.object({
   indexDir: z.string().required(),
-  mode: z.union(['bm25', 'dense', 'hybrid'] as const).default('bm25'),
-  rerank: z.boolean().default(false),
+  verifyPayloadHashes: z.boolean().default(false),
+  defaultRetrieval: z.union(['bm25', 'dense', 'hybrid'] as const).default(DEFAULT_RETRIEVAL),
+  defaultDenseIndex: z.union(['auto', 'exact', 'hnsw'] as const).default(DEFAULT_DENSE_INDEX),
+  defaultRerank: z.union(['on', 'off'] as const).default(DEFAULT_RERANK),
+  allowedRetrieval: z.array(z.union(['bm25', 'dense', 'hybrid'] as const)).min(1).default([...DEFAULT_ALLOWED_RETRIEVAL]),
+  allowedDenseIndexes: z.array(z.union(['exact', 'hnsw'] as const)).default([...DEFAULT_ALLOWED_DENSE_INDEXES]),
+  allowedRerank: z.boolean().default(true),
   candidateCount: z.number().step(1).min(1).default(DEFAULT_CANDIDATE_COUNT),
-  bm25K1: z.number().default(DEFAULT_BM25_K1),
-  bm25B: z.number().min(0).max(1).default(DEFAULT_BM25_B),
+  rerankerCandidateCount: z.number().step(1).min(1).default(DEFAULT_RERANKER_CANDIDATE_COUNT),
   rrfK: z.number().step(1).min(1).default(DEFAULT_RRF_K),
   modelCacheDir: z.string(),
-  denseModelId: z.string().default(BGE_SMALL_EN_MODEL_ID),
-  denseModelRevision: z.string().default(BGE_SMALL_EN_REVISION),
+  denseModelId: z.string().default(BGE_M3_MODEL_ID),
+  denseModelRevision: z.string().default(BGE_M3_REVISION),
   denseDtype: z.const(BGE_DENSE_DTYPE).default(BGE_DENSE_DTYPE),
-  denseMaxTokens: z.number().step(1).min(1).max(512).default(DEFAULT_DENSE_MAX_TOKENS),
+  denseModelFile: z.const(BGE_DENSE_MODEL_FILE).default(BGE_DENSE_MODEL_FILE),
+  denseDimensions: z.number().step(1).min(1).default(DENSE_DIMENSIONS),
+  denseQueryPrefix: z.string().default(BGE_QUERY_PREFIX),
+  hnswExpansionSearch: z.number().step(1).min(1).default(DEFAULT_HNSW_EXPANSION_SEARCH),
+  denseMaxTokens: z.number().step(1).min(1).max(8192).default(DEFAULT_DENSE_MAX_TOKENS),
   rerankerModelId: z.string().default(BGE_RERANKER_MODEL_ID),
   rerankerModelRevision: z.string().default(BGE_RERANKER_REVISION),
   rerankerDtype: z.const(BGE_RERANKER_DTYPE).default(BGE_RERANKER_DTYPE),
@@ -44,8 +63,17 @@ export const Config: z<Config> = z.object({
   rerankerMaxTokens: z.number().step(1).min(1).max(512).default(DEFAULT_RERANKER_MAX_TOKENS),
 })
 
-export { analyzeEnglishV1, buildBm25Index, explainBm25, searchBm25 } from './bm25.ts'
-export { compareCodePoints } from './bm25.ts'
+export {
+  analyzeBm25,
+  analyzeEnglishV1,
+  analyzeMixedZhEnV1,
+  buildBm25Index,
+  compareCodePoints,
+  ENGLISH_ANALYZER,
+  explainBm25,
+  MIXED_ZH_EN_ANALYZER,
+  searchBm25,
+} from './bm25.ts'
 export type {
   Bm25DiagnosticMatch,
   Bm25Diagnostics,
@@ -54,17 +82,31 @@ export type {
   Bm25Posting,
   Bm25Term,
   Bm25TermContribution,
+  KnowledgeBm25Analyzer,
 } from './bm25.ts'
 export { chunkDocuments } from './chunker.ts'
 export type { ChunkRecord, ChunkingOptions } from './chunker.ts'
 export { resolveConfig } from './config.ts'
+export {
+  DEFAULT_ALLOWED_DENSE_INDEXES,
+  DEFAULT_ALLOWED_RETRIEVAL,
+  DEFAULT_DENSE_INDEX,
+  DEFAULT_RERANKER_CANDIDATE_COUNT,
+  DEFAULT_RERANK,
+  DEFAULT_RETRIEVAL,
+} from './config.ts'
 export type { LocalKnowledgeConfig, ResolvedConfig } from './config.ts'
 export {
   CorpusFormatError,
+  parseCorpusDocumentLine,
   parseCorpusJsonl,
+  parseMldrQueriesJsonl,
   parseSciFactCorpusJsonl,
   parseSciFactQrelsTsv,
   parseSciFactQueriesJsonl,
+  parseT2RankingQrelsTsv,
+  parseT2RankingQueriesTsv,
+  parseTrecQrelsTsv,
 } from './corpus.ts'
 export type {
   CorpusDocument,
@@ -82,7 +124,7 @@ export type { DenseMatch } from './dense.ts'
 export {
   calculateMetrics,
   evaluateMatrix,
-  evaluateSciFact,
+  evaluateDataset,
   nearestRank,
   renderEvaluationReport,
 } from './evaluation.ts'
@@ -93,23 +135,44 @@ export type {
   EvaluationProviderFactory,
   EvaluationReport,
   EvaluationRun,
-  EvaluateSciFactOptions,
+  EvaluateDatasetOptions,
 } from './evaluation.ts'
 export { DEFAULT_RRF_K, fuseRrf } from './hybrid.ts'
 export type { HybridMatch } from './hybrid.ts'
-export { buildBm25KnowledgeIndex, buildKnowledgeIndex } from './index-builder.ts'
+export {
+  DEFAULT_HNSW_CONNECTIVITY,
+  DEFAULT_HNSW_EXPANSION_ADD,
+  DEFAULT_HNSW_EXPANSION_SEARCH,
+  HNSW_FILE,
+  HnswBuilder,
+  HnswIndex,
+  USEARCH_VERSION,
+} from './hnsw.ts'
+export type { HnswBuildOptions } from './hnsw.ts'
+export { buildBm25KnowledgeIndex, buildKnowledgeIndex, createDenseIndexBuildPlan } from './index-builder.ts'
+export { DEFAULT_EXACT_SCAN_MAX_ELEMENTS, DEFAULT_SQLITE_BATCH_SIZE } from './index-builder.ts'
 export type {
   BuildBm25IndexOptions,
   BuildDenseIndexOptions,
   BuildKnowledgeIndexOptions,
+  DenseIndexBuildPlan,
+  DenseIndexMode,
+  DenseIndexRequest,
 } from './index-builder.ts'
-export { loadKnowledgeIndex } from './index-format.ts'
+export { loadDenseVectors, loadKnowledgeIndex, verifyKnowledgeIndex } from './index-format.ts'
 export type {
   DenseIndexManifest,
+  HnswIndexManifest,
   KnowledgeIndexManifest,
+  LoadKnowledgeIndexOptions,
   LoadedKnowledgeIndex,
   PayloadManifest,
 } from './index-format.ts'
+export {
+  KNOWLEDGE_SQLITE_FILE,
+  KNOWLEDGE_SQLITE_SCHEMA_VERSION,
+  KnowledgeSqliteIndex,
+} from './sqlite-index.ts'
 export {
   BGE_DENSE_DTYPE,
   BGE_QUERY_PREFIX,
@@ -117,13 +180,30 @@ export {
   DenseEncoder,
   loadDenseEncoder,
 } from './model-runtime.ts'
+export { resolveKnowledgeSearchStrategy } from './strategy.ts'
+export type { KnowledgeSearchCapabilities, KnowledgeSearchPolicy } from './strategy.ts'
 export {
   extractSciFactArchive,
+  downloadDatasetFile,
+  HUGGING_FACE_ENDPOINT,
+  MLQA_RETRIEVAL_REVISION,
+  MLDR_REVISION,
+  convertMlqaRetrievalRows,
+  prepareMlqaEngZho,
+  prepareMldr,
   prepareSciFact,
+  prepareT2Ranking,
   SCIFACT_MD5,
   SCIFACT_URL,
+  T2RANKING_REVISION,
 } from './prepare.ts'
-export type { PrepareDependencies, PrepareResult } from './prepare.ts'
+export type {
+  DatasetDownloader,
+  PreparedDataset,
+  PreparedDatasetFile,
+  PrepareDependencies,
+  PrepareResult,
+} from './prepare.ts'
 export {
   BGE_RERANKER_DTYPE,
   BGE_RERANKER_MODEL_ID,
@@ -149,6 +229,8 @@ export type {
   DenseTensorOutput,
 } from './model-runtime.ts'
 export {
+  BGE_M3_MODEL_ID,
+  BGE_M3_REVISION,
   BGE_SMALL_EN_MODEL_ID,
   BGE_SMALL_EN_REVISION,
   loadBgeChunkTokenizer,

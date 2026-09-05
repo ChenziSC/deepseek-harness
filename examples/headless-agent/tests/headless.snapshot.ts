@@ -38,6 +38,11 @@ const compactionScenarioDir = join(snapshotsDir, 'compaction-recovery')
 const compactionSessionFixture = join(compactionScenarioDir, 'session.jsonl')
 const compactionStreamExpected = join(compactionScenarioDir, 'stream-json.expected.jsonl')
 const compactionConfigPath = fileURLToPath(new URL('../compaction.cordis.snapshot.yml', import.meta.url))
+const knowledgeScenarioDir = join(snapshotsDir, 'knowledge-search')
+const knowledgeSessionFixture = join(knowledgeScenarioDir, 'session.jsonl')
+const knowledgeStreamExpected = join(knowledgeScenarioDir, 'stream-json.expected.jsonl')
+const knowledgeConfigPath = fileURLToPath(new URL('../knowledge.cordis.snapshot.yml', import.meta.url))
+const knowledgeIndexDir = fileURLToPath(new URL('../../rag-knowledge/index', import.meta.url))
 const credentialsScenarioDir = join(snapshotsDir, 'missing-credential')
 const credentialsConfigPath = fileURLToPath(new URL('../credentials.cordis.snapshot.yml', import.meta.url))
 // Same keyless composition as the missing-credential scenario: the endpoint is
@@ -421,6 +426,72 @@ describe('headless stream-json snapshots', () => {
     const normalized = normalizeHeadlessStream(result.stdout, runCwd)
     if (refreshing) await writeFile(compactionStreamExpected, normalized)
     expect(normalized).toBe(await readFile(compactionStreamExpected, 'utf8'))
+  }, LOADER_SMOKE_TEST_TIMEOUT_MS)
+
+  it('retrieves cited evidence through the assembled knowledge tool', async () => {
+    const prompt = await scenarioPrompt(knowledgeScenarioDir, 'knowledge-search')
+    let expectedSession = await readFile(knowledgeSessionFixture, 'utf8')
+    let runCwd = ''
+    const result = await runLoaderSmoke({
+      label: 'knowledge search headless stream-json snapshot',
+      tempDirPrefix: 'headless-snapshot-knowledge-search-',
+      binScript,
+      libBinScript: binScript,
+      configPath: knowledgeConfigPath,
+      binArgs: [knowledgeConfigPath, prompt],
+      tsconfigPath,
+      env: {
+        DSH_SNAPSHOT: 'replay',
+        DSH_SNAPSHOT_FILE: knowledgeSessionFixture,
+        DSH_KNOWLEDGE_INDEX_DIR: knowledgeIndexDir,
+        NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
+      },
+      prepare: (cwd) => { runCwd = cwd },
+      inspect: async (cwd) => {
+        const logs = await persistedLogs(cwd)
+        expect(logs).toHaveLength(1)
+        const actual = logs[0]
+        if (actual === undefined) throw new Error('knowledge search snapshot did not persist its session')
+        const records = parseJsonl(actual.content)
+        const header = records.find(record => record.type === 'request/header')
+        const request = (header?.data as JsonObject | undefined)?.header as JsonObject | undefined
+        expect(request?.system).toContain('Use knowledge_search when the configured knowledge base may contain evidence')
+        expect(request?.tools).toEqual(expect.arrayContaining([
+          expect.objectContaining({ name: 'knowledge_search' }),
+        ]))
+        const toolCall = records.find(record => record.type === 'tool/call')
+        const toolCallData = toolCall?.data as JsonObject | undefined
+        expect(toolCallData?.name).toBe('knowledge_search')
+        expect(toolCallData?.arguments).toBe('{"query":"What converts light energy in plants?"}')
+        const toolResult = records.find(record => record.type === 'tool/result')
+        expect(JSON.stringify(toolResult)).toContain('[K1]\\nDocument: photosynthesis')
+        expect(JSON.stringify(toolResult)).not.toContain('"score"')
+        const final = [...records].reverse().find(record => record.type === 'assistant/message')
+        expect(JSON.stringify(final)).toContain('Photosynthesis converts light energy into chemical energy in plants [K1].')
+
+        const actualContext = contextFromLogs([actual.content])
+        if (refreshing) {
+          const harvested: HarvestedLog = {
+            id: String(actual.header.id),
+            createdAt: Number(actual.header.createdAt),
+            content: actual.content,
+          }
+          const replacements = refreshFixtureReplacements([harvested], [expectedSession])
+          expectedSession = projectSessionFixture(tokenizeSessionFixtureCwd(
+            stabilizeRefreshLog(actual.content, expectedSession, replacements, actualContext),
+          ))
+          await writeFile(knowledgeSessionFixture, expectedSession)
+        }
+        const expectedContext = contextFromLogs([expectedSession])
+        expect(normalizeSessionSnapshot(actual.content, actualContext))
+          .toBe(normalizeSessionSnapshot(expectedSession, expectedContext))
+      },
+    })
+
+    expect(result.stderr).toBe('')
+    const normalized = normalizeHeadlessStream(result.stdout, runCwd)
+    if (refreshing) await writeFile(knowledgeStreamExpected, normalized)
+    expect(normalized).toBe(await readFile(knowledgeStreamExpected, 'utf8'))
   }, LOADER_SMOKE_TEST_TIMEOUT_MS)
 
   it('logs actionable missing-credential guidance through the one-shot app', async () => {

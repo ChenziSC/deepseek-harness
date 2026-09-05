@@ -50,6 +50,7 @@ describe('Dense exact retrieval', () => {
       { ordinal: 2, score: 0 },
       { ordinal: 3, score: -1 },
     ])
+    expect(searchDense(vectors, query, undefined, DENSE_DIMENSIONS, 2).map(match => match.ordinal)).toEqual([0, 1])
   })
 
   it('rejects invalid vectors and observes cancellation', () => {
@@ -62,6 +63,38 @@ describe('Dense exact retrieval', () => {
     const controller = new AbortController()
     controller.abort()
     expect(() => searchDense(unitVector(0), unitVector(0), ['chunk'], DENSE_DIMENSIONS, 1, controller.signal))
+      .toThrow('cancelled')
+  })
+
+  it('rejects invalid dimensions, lengths, normalization, and scores', () => {
+    expect(() => { validateDenseVectors(new Float32Array(), -1, 1, 'fixture') }).toThrow('row count is invalid')
+    expect(() => { validateDenseVectors(new Float32Array(), 0, 0, 'fixture') }).toThrow('dimensions are invalid')
+    expect(() => { validateDenseVectors(new Float32Array(), 1, 1, 'fixture') }).toThrow('do not match its data length')
+    expect(() => { validateDenseVectors(new Float32Array([0]), 1, 1, 'fixture') }).toThrow('not L2-normalized')
+    expect(() => searchDense(unitVector(0), unitVector(0), ['chunk'], DENSE_DIMENSIONS, 0))
+      .toThrow('dense limit must be positive')
+    expect(() => searchDense(unitVector(0), unitVector(0), ['chunk'], 0, 1))
+      .toThrow('dense dimensions are invalid')
+    expect(() => searchDense(new Float32Array(DENSE_DIMENSIONS + 1), unitVector(0), undefined, DENSE_DIMENSIONS, 1))
+      .toThrow('dense index dimensions do not match its data length')
+    expect(() => searchDense(unitVector(0), unitVector(0), [], DENSE_DIMENSIONS, 1))
+      .toThrow('dense index dimensions do not match its data length')
+
+    const invalidIndex = unitVector(0)
+    invalidIndex[1] = Number.NaN
+    expect(() => searchDense(invalidIndex, unitVector(0), ['chunk'], DENSE_DIMENSIONS, 1))
+      .toThrow('dense index contains a non-finite value')
+  })
+
+  it('checks cancellation after scanning', () => {
+    let reads = 0
+    const signal = {
+      get aborted() {
+        reads += 1
+        return reads === 2
+      },
+    } as AbortSignal
+    expect(() => searchDense(unitVector(0), unitVector(0), ['chunk'], DENSE_DIMENSIONS, 1, signal))
       .toThrow('cancelled')
   })
 })

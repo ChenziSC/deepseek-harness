@@ -30,21 +30,57 @@ export interface ChunkingOptions {
 function codePointBoundaries(text: string, start: number, end: number): number[] {
   const boundaries = [start]
   for (let index = start; index < end;) {
-    const point = text.codePointAt(index)
-    index += point !== undefined && point > 0xffff ? 2 : 1
+    index += (text.codePointAt(index) as number) > 0xffff ? 2 : 1
     boundaries.push(index)
   }
   return boundaries
 }
 
-function fitEnd(text: string, start: number, maxTokens: number, tokenizer: ChunkTokenizer): number {
-  const boundaries = codePointBoundaries(text, start, text.length)
-  let low = 1
+function boundaryIndex(boundaries: readonly number[], offset: number): number {
+  let low = 0
   let high = boundaries.length - 1
-  let best = boundaries[1] ?? text.length
   while (low <= high) {
     const middle = Math.floor((low + high) / 2)
-    const candidate = boundaries[middle] ?? text.length
+    const candidate = boundaries[middle] as number
+    if (candidate === offset) return middle
+    if (candidate < offset) low = middle + 1
+    else high = middle - 1
+  }
+  /* v8 ignore next -- every caller supplies offsets produced from this boundary array. */
+  throw new TypeError('knowledge-local: chunk boundary is not a Unicode code-point boundary')
+}
+
+function fitEnd(
+  text: string,
+  start: number,
+  startBoundary: number,
+  boundaries: readonly number[],
+  maxTokens: number,
+  tokenizer: ChunkTokenizer,
+): number {
+  const finalBoundary = boundaries.length - 1
+  let low = startBoundary + 1
+  let high = Math.min(finalBoundary, startBoundary + maxTokens)
+  let best = boundaries[low] as number
+  // Grow a local window before binary search so tokenizer work stays proportional to one chunk.
+  if (tokenizer.countTokens(text.slice(start, boundaries[high])) <= maxTokens) {
+    best = boundaries[high] as number
+    while (high < finalBoundary) {
+      const width = high - startBoundary
+      const candidate = Math.min(finalBoundary, startBoundary + width * 2)
+      if (tokenizer.countTokens(text.slice(start, boundaries[candidate])) > maxTokens) {
+        low = high + 1
+        high = candidate - 1
+        break
+      }
+      best = boundaries[candidate] as number
+      high = candidate
+    }
+    if (high === finalBoundary) return best
+  }
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2)
+    const candidate = boundaries[middle] as number
     if (tokenizer.countTokens(text.slice(start, candidate)) <= maxTokens) {
       best = candidate
       low = middle + 1
@@ -55,15 +91,22 @@ function fitEnd(text: string, start: number, maxTokens: number, tokenizer: Chunk
   return best
 }
 
-function overlapStart(text: string, start: number, end: number, overlapTokens: number, tokenizer: ChunkTokenizer): number {
+function overlapStart(
+  text: string,
+  startBoundary: number,
+  endBoundary: number,
+  boundaries: readonly number[],
+  overlapTokens: number,
+  tokenizer: ChunkTokenizer,
+): number {
+  const end = boundaries[endBoundary] as number
   if (overlapTokens === 0) return end
-  const boundaries = codePointBoundaries(text, start, end)
-  let low = 0
-  let high = boundaries.length - 1
+  let low = startBoundary
+  let high = endBoundary
   let best = end
   while (low <= high) {
     const middle = Math.floor((low + high) / 2)
-    const candidate = boundaries[middle] ?? end
+    const candidate = boundaries[middle] as number
     if (tokenizer.countTokens(text.slice(candidate, end)) <= overlapTokens) {
       best = candidate
       high = middle - 1
@@ -110,20 +153,24 @@ function skipWhitespaceBackward(text: string, start: number, end: number): numbe
 }
 
 function chunkDocument(document: CorpusDocument, tokenizer: ChunkTokenizer, options: ChunkingOptions): Omit<ChunkRecord, 'ordinal'>[] {
+  const boundaries = codePointBoundaries(document.text, 0, document.text.length)
   const paragraphEnds = boundaryEnds(document.text, /\n[\t ]*\n+/gu).map(end => skipWhitespaceBackward(document.text, 0, end))
   const sentenceEnds = boundaryEnds(document.text, /[.!?。！？](?=\s|$)/gu)
   const records: Omit<ChunkRecord, 'ordinal'>[] = []
   let start = skipWhitespaceForward(document.text, 0)
+  let startBoundary = boundaryIndex(boundaries, start)
+  let startToken = 0
   let previousEnd = start
   while (start < document.text.length) {
-    const hardEnd = fitEnd(document.text, start, options.maxTokens, tokenizer)
+    const hardEnd = fitEnd(document.text, start, startBoundary, boundaries, options.maxTokens, tokenizer)
     const chosen = preferredEnd(paragraphEnds, previousEnd, hardEnd)
       ?? preferredEnd(sentenceEnds, previousEnd, hardEnd)
       ?? hardEnd
     const end = skipWhitespaceBackward(document.text, start, chosen)
+    /* v8 ignore next -- validated non-whitespace starts and code-point boundaries make this an internal invariant. */
     if (end <= start) throw new TypeError('knowledge-local: tokenizer could not produce a non-empty chunk')
-    const startToken = tokenizer.countTokens(document.text.slice(0, start))
-    const endToken = tokenizer.countTokens(document.text.slice(0, end))
+    // Transformers.js exposes token counts but not source offsets, so positions accumulate from bounded local slices.
+    const endToken = startToken + Math.max(1, tokenizer.countTokens(document.text.slice(start, end)))
     records.push({
       id: KnowledgeChunkId(`${encodeURIComponent(document.id)}:${startToken}-${endToken}`),
       documentId: document.id,
@@ -134,11 +181,21 @@ function chunkDocument(document: CorpusDocument, tokenizer: ChunkTokenizer, opti
       endToken,
     })
     if (end >= document.text.length) break
-    let nextStart = overlapStart(document.text, start, end, options.overlapTokens, tokenizer)
+    let nextStart = overlapStart(
+      document.text,
+      startBoundary,
+      boundaryIndex(boundaries, end),
+      boundaries,
+      options.overlapTokens,
+      tokenizer,
+    )
     nextStart = skipWhitespaceForward(document.text, nextStart)
     if (nextStart <= start) nextStart = skipWhitespaceForward(document.text, end)
+    const overlapTokenCount = tokenizer.countTokens(document.text.slice(nextStart, end))
     previousEnd = end
     start = nextStart
+    startBoundary = boundaryIndex(boundaries, start)
+    startToken = Math.max(startToken + 1, endToken - overlapTokenCount)
   }
   return records
 }
@@ -165,7 +222,6 @@ export function chunkDocuments(
   return ordered
     .flatMap(document => chunkDocument(document, tokenizer, options))
     .sort((left, right) => compareCodePoints(left.documentId, right.documentId)
-      || left.startToken - right.startToken
-      || left.endToken - right.endToken)
+      || left.startToken - right.startToken)
     .map((record, ordinal) => ({ ordinal, ...record }))
 }

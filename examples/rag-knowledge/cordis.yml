@@ -4,8 +4,9 @@
       name: '@deepseek-ai/dsh-experimental-knowledge-local'
       config:
         indexDir: ./examples/rag-knowledge/index
-        mode: bm25
-        rerank: false
+        defaultRetrieval: bm25
+        allowedRetrieval: [bm25]
+        allowedRerank: false
         candidateCount: 5
     - id: tool-knowledge
       name: '@deepseek-ai/dsh-experimental-tool-knowledge'

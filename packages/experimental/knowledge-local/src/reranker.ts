@@ -174,7 +174,7 @@ export class Reranker {
    * Rerank candidates by raw sequence-classification logit.
    * @param query - natural-language query.
    * @param candidates - recall candidates in stable input order.
-   * @param chunks - ordinal-aligned indexed chunks.
+   * @param chunks - ordinal-aligned indexed chunks or a candidate-only ordinal map.
    * @param batchSize - positive number of pairs per inference.
    * @param signal - optional cooperative cancellation signal.
    * @returns candidates ordered by descending logit and original rank.
@@ -182,7 +182,7 @@ export class Reranker {
   async rerank(
     query: string,
     candidates: readonly RerankMatch[],
-    chunks: readonly KnowledgeHit[],
+    chunks: readonly KnowledgeHit[] | ReadonlyMap<number, KnowledgeHit>,
     batchSize: number,
     signal?: AbortSignal,
   ): Promise<RerankMatch[]> {
@@ -194,7 +194,9 @@ export class Reranker {
       throwIfCancelled(signal)
       const batch = candidates.slice(start, start + batchSize)
       const documents = batch.map((candidate) => {
-        const chunk = chunks[candidate.ordinal]
+        const chunk = Array.isArray(chunks)
+          ? (chunks as readonly KnowledgeHit[])[candidate.ordinal]
+          : (chunks as ReadonlyMap<number, KnowledgeHit>).get(candidate.ordinal)
         if (chunk === undefined) throw new TypeError('knowledge-local: reranker candidate ordinal is out of range')
         return candidateText(chunk)
       })
@@ -209,7 +211,7 @@ export class Reranker {
       for (const [index, candidate] of batch.entries()) {
         scored.push({
           ordinal: candidate.ordinal,
-          score: batchLogits[index] ?? Number.NaN,
+          score: batchLogits[index] as number,
           sourceRank: start + index,
         })
       }

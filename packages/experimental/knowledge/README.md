@@ -16,9 +16,9 @@ interface Knowledge {
 }
 ```
 
-`request.query` must be non-empty and `request.maxResults` must be a positive integer. A hit carries its source document and chunk identifiers, optional title and source label, original chunk text, and a finite score comparable only within that response.
+`request.query` must be non-empty and `request.maxResults` must be a positive integer. `request.strategy` may request BM25, Dense, or Hybrid recall, an automatic or concrete Dense index, and automatic, enabled, or disabled reranking. Providers apply deployment policy and return the executed high-level strategy with the ranked hits. A hit carries its source document and chunk identifiers, optional title and source label, original chunk text, and a finite score comparable only within that response.
 
-`KnowledgeError` exposes `KNOWLEDGE_INVALID_REQUEST`, `KNOWLEDGE_CANCELLED`, and `KNOWLEDGE_SEARCH_FAILED`. Provider-specific file and model details remain internal.
+`KnowledgeError` exposes `KNOWLEDGE_INVALID_REQUEST`, `KNOWLEDGE_STRATEGY_NOT_ALLOWED`, `KNOWLEDGE_CANCELLED`, and `KNOWLEDGE_SEARCH_FAILED`. Provider-specific file and model details remain internal.
 
 ## Composition
 
@@ -35,5 +35,5 @@ No direct invalidation; each Consumer owns any request-prefix changes.
 ## Known Limitations and Deferred Work
 
 - The first contract supports one read-only knowledge source per Cordis context.
-- It has no write, collection-selection, provider-selection, or algorithm-diagnostic API.
+- It has no write, collection-selection, provider-selection, or provider-specific tuning and diagnostic API.
 - The API is experimental and carries no compatibility promise.

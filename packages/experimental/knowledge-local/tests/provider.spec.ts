@@ -3,18 +3,21 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import {
-  BGE_SMALL_EN_MODEL_ID,
-  BGE_SMALL_EN_REVISION,
+  BGE_M3_MODEL_ID,
+  BGE_M3_REVISION,
   DENSE_DIMENSIONS,
   DenseEncoder,
   LocalKnowledge,
   Reranker,
   buildKnowledgeIndex,
+  loadKnowledgeIndex,
   resolveConfig,
   type ChunkTokenizer,
   type DenseFeatureExtractor,
+  type LocalKnowledgeConfig,
   type RerankerBackend,
 } from '@deepseek-ai/dsh-experimental-knowledge-local'
+import type { KnowledgeRetrieval } from '@deepseek-ai/dsh-experimental-knowledge'
 import { afterEach, describe, expect, it } from 'vitest'
 
 const temporaryDirectories: string[] = []
@@ -23,6 +26,20 @@ const whitespaceTokenizer: ChunkTokenizer = {
   countTokens(text) {
     return text.match(/\S+/gu)?.length ?? 0
   },
+}
+
+function fixedStrategy(
+  retrieval: KnowledgeRetrieval,
+  rerank = false,
+): Pick<LocalKnowledgeConfig, 'defaultRetrieval' | 'defaultDenseIndex' | 'defaultRerank' | 'allowedRetrieval' | 'allowedDenseIndexes' | 'allowedRerank'> {
+  return {
+    defaultRetrieval: retrieval,
+    defaultDenseIndex: 'exact',
+    defaultRerank: rerank ? 'on' : 'off',
+    allowedRetrieval: [retrieval],
+    allowedDenseIndexes: ['exact'],
+    allowedRerank: rerank,
+  }
 }
 
 function unitRows(rowCount: number, dimension: number): Float32Array {
@@ -57,7 +74,7 @@ function contentReranker(): Reranker {
   return new Reranker(backend, 512)
 }
 
-async function denseIndex(): Promise<string> {
+async function denseIndex(requestedIndex: 'auto' | 'exact' | 'hnsw' = 'auto'): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-knowledge-provider-'))
   const outputDir = join(root, 'index')
   temporaryDirectories.push(root)
@@ -69,8 +86,6 @@ async function denseIndex(): Promise<string> {
     outputDir,
     tokenizer: whitespaceTokenizer,
     chunking: { maxTokens: 8, overlapTokens: 0 },
-    bm25K1: 1.2,
-    bm25B: 0.75,
     dense: {
       encoder: {
         embedDocuments(texts) {
@@ -82,9 +97,10 @@ async function denseIndex(): Promise<string> {
         },
       },
       batchSize: 2,
-      modelId: BGE_SMALL_EN_MODEL_ID,
-      revision: BGE_SMALL_EN_REVISION,
+      modelId: BGE_M3_MODEL_ID,
+      revision: BGE_M3_REVISION,
       dtype: 'q8',
+      denseIndex: requestedIndex,
     },
   })
   return outputDir
@@ -96,6 +112,94 @@ afterEach(async () => {
 })
 
 describe('LocalKnowledge model-backed modes', () => {
+  it('executes explicit HNSW Dense retrieval without loading Exact vectors', async () => {
+    class TestKnowledge extends LocalKnowledge {
+      protected override createDenseEncoder(): Promise<DenseEncoder> {
+        return Promise.resolve(queryEncoder(0))
+      }
+    }
+    const context = new Context()
+    contexts.push(context)
+    await context.plugin(TestKnowledge, {
+      indexDir: await denseIndex('hnsw'),
+      ...fixedStrategy('dense'),
+      defaultDenseIndex: 'hnsw',
+      allowedDenseIndexes: ['hnsw'],
+      candidateCount: 2,
+      modelCacheDir: '/cache',
+    })
+
+    await expect(context.knowledge.search({ query: 'alpha', maxResults: 1 })).resolves.toMatchObject({
+      strategy: { retrieval: 'dense', denseIndex: 'hnsw', rerank: false },
+      hits: [{ documentId: 'doc-a' }],
+    })
+    await expect(context.knowledge.search({ query: 'alpha', maxResults: 1 })).resolves.toMatchObject({
+      hits: [{ documentId: 'doc-a' }],
+    })
+  })
+
+  it('shares HNSW loading, rejects missing graphs, and observes disposal before publication', async () => {
+    const hnswIndex = await loadKnowledgeIndex(await denseIndex('hnsw'))
+    const context = new Context()
+    contexts.push(context)
+    const provider = new LocalKnowledge(context, {
+      indexDir: '/unused',
+      ...fixedStrategy('bm25'),
+    })
+    const getHnsw = (provider as unknown as {
+      getHnsw(index: typeof hnswIndex): Promise<unknown>
+    }).getHnsw.bind(provider)
+    const first = getHnsw(hnswIndex)
+    const second = getHnsw(hnswIndex)
+    await expect(Promise.all([first, second])).resolves.toHaveLength(2)
+    await expect(getHnsw(hnswIndex)).resolves.toBeDefined()
+    hnswIndex.sqlite.close()
+
+    const exactIndex = await loadKnowledgeIndex(await denseIndex('exact'))
+    const missingProvider = new LocalKnowledge(new Context(), {
+      indexDir: '/unused',
+      ...fixedStrategy('bm25'),
+    })
+    const getMissingHnsw = (missingProvider as unknown as {
+      getHnsw(index: typeof exactIndex): Promise<unknown>
+    }).getHnsw.bind(missingProvider)
+    await expect(getMissingHnsw(exactIndex)).rejects.toThrow('does not contain an HNSW index')
+    exactIndex.sqlite.close()
+
+    const closingIndex = await loadKnowledgeIndex(await denseIndex('hnsw'))
+    const closingContext = new Context()
+    const closingProvider = new LocalKnowledge(closingContext, {
+      indexDir: '/unused',
+      ...fixedStrategy('bm25'),
+    })
+    await closingContext.fiber.dispose()
+    const getClosingHnsw = (closingProvider as unknown as {
+      getHnsw(index: typeof closingIndex): Promise<unknown>
+    }).getHnsw.bind(closingProvider)
+    await expect(getClosingHnsw(closingIndex)).rejects.toThrow('closed')
+    closingIndex.sqlite.close()
+  })
+
+  it('stably orders equal-score HNSW matches by chunk identifier', async () => {
+    class TestKnowledge extends LocalKnowledge {
+      protected override createDenseEncoder(): Promise<DenseEncoder> {
+        return Promise.resolve(queryEncoder(2))
+      }
+    }
+    const context = new Context()
+    contexts.push(context)
+    await context.plugin(TestKnowledge, {
+      indexDir: await denseIndex('hnsw'),
+      ...fixedStrategy('dense'),
+      defaultDenseIndex: 'hnsw',
+      allowedDenseIndexes: ['hnsw'],
+      candidateCount: 2,
+      modelCacheDir: '/cache',
+    })
+    await expect(context.knowledge.search({ query: 'neutral', maxResults: 2 }).then(result => result.hits.map(hit => hit.documentId)))
+      .resolves.toEqual(['doc-a', 'doc-b'])
+  })
+
   it('shares one in-flight model load across concurrent searches', async () => {
     let loadCount = 0
     let completeLoad: ((encoder: DenseEncoder) => void) | undefined
@@ -112,7 +216,7 @@ describe('LocalKnowledge model-backed modes', () => {
     contexts.push(context)
     await context.plugin(TestKnowledge, {
       indexDir: await denseIndex(),
-      mode: 'dense',
+      ...fixedStrategy('dense'),
       modelCacheDir: '/unused-test-cache',
       candidateCount: 2,
     })
@@ -142,7 +246,7 @@ describe('LocalKnowledge model-backed modes', () => {
     contexts.push(context)
     await context.plugin(TestKnowledge, {
       indexDir: await denseIndex(),
-      mode: 'dense',
+      ...fixedStrategy('dense'),
       modelCacheDir: '/unused-test-cache',
       candidateCount: 2,
     })
@@ -165,7 +269,7 @@ describe('LocalKnowledge model-backed modes', () => {
     contexts.push(context)
     await context.plugin(TestKnowledge, {
       indexDir: join(process.cwd(), 'examples/rag-knowledge/index'),
-      mode: 'bm25',
+      ...fixedStrategy('bm25'),
       candidateCount: 2,
     })
 
@@ -174,11 +278,251 @@ describe('LocalKnowledge model-backed modes', () => {
     expect(loadCount).toBe(0)
   })
 
-  it('requires an explicit cache only when Dense or Hybrid mode is selected', () => {
-    expect(() => resolveConfig({ indexDir: './index', mode: 'dense' })).toThrow('modelCacheDir is required')
-    expect(() => resolveConfig({ indexDir: './index', mode: 'hybrid' })).toThrow('modelCacheDir is required')
-    expect(() => resolveConfig({ indexDir: './index', mode: 'bm25', rerank: true })).toThrow('modelCacheDir is required')
-    expect(resolveConfig({ indexDir: './index', mode: 'bm25' }).modelCacheDir).toBeUndefined()
+  it('rejects invalid requests before retrieval', async () => {
+    const context = new Context()
+    contexts.push(context)
+    await context.plugin(LocalKnowledge, {
+      indexDir: join(process.cwd(), 'examples/rag-knowledge/index'),
+      ...fixedStrategy('bm25'),
+      candidateCount: 2,
+    })
+    const aborted = new AbortController()
+    aborted.abort()
+    await expect(context.knowledge.search({ query: 'alpha', maxResults: 1 }, aborted.signal)).rejects.toThrow('cancelled')
+    await expect(context.knowledge.search({ query: ' ', maxResults: 1 })).rejects.toThrow('non-empty query')
+    await expect(context.knowledge.search({ query: 'alpha', maxResults: 0 })).rejects.toThrow('positive result limit')
+    await expect(context.knowledge.search({ query: 'alpha', maxResults: 1.5 })).rejects.toThrow('positive result limit')
+    await expect(context.knowledge.search({ query: 'alpha', maxResults: 3 })).rejects.toThrow('exceeds the configured candidate count')
+  })
+
+  it('rejects index and provider configuration mismatches at activation', async () => {
+    for (const config of [
+      {
+        indexDir: join(process.cwd(), 'examples/rag-knowledge/index'),
+        ...fixedStrategy('dense'),
+        candidateCount: 2,
+        modelCacheDir: '/cache',
+      },
+      {
+        indexDir: await denseIndex(),
+        ...fixedStrategy('dense'),
+        candidateCount: 2,
+        modelCacheDir: '/cache',
+        denseModelId: 'different-model',
+      },
+    ]) {
+      const context = new Context()
+      contexts.push(context)
+      await expect(context.plugin(LocalKnowledge, config)).rejects.toThrow()
+    }
+  })
+
+  it('does not load the reranker when recall returns no candidates', async () => {
+    let rerankerLoads = 0
+    class TestKnowledge extends LocalKnowledge {
+      protected override createReranker(): Promise<Reranker> {
+        rerankerLoads += 1
+        return Promise.resolve(contentReranker())
+      }
+    }
+    const context = new Context()
+    contexts.push(context)
+    await context.plugin(TestKnowledge, {
+      indexDir: join(process.cwd(), 'examples/rag-knowledge/index'),
+      ...fixedStrategy('bm25', true),
+      modelCacheDir: '/cache',
+      candidateCount: 2,
+    })
+    await expect(context.knowledge.search({ query: 'absent-term', maxResults: 1 })).resolves.toEqual({
+      hits: [],
+      strategy: { retrieval: 'bm25', rerank: true },
+    })
+    expect(rerankerLoads).toBe(0)
+  })
+
+  it('observes cancellation after a lazy Dense load', async () => {
+    class TestKnowledge extends LocalKnowledge {
+      protected override createDenseEncoder(): Promise<DenseEncoder> {
+        return Promise.resolve(queryEncoder(0))
+      }
+    }
+    const context = new Context()
+    contexts.push(context)
+    await context.plugin(TestKnowledge, {
+      indexDir: await denseIndex(),
+      ...fixedStrategy('dense'),
+      modelCacheDir: '/cache',
+      candidateCount: 2,
+    })
+    let reads = 0
+    const signal = {
+      get aborted() {
+        reads += 1
+        return reads === 3
+      },
+    } as AbortSignal
+    await expect(context.knowledge.search({ query: 'alpha', maxResults: 1 }, signal)).rejects.toThrow('cancelled')
+  })
+
+  it('disposes a Dense encoder that finishes loading after shutdown', async () => {
+    let complete: ((encoder: DenseEncoder) => void) | undefined
+    let disposals = 0
+    class TestKnowledge extends LocalKnowledge {
+      protected override createDenseEncoder(): Promise<DenseEncoder> {
+        return new Promise((resolve) => { complete = resolve })
+      }
+    }
+    const context = new Context()
+    await context.plugin(TestKnowledge, {
+      indexDir: await denseIndex(),
+      ...fixedStrategy('dense'),
+      modelCacheDir: '/cache',
+      candidateCount: 2,
+    })
+    const search = context.knowledge.search({ query: 'alpha', maxResults: 1 })
+    await Promise.resolve()
+    await context.fiber.dispose()
+    complete?.(new DenseEncoder({
+      extract: texts => Promise.resolve({ type: 'float32', dims: [texts.length, DENSE_DIMENSIONS], data: unitRows(texts.length, 0) }),
+      dispose: () => { disposals += 1; return Promise.resolve() },
+    }, 512))
+    await expect(search).rejects.toThrow('closed')
+    expect(disposals).toBe(1)
+  })
+
+  it('disposes a reranker that finishes loading after shutdown', async () => {
+    let complete: ((reranker: Reranker) => void) | undefined
+    let disposals = 0
+    class TestKnowledge extends LocalKnowledge {
+      protected override createReranker(): Promise<Reranker> {
+        return new Promise((resolve) => { complete = resolve })
+      }
+    }
+    const context = new Context()
+    await context.plugin(TestKnowledge, {
+      indexDir: join(process.cwd(), 'examples/rag-knowledge/index'),
+      ...fixedStrategy('bm25', true),
+      modelCacheDir: '/cache',
+      candidateCount: 2,
+    })
+    const search = context.knowledge.search({ query: 'mitochondria', maxResults: 1 })
+    await Promise.resolve()
+    await context.fiber.dispose()
+    complete?.(new Reranker({
+      scorePairs: (_queries, documents) => Promise.resolve({
+        type: 'float32',
+        dims: [documents.length],
+        data: new Float32Array(documents.length),
+      }),
+      dispose: () => { disposals += 1; return Promise.resolve() },
+    }, 512))
+    await expect(search).rejects.toThrow('closed')
+    expect(disposals).toBe(1)
+  })
+
+  it('requires an explicit cache when Dense retrieval or reranking is allowed', () => {
+    expect(() => resolveConfig({ indexDir: './index' })).toThrow('modelCacheDir is required')
+    expect(() => resolveConfig({ indexDir: './index', ...fixedStrategy('dense') })).toThrow('modelCacheDir is required')
+    expect(() => resolveConfig({ indexDir: './index', ...fixedStrategy('bm25', true) })).toThrow('modelCacheDir is required')
+    expect(resolveConfig({ indexDir: './index', ...fixedStrategy('bm25') }).modelCacheDir).toBeUndefined()
+  })
+
+  it.each([
+    [{ indexDir: '   ' }, 'indexDir must be non-empty'],
+    [{ indexDir: './index', allowedRetrieval: [] }, 'allowedRetrieval must contain at least one value'],
+    [{ indexDir: './index', defaultRetrieval: 'dense', allowedRetrieval: ['bm25'] }, 'defaultRetrieval must be included'],
+    [{ indexDir: './index', defaultRetrieval: 'dense', allowedRetrieval: ['dense'], allowedDenseIndexes: [] }, 'allowedDenseIndexes must contain at least one value'],
+    [{ indexDir: './index', defaultRetrieval: 'dense', defaultDenseIndex: 'exact', allowedRetrieval: ['dense'], allowedDenseIndexes: ['hnsw'] }, 'defaultDenseIndex must be auto or included'],
+    [{ indexDir: './index', defaultRerank: 'on', allowedRerank: false }, 'defaultRerank cannot be on'],
+    [{ indexDir: './index', candidateCount: 0 }, 'candidateCount must be a positive safe integer'],
+    [{ indexDir: './index', candidateCount: 1.5 }, 'candidateCount must be a positive safe integer'],
+    [{ indexDir: './index', rerankerCandidateCount: 0 }, 'rerankerCandidateCount must be a positive safe integer'],
+    [{ indexDir: './index', rrfK: 0 }, 'rrfK must be a positive safe integer'],
+    [{ indexDir: './index', rrfK: 1.5 }, 'rrfK must be a positive safe integer'],
+    [{ indexDir: './index', denseModelId: ' ' }, 'denseModelId must be non-empty'],
+    [{ indexDir: './index', denseModelRevision: 'main' }, 'denseModelRevision must be a full lowercase commit SHA'],
+    [{ indexDir: './index', denseModelFile: 'other.onnx' }, 'denseModelFile is unsupported'],
+    [{ indexDir: './index', denseDimensions: 0 }, 'denseDimensions must be a positive safe integer'],
+    [{ indexDir: './index', denseDimensions: 1.5 }, 'denseDimensions must be a positive safe integer'],
+    [{ indexDir: './index', hnswExpansionSearch: 0 }, 'hnswExpansionSearch must be a positive safe integer'],
+    [{ indexDir: './index', hnswExpansionSearch: 1.5 }, 'hnswExpansionSearch must be a positive safe integer'],
+    [{ indexDir: './index', denseMaxTokens: 0 }, 'denseMaxTokens must be an integer from 1 through 8192'],
+    [{ indexDir: './index', denseMaxTokens: 8193 }, 'denseMaxTokens must be an integer from 1 through 8192'],
+    [{ indexDir: './index', denseMaxTokens: 1.5 }, 'denseMaxTokens must be an integer from 1 through 8192'],
+    [{ indexDir: './index', rerankerModelId: ' ' }, 'rerankerModelId must be non-empty'],
+    [{ indexDir: './index', rerankerModelRevision: 'main' }, 'rerankerModelRevision must be a full lowercase commit SHA'],
+    [{ indexDir: './index', rerankerBatchSize: 0 }, 'rerankerBatchSize must be a positive safe integer'],
+    [{ indexDir: './index', rerankerBatchSize: 1.5 }, 'rerankerBatchSize must be a positive safe integer'],
+    [{ indexDir: './index', rerankerMaxTokens: 0 }, 'rerankerMaxTokens must be an integer from 1 through 512'],
+    [{ indexDir: './index', rerankerMaxTokens: 513 }, 'rerankerMaxTokens must be an integer from 1 through 512'],
+    [{ indexDir: './index', rerankerMaxTokens: 1.5 }, 'rerankerMaxTokens must be an integer from 1 through 512'],
+  ] as const)('rejects invalid provider configuration %j', (config, message) => {
+    expect(() => resolveConfig({ ...fixedStrategy('bm25'), ...config } as LocalKnowledgeConfig)).toThrow(message)
+  })
+
+  it('preserves explicit model configuration', () => {
+    expect(resolveConfig({
+      indexDir: './index',
+      ...fixedStrategy('dense', true),
+      candidateCount: 7,
+      rerankerCandidateCount: 5,
+      rrfK: 10,
+      modelCacheDir: './cache',
+      denseModelId: 'dense-model',
+      denseModelRevision: 'a'.repeat(40),
+      denseDtype: 'q8',
+      denseMaxTokens: 256,
+      rerankerModelId: 'reranker-model',
+      rerankerModelRevision: 'b'.repeat(40),
+      rerankerDtype: 'q8',
+      rerankerBatchSize: 4,
+      rerankerMaxTokens: 128,
+    })).toMatchObject({
+      defaultRetrieval: 'dense',
+      defaultRerank: 'on',
+      candidateCount: 7,
+      rerankerCandidateCount: 5,
+      modelCacheDir: './cache',
+      denseModelId: 'dense-model',
+      rerankerModelId: 'reranker-model',
+    })
+  })
+
+  it('reranks only the configured leading candidates and preserves the remaining recall order', async () => {
+    const scoredDocuments: string[][] = []
+    class TestKnowledge extends LocalKnowledge {
+      protected override createDenseEncoder(): Promise<DenseEncoder> {
+        return Promise.resolve(queryEncoder(1))
+      }
+
+      protected override createReranker(): Promise<Reranker> {
+        return Promise.resolve(new Reranker({
+          scorePairs(_queries, documents) {
+            scoredDocuments.push([...documents])
+            return Promise.resolve({
+              type: 'float32',
+              dims: [documents.length],
+              data: Float32Array.from(documents.map((_document, index) => -index)),
+            })
+          },
+          dispose: () => Promise.resolve(),
+        }, 512))
+      }
+    }
+    const context = new Context()
+    contexts.push(context)
+    await context.plugin(TestKnowledge, {
+      indexDir: await denseIndex(),
+      ...fixedStrategy('hybrid', true),
+      modelCacheDir: '/unused-test-cache',
+      candidateCount: 2,
+      rerankerCandidateCount: 1,
+    })
+
+    const result = await context.knowledge.search({ query: 'alpha', maxResults: 2 })
+    expect(scoredDocuments).toHaveLength(1)
+    expect(scoredDocuments[0]).toHaveLength(1)
+    expect(result.hits).toHaveLength(2)
   })
 
   it('combines BM25 and Dense candidates in Hybrid mode', async () => {
@@ -191,7 +535,7 @@ describe('LocalKnowledge model-backed modes', () => {
     contexts.push(context)
     await context.plugin(TestKnowledge, {
       indexDir: await denseIndex(),
-      mode: 'hybrid',
+      ...fixedStrategy('hybrid'),
       modelCacheDir: '/unused-test-cache',
       candidateCount: 2,
     })
@@ -201,6 +545,25 @@ describe('LocalKnowledge model-backed modes', () => {
         { documentId: 'doc-a', score: 1 / 61 + 1 / 62 },
         { documentId: 'doc-b', score: 1 / 61 },
       ],
+    })
+  })
+
+  it('uses Hybrid Exact retrieval without reranking by default', async () => {
+    class TestKnowledge extends LocalKnowledge {
+      protected override createDenseEncoder(): Promise<DenseEncoder> {
+        return Promise.resolve(queryEncoder(1))
+      }
+    }
+    const context = new Context()
+    contexts.push(context)
+    await context.plugin(TestKnowledge, {
+      indexDir: await denseIndex(),
+      modelCacheDir: '/unused-test-cache',
+      candidateCount: 2,
+    })
+
+    await expect(context.knowledge.search({ query: 'alpha', maxResults: 1 })).resolves.toMatchObject({
+      strategy: { retrieval: 'hybrid', denseIndex: 'exact', rerank: false },
     })
   })
 
@@ -227,15 +590,54 @@ describe('LocalKnowledge model-backed modes', () => {
     contexts.push(context)
     await context.plugin(TestKnowledge, {
       indexDir: await denseIndex(),
-      mode,
-      rerank,
+      ...fixedStrategy(mode, rerank),
       ...(mode === 'bm25' && !rerank ? {} : { modelCacheDir: '/unused-test-cache' }),
       candidateCount: 2,
     })
 
     const result = await context.knowledge.search({ query: 'alpha', maxResults: 2 })
     expect(result.hits.map(hit => hit.documentId)).toEqual(expected)
+    expect(result.strategy).toEqual({
+      retrieval: mode,
+      ...(mode === 'bm25' ? {} : { denseIndex: 'exact' }),
+      rerank,
+    })
     expect(rerankerLoads).toBe(rerank ? 1 : 0)
+  })
+
+  it('applies request strategy within the configured allowed set', async () => {
+    class TestKnowledge extends LocalKnowledge {
+      protected override createDenseEncoder(): Promise<DenseEncoder> {
+        return Promise.resolve(queryEncoder(1))
+      }
+    }
+    const context = new Context()
+    contexts.push(context)
+    await context.plugin(TestKnowledge, {
+      indexDir: await denseIndex(),
+      defaultRetrieval: 'hybrid',
+      defaultDenseIndex: 'auto',
+      defaultRerank: 'off',
+      allowedRetrieval: ['bm25', 'dense', 'hybrid'],
+      allowedDenseIndexes: ['exact'],
+      allowedRerank: false,
+      modelCacheDir: '/unused-test-cache',
+      candidateCount: 2,
+    })
+
+    await expect(context.knowledge.search({
+      query: 'alpha',
+      maxResults: 1,
+      strategy: { retrieval: 'dense', denseIndex: 'exact', rerank: 'off' },
+    })).resolves.toMatchObject({
+      strategy: { retrieval: 'dense', denseIndex: 'exact', rerank: false },
+      hits: [{ documentId: 'doc-b' }],
+    })
+    await expect(context.knowledge.search({
+      query: 'alpha',
+      maxResults: 1,
+      strategy: { retrieval: 'bm25', rerank: 'on' },
+    })).rejects.toMatchObject({ code: 'KNOWLEDGE_STRATEGY_NOT_ALLOWED' })
   })
 
   it('shares reranker loads and retries after a failed load', async () => {
@@ -254,8 +656,7 @@ describe('LocalKnowledge model-backed modes', () => {
     contexts.push(sharedContext)
     await sharedContext.plugin(SharedKnowledge, {
       indexDir: await denseIndex(),
-      mode: 'bm25',
-      rerank: true,
+      ...fixedStrategy('bm25', true),
       modelCacheDir: '/unused-test-cache',
       candidateCount: 2,
     })
@@ -279,8 +680,7 @@ describe('LocalKnowledge model-backed modes', () => {
     contexts.push(retryContext)
     await retryContext.plugin(RetryKnowledge, {
       indexDir: await denseIndex(),
-      mode: 'bm25',
-      rerank: true,
+      ...fixedStrategy('bm25', true),
       modelCacheDir: '/unused-test-cache',
       candidateCount: 2,
     })
@@ -329,12 +729,12 @@ describe('LocalKnowledge model-backed modes', () => {
     const context = new Context()
     await context.plugin(TestKnowledge, {
       indexDir: await denseIndex(),
-      mode: 'hybrid',
-      rerank: true,
+      ...fixedStrategy('hybrid', true),
       modelCacheDir: '/unused-test-cache',
       candidateCount: 2,
     })
     const provider = context.knowledge
+    await provider.search({ query: 'alpha', maxResults: 1 })
     await provider.search({ query: 'alpha', maxResults: 1 })
     await context.fiber.dispose()
 

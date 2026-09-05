@@ -59,6 +59,108 @@ function parseJsonLine(lineText: string, source: string, line: number): Record<s
   return value
 }
 
+/**
+ * Parse one corpus JSONL record without retaining earlier documents.
+ * @param lineText - one non-blank JSONL line.
+ * @param format - accepted generic, SciFact, or MLDR field set.
+ * @param source - source label used in diagnostics.
+ * @param line - one-based source line number.
+ * @returns one validated source document.
+ */
+export function parseCorpusDocumentLine(
+  lineText: string,
+  format: 'generic' | 'scifact' | 'mldr' | 't2ranking',
+  source: string,
+  line: number,
+): CorpusDocument {
+  if (format === 't2ranking') {
+    const cells = lineText.split('\t')
+    if (line === 1 && cells[0] === 'pid' && cells[1] === 'text') {
+      throw new CorpusFormatError(source, line, 'T2Ranking header must be skipped by the stream reader')
+    }
+    if (cells.length !== 2) throw new CorpusFormatError(source, line, 'expected pid and text separated by one tab')
+    return {
+      id: KnowledgeDocumentId(requiredString(cells[0], 'pid', source, line)),
+      text: requiredString(cells[1], 'text', source, line),
+    }
+  }
+  const value = parseJsonLine(lineText, source, line)
+  const sciFact = format === 'scifact'
+  const mldr = format === 'mldr'
+  assertFields(
+    value,
+    sciFact
+      ? new Set(['_id', 'text', 'title', 'metadata'])
+      : mldr ? new Set(['docid', 'text']) : new Set(['id', 'text', 'title', 'source']),
+    source,
+    line,
+  )
+  if ('metadata' in value && !isRecord(value['metadata'])) {
+    throw new CorpusFormatError(source, line, 'metadata must be an object')
+  }
+  const idField = sciFact ? '_id' : mldr ? 'docid' : 'id'
+  const id = requiredString(value[idField], idField, source, line)
+  const title = optionalString(value['title'], 'title', source, line)
+  const documentSource = sciFact || mldr ? undefined : optionalString(value['source'], 'source', source, line)
+  return {
+    id: KnowledgeDocumentId(id),
+    text: requiredString(value['text'], 'text', source, line),
+    ...(title === undefined ? {} : { title }),
+    ...(documentSource === undefined ? {} : { source: documentSource }),
+  }
+}
+
+/**
+ * Parse two-column T2Ranking query TSV with its required header.
+ * @param text - complete query TSV contents.
+ * @param source - source label used in diagnostics.
+ * @returns validated queries sorted by identifier.
+ */
+export function parseT2RankingQueriesTsv(text: string, source = 'queries.dev.tsv'): SciFactQuery[] {
+  const lines = text.split('\n')
+  if (lines[0]?.replace(/\r$/u, '') !== 'qid\ttext') {
+    throw new CorpusFormatError(source, 1, 'expected header qid, text')
+  }
+  const queries: SciFactQuery[] = []
+  const ids = new Set<string>()
+  for (let index = 1; index < lines.length; index += 1) {
+    const raw = (lines[index] as string).replace(/\r$/u, '')
+    if (raw.trim().length === 0) continue
+    const separator = raw.indexOf('\t')
+    if (separator < 1) throw new CorpusFormatError(source, index + 1, 'expected qid and text separated by one tab')
+    const id = requiredString(raw.slice(0, separator), 'qid', source, index + 1)
+    if (ids.has(id)) throw new CorpusFormatError(source, index + 1, `duplicate query id ${JSON.stringify(id)}`)
+    ids.add(id)
+    queries.push({ id, text: requiredString(raw.slice(separator + 1), 'text', source, index + 1) })
+  }
+  return queries.sort((left, right) => compareCodePoints(left.id, right.id))
+}
+
+/**
+ * Parse two-column T2Ranking retrieval qrels with binary relevance.
+ * @param text - complete retrieval qrels TSV contents.
+ * @param queries - queries accepted by the evaluation run.
+ * @param documentIds - source-document identifiers present in the index.
+ * @param source - source label used in diagnostics.
+ * @returns judged queries with positive relevant documents.
+ */
+export function parseT2RankingQrelsTsv(
+  text: string,
+  queries: readonly SciFactQuery[],
+  documentIds: ReadonlySet<string>,
+  source = 'qrels.retrieval.dev.tsv',
+): SciFactEvaluationQuery[] {
+  const lines = text.split('\n')
+  if (lines[0]?.replace(/\r$/u, '') !== 'qid\tpid') {
+    throw new CorpusFormatError(source, 1, 'expected header qid, pid')
+  }
+  const trec = lines.slice(1).filter(line => line.trim().length > 0).map((line) => {
+    const cells = line.replace(/\r$/u, '').split('\t')
+    return cells.length === 2 ? `${cells[0]} Q0 ${cells[1]} 1` : line
+  }).join('\n')
+  return parseTrecQrelsTsv(trec, queries, documentIds, source)
+}
+
 function requiredString(value: unknown, field: string, source: string, line: number): string {
   if (typeof value !== 'string' || value.trim().length === 0) {
     throw new CorpusFormatError(source, line, `${field} must be a non-empty string`)
@@ -83,30 +185,17 @@ function nonBlankLines(text: string): Array<{ line: number; text: string }> {
 function parseDocuments(
   text: string,
   source: string,
-  fields: ReadonlySet<string>,
   idField: 'id' | '_id',
-  includeSource: boolean,
 ): CorpusDocument[] {
   const documents: CorpusDocument[] = []
   const ids = new Set<string>()
   for (const input of nonBlankLines(text)) {
-    const value = parseJsonLine(input.text, source, input.line)
-    assertFields(value, fields, source, input.line)
-    if ('metadata' in value && !isRecord(value['metadata'])) {
-      throw new CorpusFormatError(source, input.line, 'metadata must be an object')
+    const document = parseCorpusDocumentLine(input.text, idField === '_id' ? 'scifact' : 'generic', source, input.line)
+    if (ids.has(document.id)) {
+      throw new CorpusFormatError(source, input.line, `duplicate document id ${JSON.stringify(document.id)}`)
     }
-    const id = requiredString(value[idField], idField, source, input.line)
-    if (ids.has(id)) throw new CorpusFormatError(source, input.line, `duplicate document id ${JSON.stringify(id)}`)
-    ids.add(id)
-    const body = requiredString(value['text'], 'text', source, input.line)
-    const title = optionalString(value['title'], 'title', source, input.line)
-    const documentSource = includeSource ? optionalString(value['source'], 'source', source, input.line) : undefined
-    documents.push({
-      id: KnowledgeDocumentId(id),
-      text: body,
-      ...(title === undefined ? {} : { title }),
-      ...(documentSource === undefined ? {} : { source: documentSource }),
-    })
+    ids.add(document.id)
+    documents.push(document)
   }
   return documents.sort((left, right) => compareCodePoints(left.id, right.id))
 }
@@ -118,7 +207,7 @@ function parseDocuments(
  * @returns validated documents sorted by identifier.
  */
 export function parseCorpusJsonl(text: string, source = 'corpus.jsonl'): CorpusDocument[] {
-  return parseDocuments(text, source, new Set(['id', 'text', 'title', 'source']), 'id', true)
+  return parseDocuments(text, source, 'id')
 }
 
 /**
@@ -128,7 +217,7 @@ export function parseCorpusJsonl(text: string, source = 'corpus.jsonl'): CorpusD
  * @returns validated documents sorted by identifier.
  */
 export function parseSciFactCorpusJsonl(text: string, source = 'corpus.jsonl'): CorpusDocument[] {
-  return parseDocuments(text, source, new Set(['_id', 'text', 'title', 'metadata']), '_id', false)
+  return parseDocuments(text, source, '_id')
 }
 
 /**
@@ -150,6 +239,26 @@ export function parseSciFactQueriesJsonl(text: string, source = 'queries.jsonl')
     if (ids.has(id)) throw new CorpusFormatError(source, input.line, `duplicate query id ${JSON.stringify(id)}`)
     ids.add(id)
     queries.push({ id, text: requiredString(value['text'], 'text', source, input.line) })
+  }
+  return queries.sort((left, right) => compareCodePoints(left.id, right.id))
+}
+
+/**
+ * Parse MLDR query JSONL while discarding embedded positive passage text.
+ * @param text - complete MLDR query JSONL contents.
+ * @param source - source label used in diagnostics.
+ * @returns validated queries sorted by identifier.
+ */
+export function parseMldrQueriesJsonl(text: string, source = 'dev.jsonl'): SciFactQuery[] {
+  const queries: SciFactQuery[] = []
+  const ids = new Set<string>()
+  for (const input of nonBlankLines(text)) {
+    const value = parseJsonLine(input.text, source, input.line)
+    assertFields(value, new Set(['query_id', 'query', 'positive_passages', 'negative_passages']), source, input.line)
+    const id = requiredString(value['query_id'], 'query_id', source, input.line)
+    if (ids.has(id)) throw new CorpusFormatError(source, input.line, `duplicate query id ${JSON.stringify(id)}`)
+    ids.add(id)
+    queries.push({ id, text: requiredString(value['query'], 'query', source, input.line) })
   }
   return queries.sort((left, right) => compareCodePoints(left.id, right.id))
 }
@@ -177,7 +286,7 @@ export function parseSciFactQrelsTsv(
   const judgments = new Map<string, SciFactRelevance[]>()
   const pairs = new Set<string>()
   for (let index = 1; index < lines.length; index += 1) {
-    const raw = lines[index]?.replace(/\r$/u, '') ?? ''
+    const raw = (lines[index] as string).replace(/\r$/u, '')
     if (raw.trim().length === 0) continue
     const line = index + 1
     const cells = raw.split('\t')
@@ -197,14 +306,56 @@ export function parseSciFactQrelsTsv(
   }
   const selected: SciFactEvaluationQuery[] = []
   for (const queryId of [...judgments.keys()].sort(compareCodePoints)) {
-    const relevantDocuments = judgments.get(queryId) ?? []
+    const relevantDocuments = judgments.get(queryId) as SciFactRelevance[]
     if (relevantDocuments.length === 0) {
       throw new CorpusFormatError(source, 1, `query ${JSON.stringify(queryId)} has no positive judgment`)
     }
     relevantDocuments.sort((left, right) => compareCodePoints(left.documentId, right.documentId))
-    const query = queryById.get(queryId)
-    if (query === undefined) throw new CorpusFormatError(source, 1, `unknown query id ${JSON.stringify(queryId)}`)
+    const query = queryById.get(queryId) as SciFactQuery
     selected.push({ ...query, relevantDocuments })
   }
   return selected
+}
+
+/**
+ * Parse four-column TREC qrels used by MLDR and T2Ranking.
+ * @param text - complete TREC qrels contents.
+ * @param queries - queries accepted by the evaluation run.
+ * @param documentIds - source-document identifiers present in the index.
+ * @param source - source label used in diagnostics.
+ * @returns judged queries with positive relevant documents.
+ */
+export function parseTrecQrelsTsv(
+  text: string,
+  queries: readonly SciFactQuery[],
+  documentIds: ReadonlySet<string>,
+  source = 'qrels.tsv',
+): SciFactEvaluationQuery[] {
+  const queryById = new Map(queries.map(query => [query.id, query]))
+  const judgments = new Map<string, SciFactRelevance[]>()
+  const pairs = new Set<string>()
+  for (const [index, rawLine] of text.split('\n').entries()) {
+    const raw = rawLine.replace(/\r$/u, '')
+    if (raw.trim().length === 0) continue
+    const cells = raw.split(/\s+/u)
+    if (cells.length !== 4) throw new CorpusFormatError(source, index + 1, 'expected four TREC qrels fields')
+    const queryId = requiredString(cells[0], 'query id', source, index + 1)
+    const documentId = requiredString(cells[2], 'document id', source, index + 1)
+    const relevance = Number(cells[3])
+    if (!Number.isFinite(relevance)) throw new CorpusFormatError(source, index + 1, 'score must be finite')
+    if (!queryById.has(queryId)) throw new CorpusFormatError(source, index + 1, `unknown query id ${JSON.stringify(queryId)}`)
+    if (!documentIds.has(documentId)) throw new CorpusFormatError(source, index + 1, `unknown document id ${JSON.stringify(documentId)}`)
+    const pair = `${queryId}\u0000${documentId}`
+    if (pairs.has(pair)) throw new CorpusFormatError(source, index + 1, 'duplicate query and document judgment')
+    pairs.add(pair)
+    if (relevance > 0) {
+      const current = judgments.get(queryId) ?? []
+      current.push({ documentId: KnowledgeDocumentId(documentId), relevance })
+      judgments.set(queryId, current)
+    }
+  }
+  return [...judgments.entries()].sort(([left], [right]) => compareCodePoints(left, right)).map(([queryId, relevantDocuments]) => ({
+    ...(queryById.get(queryId) as SciFactQuery),
+    relevantDocuments: relevantDocuments.sort((left, right) => compareCodePoints(left.documentId, right.documentId)),
+  }))
 }

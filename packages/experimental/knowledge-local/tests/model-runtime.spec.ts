@@ -1,9 +1,23 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+const transformerMocks = vi.hoisted(() => {
+  const tokenizer = vi.fn(() => ({}))
+  const dispose = vi.fn(() => Promise.resolve())
+  const featureExtractor = Object.assign(vi.fn(), { tokenizer, dispose })
+  return {
+    tokenizer,
+    dispose,
+    featureExtractor,
+    pipeline: vi.fn(() => Promise.resolve(featureExtractor)),
+  }
+})
+
+vi.mock('@huggingface/transformers', () => ({ pipeline: transformerMocks.pipeline }))
 import {
   BGE_DENSE_DTYPE,
   BGE_QUERY_PREFIX,
-  BGE_SMALL_EN_MODEL_ID,
-  BGE_SMALL_EN_REVISION,
+  BGE_M3_MODEL_ID,
+  BGE_M3_REVISION,
   DENSE_DIMENSIONS,
   DenseEncoder,
   loadDenseEncoder,
@@ -58,6 +72,7 @@ describe('DenseEncoder', () => {
     const cases = [
       { type: 'float64', dims: [1, DENSE_DIMENSIONS], data: normalizedRows(1) },
       { type: 'float32', dims: [1, DENSE_DIMENSIONS - 1], data: new Float32Array(DENSE_DIMENSIONS - 1) },
+      { type: 'float32', dims: [1, DENSE_DIMENSIONS], data: [] },
       { type: 'float32', dims: [1, DENSE_DIMENSIONS], data: new Float32Array(DENSE_DIMENSIONS).fill(Number.NaN) },
       { type: 'float32', dims: [1, DENSE_DIMENSIONS], data: new Float32Array(DENSE_DIMENSIONS) },
     ]
@@ -83,26 +98,74 @@ describe('DenseEncoder', () => {
     expect(received).toEqual({
       cacheDir: '/model-cache',
       localFilesOnly: true,
-      modelId: BGE_SMALL_EN_MODEL_ID,
-      revision: BGE_SMALL_EN_REVISION,
+      modelId: BGE_M3_MODEL_ID,
+      revision: BGE_M3_REVISION,
       dtype: BGE_DENSE_DTYPE,
       maxTokens: 512,
+      dimensions: DENSE_DIMENSIONS,
+      queryPrefix: '',
+      modelFile: 'onnx/model_quantized.onnx',
     })
   })
-})
 
-const modelCacheDir = process.env['DSH_BGE_MODEL_CACHE_DIR']
+  it.each([
+    [{ cacheDir: ' ' }, 'dense cacheDir must be non-empty'],
+    [{ cacheDir: '/cache', modelId: ' ' }, 'dense modelId must be non-empty'],
+    [{ cacheDir: '/cache', revision: 'main' }, 'dense revision must be a full lowercase commit SHA'],
+    [{ cacheDir: '/cache', maxTokens: 0 }, 'dense maxTokens must be an integer from 1 through 8192'],
+    [{ cacheDir: '/cache', maxTokens: 8193 }, 'dense maxTokens must be an integer from 1 through 8192'],
+    [{ cacheDir: '/cache', maxTokens: 1.5 }, 'dense maxTokens must be an integer from 1 through 8192'],
+    [{ cacheDir: '/cache', dimensions: 0 }, 'dense dimensions must be a positive safe integer'],
+    [{ cacheDir: '/cache', dimensions: 1.5 }, 'dense dimensions must be a positive safe integer'],
+    [{ cacheDir: '/cache', modelFile: 'other.onnx' }, 'dense modelFile is unsupported'],
+  ])('rejects invalid loader options %j', async (override, message) => {
+    await expect(loadDenseEncoder({ localFilesOnly: true, ...override })).rejects.toThrow(message)
+  })
 
-describe.skipIf(modelCacheDir === undefined)('Dense local model smoke', () => {
-  it('embeds one document batch and one query without network access', async () => {
-    if (modelCacheDir === undefined) throw new TypeError('DSH_BGE_MODEL_CACHE_DIR is required')
-    const encoder = await loadDenseEncoder({ cacheDir: modelCacheDir, localFilesOnly: true })
-    try {
-      await expect(encoder.embedDocuments(['Science\nEvidence supports the claim.']))
-        .resolves.toHaveLength(DENSE_DIMENSIONS)
-      await expect(encoder.embedQuery('What supports the claim?')).resolves.toHaveLength(DENSE_DIMENSIONS)
-    } finally {
-      await encoder.dispose()
-    }
+  it('returns an empty matrix without invoking the extractor and disposes it', async () => {
+    const calls: Array<{ texts: readonly string[]; options: DenseFeatureExtractionOptions }> = []
+    const backend = extractor(calls)
+    const encoder = new DenseEncoder(backend, 512)
+    await expect(encoder.embedDocuments([])).resolves.toEqual(new Float32Array())
+    expect(calls).toEqual([])
+    await encoder.dispose()
+  })
+
+  it('uses the Transformers.js adapter with forced tokenizer truncation', async () => {
+    transformerMocks.featureExtractor.mockResolvedValue({
+      type: 'float32',
+      dims: [1, DENSE_DIMENSIONS],
+      data: normalizedRows(1),
+    })
+    const encoder = await loadDenseEncoder({
+      cacheDir: '/cache',
+      localFilesOnly: true,
+      modelId: 'model',
+      revision: 'a'.repeat(40),
+      dtype: 'q8',
+      maxTokens: 64,
+    })
+    await encoder.embedDocuments(['body'])
+    const wrappedTokenizer = transformerMocks.featureExtractor.tokenizer as unknown as (
+      texts: string,
+      options?: unknown,
+    ) => unknown
+    wrappedTokenizer('text', { padding: true })
+    wrappedTokenizer('text')
+    expect(transformerMocks.tokenizer).toHaveBeenCalledWith('text', {
+      padding: true,
+      truncation: true,
+      max_length: 64,
+    })
+    expect(transformerMocks.tokenizer).toHaveBeenLastCalledWith('text', {
+      truncation: true,
+      max_length: 64,
+    })
+    expect(transformerMocks.featureExtractor).toHaveBeenCalledWith(['body'], {
+      pooling: 'cls',
+      normalize: true,
+    })
+    await encoder.dispose()
+    expect(transformerMocks.dispose).toHaveBeenCalled()
   })
 })

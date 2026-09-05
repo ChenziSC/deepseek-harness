@@ -333,6 +333,31 @@
     },
     {
       "doc": "docs/subsystems/knowledge.md",
+      "symbol": "KnowledgeRetrieval",
+      "source": "packages/experimental/knowledge/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/knowledge.md",
+      "symbol": "KnowledgeDenseIndex",
+      "source": "packages/experimental/knowledge/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/knowledge.md",
+      "symbol": "KnowledgeRerank",
+      "source": "packages/experimental/knowledge/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/knowledge.md",
+      "symbol": "KnowledgeSearchStrategy",
+      "source": "packages/experimental/knowledge/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/knowledge.md",
+      "symbol": "ResolvedKnowledgeSearchStrategy",
+      "source": "packages/experimental/knowledge/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/knowledge.md",
       "symbol": "KnowledgeSearchRequest",
       "source": "packages/experimental/knowledge/src/types.ts"
     },

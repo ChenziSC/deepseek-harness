@@ -3595,6 +3595,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type KnowledgeChunkId = Branded<\'KnowledgeChunkId\'>;',
   },
   {
+    name: 'KnowledgeDenseIndex',
+    declaration: 'export type KnowledgeDenseIndex = \'auto\' | \'exact\' | \'hnsw\';',
+  },
+  {
     name: 'KnowledgeDocumentId',
     declaration: 'export type KnowledgeDocumentId = Branded<\'KnowledgeDocumentId\'>;',
   },
@@ -3603,12 +3607,24 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface KnowledgeHit {\n    readonly documentId: KnowledgeDocumentId;\n    readonly chunkId: KnowledgeChunkId;\n    readonly title?: string;\n    readonly text: string;\n    readonly source?: string;\n    readonly score: number;\n}',
   },
   {
+    name: 'KnowledgeRerank',
+    declaration: 'export type KnowledgeRerank = \'auto\' | \'on\' | \'off\';',
+  },
+  {
+    name: 'KnowledgeRetrieval',
+    declaration: 'export type KnowledgeRetrieval = \'bm25\' | \'dense\' | \'hybrid\';',
+  },
+  {
     name: 'KnowledgeSearchRequest',
-    declaration: 'export interface KnowledgeSearchRequest {\n    readonly query: string;\n    readonly maxResults: number;\n}',
+    declaration: 'export interface KnowledgeSearchRequest {\n    readonly query: string;\n    readonly maxResults: number;\n    readonly strategy?: KnowledgeSearchStrategy;\n}',
   },
   {
     name: 'KnowledgeSearchResult',
-    declaration: 'export interface KnowledgeSearchResult {\n    readonly hits: readonly KnowledgeHit[];\n}',
+    declaration: 'export interface KnowledgeSearchResult {\n    readonly hits: readonly KnowledgeHit[];\n    readonly strategy: ResolvedKnowledgeSearchStrategy;\n}',
+  },
+  {
+    name: 'KnowledgeSearchStrategy',
+    declaration: 'export interface KnowledgeSearchStrategy {\n    readonly retrieval?: KnowledgeRetrieval;\n    readonly denseIndex?: KnowledgeDenseIndex;\n    readonly rerank?: KnowledgeRerank;\n}',
   },
   {
     name: 'KvFacet',
@@ -3977,6 +3993,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ResolvedCredential',
     declaration: 'export interface ResolvedCredential {\n    value: string;\n    source: string;\n}',
+  },
+  {
+    name: 'ResolvedKnowledgeSearchStrategy',
+    declaration: 'export interface ResolvedKnowledgeSearchStrategy {\n    readonly retrieval: KnowledgeRetrieval;\n    readonly denseIndex?: Exclude<KnowledgeDenseIndex, \'auto\'>;\n    readonly rerank: boolean;\n}',
   },
   {
     name: 'ResolvedNormalRetryPolicy',

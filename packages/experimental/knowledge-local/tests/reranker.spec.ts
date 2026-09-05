@@ -1,4 +1,26 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+const transformerMocks = vi.hoisted(() => {
+  const tokenizer = Object.assign(vi.fn(() => ({ input_ids: [] })), { padding_side: 'left' })
+  const dispose = vi.fn(() => Promise.resolve())
+  const state: { output: unknown } = {
+    output: { logits: { type: 'float32', dims: [1], data: Float32Array.of(0.75) } },
+  }
+  const model = Object.assign(vi.fn(() => Promise.resolve(state.output)), { dispose })
+  return {
+    tokenizer,
+    dispose,
+    state,
+    model,
+    tokenizerFromPretrained: vi.fn(() => Promise.resolve(tokenizer)),
+    modelFromPretrained: vi.fn(() => Promise.resolve(model)),
+  }
+})
+
+vi.mock('@huggingface/transformers', () => ({
+  AutoTokenizer: { from_pretrained: transformerMocks.tokenizerFromPretrained },
+  AutoModelForSequenceClassification: { from_pretrained: transformerMocks.modelFromPretrained },
+}))
 import {
   BGE_RERANKER_DTYPE,
   BGE_RERANKER_MODEL_ID,
@@ -103,6 +125,19 @@ describe('Reranker', () => {
       dispose: () => Promise.resolve(),
     }
     await expect(new Reranker(failing, 512).rerank('query', candidates, chunks, 1)).rejects.toThrow('batch failed')
+
+    for (const output of [
+      { type: 'float64', dims: [2], data: Float32Array.of(1, 2) },
+      { type: 'float32', dims: [2, 2], data: Float32Array.of(1, 2) },
+      { type: 'float32', dims: [2], data: [1, 2] },
+      { type: 'float32', dims: [2], data: Float32Array.of(1) },
+    ]) {
+      const invalid = new Reranker({
+        scorePairs: () => Promise.resolve(output),
+        dispose: () => Promise.resolve(),
+      }, 512)
+      await expect(invalid.rerank('query', candidates, chunks, 2)).rejects.toThrow()
+    }
   })
 
   it('checks cancellation before and after each batch', async () => {
@@ -140,19 +175,73 @@ describe('Reranker', () => {
       maxTokens: 512,
     })
   })
-})
 
-const modelCacheDir = process.env['DSH_BGE_RERANKER_CACHE_DIR']
+  it.each([
+    [{ cacheDir: ' ' }, 'reranker cacheDir must be non-empty'],
+    [{ cacheDir: '/cache', modelId: ' ' }, 'reranker modelId must be non-empty'],
+    [{ cacheDir: '/cache', revision: 'main' }, 'reranker revision must be a full lowercase commit SHA'],
+    [{ cacheDir: '/cache', maxTokens: 0 }, 'reranker maxTokens must be an integer from 1 through 512'],
+    [{ cacheDir: '/cache', maxTokens: 513 }, 'reranker maxTokens must be an integer from 1 through 512'],
+    [{ cacheDir: '/cache', maxTokens: 1.5 }, 'reranker maxTokens must be an integer from 1 through 512'],
+  ])('rejects invalid loader options %j', async (override, message) => {
+    await expect(loadReranker({ localFilesOnly: true, ...override })).rejects.toThrow(message)
+  })
 
-describe.skipIf(modelCacheDir === undefined)('Reranker local model smoke', () => {
-  it('scores one text pair without network access', async () => {
-    if (modelCacheDir === undefined) throw new TypeError('DSH_BGE_RERANKER_CACHE_DIR is required')
-    const reranker = await loadReranker({ cacheDir: modelCacheDir, localFilesOnly: true })
-    try {
-      await expect(reranker.rerank('claim', [{ ordinal: 0, score: 1 }], chunks, 1))
-        .resolves.toHaveLength(1)
-    } finally {
-      await reranker.dispose()
+  it('rejects invalid batches and candidate ordinals', async () => {
+    const reranker = new Reranker(backend([], [[1]]), 512)
+    await expect(reranker.rerank('query', [{ ordinal: 0, score: 1 }], chunks, 0))
+      .rejects.toThrow('batchSize must be a positive safe integer')
+    await expect(reranker.rerank('query', [{ ordinal: 99, score: 1 }], chunks, 1))
+      .rejects.toThrow('candidate ordinal is out of range')
+  })
+
+  it('accepts one-dimensional logits and releases the backend', async () => {
+    const dispose = vi.fn(() => Promise.resolve())
+    const reranker = new Reranker({
+      scorePairs: () => Promise.resolve({ type: 'float32', dims: [1], data: Float32Array.of(1) }),
+      dispose,
+    }, 512)
+    await expect(reranker.rerank('query', [{ ordinal: 0, score: 1 }], chunks, 1))
+      .resolves.toEqual([{ ordinal: 0, score: 1 }])
+    await reranker.dispose()
+    expect(dispose).toHaveBeenCalled()
+  })
+
+  it('uses the Transformers.js adapter and validates its response object', async () => {
+    transformerMocks.state.output = {
+      logits: { type: 'float32', dims: [1], data: Float32Array.of(0.75) },
     }
+    const reranker = await loadReranker({
+      cacheDir: '/cache',
+      localFilesOnly: true,
+      modelId: 'model',
+      revision: 'a'.repeat(40),
+      dtype: 'q8',
+      maxTokens: 64,
+    })
+    await expect(reranker.rerank('query', [{ ordinal: 0, score: 1 }], chunks, 1))
+      .resolves.toEqual([{ ordinal: 0, score: 0.75 }])
+    expect(transformerMocks.tokenizer.padding_side).toBe('right')
+    expect(transformerMocks.tokenizer).toHaveBeenCalledWith(['query'], {
+      text_pair: ['Alpha\nfirst body'],
+      padding: true,
+      truncation: true,
+      max_length: 64,
+    })
+    expect(transformerMocks.model).toHaveBeenCalledWith({ input_ids: [] })
+    await reranker.dispose()
+    expect(transformerMocks.dispose).toHaveBeenCalled()
+
+    for (const output of [null, [], {}, { logits: null }, { logits: [] }]) {
+      transformerMocks.state.output = output
+      const invalid = await loadReranker({ cacheDir: '/cache', localFilesOnly: true })
+      await expect(invalid.rerank('query', [{ ordinal: 0, score: 1 }], chunks, 1))
+        .rejects.toThrow('did not return logits')
+    }
+
+    transformerMocks.state.output = { logits: { data: Float32Array.of(1) } }
+    const missingMetadata = await loadReranker({ cacheDir: '/cache', localFilesOnly: true })
+    await expect(missingMetadata.rerank('query', [{ ordinal: 0, score: 1 }], chunks, 1))
+      .rejects.toThrow('must be float32')
   })
 })

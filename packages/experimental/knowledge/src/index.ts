@@ -16,6 +16,7 @@ declare module '@deepseek-ai/cordis' {
 /** Stable caller-visible failure categories for knowledge retrieval. */
 export type KnowledgeErrorCode =
   | 'KNOWLEDGE_INVALID_REQUEST'
+  | 'KNOWLEDGE_STRATEGY_NOT_ALLOWED'
   | 'KNOWLEDGE_CANCELLED'
   | 'KNOWLEDGE_SEARCH_FAILED'
 

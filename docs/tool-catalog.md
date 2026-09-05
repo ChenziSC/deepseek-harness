@@ -2040,6 +2040,33 @@ Search the configured knowledge base for evidence relevant to a natural-language
     "query": {
       "type": "string",
       "description": "Natural-language evidence search query."
+    },
+    "retrieval": {
+      "type": "string",
+      "description": "Optional high-level recall choice. Omit to use the configured default.",
+      "enum": [
+        "bm25",
+        "dense",
+        "hybrid"
+      ]
+    },
+    "denseIndex": {
+      "type": "string",
+      "description": "Optional Dense search preference. Omit to use the configured default.",
+      "enum": [
+        "auto",
+        "exact",
+        "hnsw"
+      ]
+    },
+    "rerank": {
+      "type": "string",
+      "description": "Optional quality choice. Use on for quality-first and off for performance-first retrieval.",
+      "enum": [
+        "auto",
+        "on",
+        "off"
+      ]
     }
   },
   "required": [

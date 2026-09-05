@@ -1,0 +1,23 @@
+- id: base
+  name: '@deepseek-ai/cordis-plugin-include'
+  config:
+    path: ./cordis.yml
+    patches:
+      - id: llm-deepseek
+        name: '@deepseek-ai/dsh-llm-deepseek'
+        disabled: true
+      - insert:
+          - id: knowledge-local
+            name: '@deepseek-ai/dsh-experimental-knowledge-local'
+            config:
+              indexDir: !!js process.env.DSH_KNOWLEDGE_INDEX_DIR
+              defaultRetrieval: bm25
+              allowedRetrieval: [bm25]
+              allowedRerank: false
+              candidateCount: 5
+          - id: tool-knowledge
+            name: '@deepseek-ai/dsh-experimental-tool-knowledge'
+            config:
+              maxResults: 2
+          - id: llm-replay
+            name: '@deepseek-ai/dsh-llm-replay'

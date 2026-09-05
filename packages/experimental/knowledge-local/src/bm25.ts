@@ -1,7 +1,11 @@
-/** Deterministic English analysis and Okapi BM25 scoring. */
+/** Deterministic lexical analysis and the legacy in-memory BM25 scorer. */
 
 /** Stable identifier of the first English analyzer revision. */
 export const ENGLISH_ANALYZER = 'english-v1'
+/** Stable identifier of the mixed Chinese and English analyzer revision. */
+export const MIXED_ZH_EN_ANALYZER = 'mixed-zh-en-v1'
+/** Analyzer revisions supported by version-two indexes. */
+export type KnowledgeBm25Analyzer = typeof ENGLISH_ANALYZER | typeof MIXED_ZH_EN_ANALYZER
 
 /** One posting in ordinal order: `[documentOrdinal, termFrequency]`. */
 export type Bm25Posting = readonly [ordinal: number, termFrequency: number]
@@ -56,6 +60,70 @@ export function analyzeEnglishV1(text: string): string[] {
   return text.normalize('NFKC').toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []
 }
 
+function encodeWord(value: string): string {
+  let encoded = 'w_'
+  for (const character of value) {
+    encoded += /^[a-z0-9_]$/u.test(character)
+      ? character
+      : `x${(character.codePointAt(0) as number).toString(16)}_`
+  }
+  return encoded
+}
+
+function encodeHan(characters: readonly string[]): string {
+  return `c${characters.length}_${characters
+    .map(character => (character.codePointAt(0) as number).toString(16))
+    .join('_')}`
+}
+
+/**
+ * Analyze mixed Chinese and English text into ASCII-safe FTS5 terms.
+ * @param text - source or query text.
+ * @returns encoded Latin word terms plus Han unigrams and adjacent bigrams.
+ */
+export function analyzeMixedZhEnV1(text: string): string[] {
+  const normalized = text.normalize('NFKC').toLowerCase()
+  const terms: string[] = []
+  let word = ''
+  let han: string[] = []
+  const flushWord = (): void => {
+    if (word.length > 0) terms.push(encodeWord(word))
+    word = ''
+  }
+  const flushHan = (): void => {
+    for (let index = 0; index < han.length; index += 1) {
+      terms.push(encodeHan([han[index] as string]))
+      if (index + 1 < han.length) terms.push(encodeHan([han[index] as string, han[index + 1] as string]))
+    }
+    han = []
+  }
+  for (const character of normalized) {
+    if (/^[\p{Script=Latin}\p{N}_]$/u.test(character)) {
+      flushHan()
+      word += character
+    } else if (/^\p{Script=Han}$/u.test(character)) {
+      flushWord()
+      han.push(character)
+    } else {
+      flushWord()
+      flushHan()
+    }
+  }
+  flushWord()
+  flushHan()
+  return terms
+}
+
+/**
+ * Run the analyzer declared by an immutable index.
+ * @param analyzer - recorded analyzer revision.
+ * @param text - source or query text.
+ * @returns deterministic FTS5 terms.
+ */
+export function analyzeBm25(analyzer: KnowledgeBm25Analyzer, text: string): string[] {
+  return analyzer === ENGLISH_ANALYZER ? analyzeEnglishV1(text) : analyzeMixedZhEnV1(text)
+}
+
 /**
  * Compare strings by Unicode code points rather than locale.
  * @param left - first string.
@@ -67,7 +135,7 @@ export function compareCodePoints(left: string, right: string): number {
   const b = Array.from(right)
   const count = Math.min(a.length, b.length)
   for (let index = 0; index < count; index += 1) {
-    const difference = (a[index]?.codePointAt(0) ?? 0) - (b[index]?.codePointAt(0) ?? 0)
+    const difference = ((a[index] as string).codePointAt(0) as number) - ((b[index] as string).codePointAt(0) as number)
     if (difference !== 0) return difference
   }
   return a.length - b.length
@@ -144,7 +212,8 @@ function scoreBm25(
   }
   const matches = [...scored.entries()]
     .map(([ordinal, value]) => ({ ordinal, score: value.score, contributions: value.contributions }))
-    .sort((left, right) => right.score - left.score || compareCodePoints(chunkIds[left.ordinal] ?? '', chunkIds[right.ordinal] ?? ''))
+    .sort((left, right) => right.score - left.score
+      || compareCodePoints(chunkIds[left.ordinal] as string, chunkIds[right.ordinal] as string))
     .slice(0, limit)
   return { queryTokens, matches }
 }

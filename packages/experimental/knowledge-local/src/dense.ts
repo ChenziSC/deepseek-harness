@@ -3,8 +3,8 @@
 import { KnowledgeError } from '@deepseek-ai/dsh-experimental-knowledge'
 import { compareCodePoints } from './bm25.ts'
 
-/** Embedding width of `bge-small-en-v1.5`. */
-export const DENSE_DIMENSIONS = 384
+/** Embedding width of the second-phase BGE-M3 default. */
+export const DENSE_DIMENSIONS = 1024
 /** Maximum accepted deviation from unit L2 norm. */
 export const DENSE_NORMALIZATION_TOLERANCE = 1e-4
 
@@ -17,8 +17,8 @@ export interface DenseMatch {
 function vectorNorm(vectors: Float32Array, offset: number, dimensions: number): number {
   let squaredNorm = 0
   for (let dimension = 0; dimension < dimensions; dimension += 1) {
-    const value = vectors[offset + dimension]
-    if (value === undefined || !Number.isFinite(value)) return Number.NaN
+    const value = vectors[offset + dimension] as number
+    if (!Number.isFinite(value)) return Number.NaN
     squaredNorm += value * value
   }
   return Math.sqrt(squaredNorm)
@@ -57,7 +57,9 @@ function dotProduct(
 ): number {
   let score = 0
   for (let dimension = 0; dimension < dimensions; dimension += 1) {
-    score = Math.fround(score + Math.fround((vectors[vectorOffset + dimension] ?? 0) * (query[dimension] ?? 0)))
+    score = Math.fround(score + Math.fround(
+      (vectors[vectorOffset + dimension] as number) * (query[dimension] as number),
+    ))
   }
   return score
 }
@@ -72,7 +74,7 @@ function throwIfCancelled(signal: AbortSignal | undefined): void {
  * Rank every indexed embedding by exact float32 dot product.
  * @param vectors - validated row-major document embeddings.
  * @param query - one normalized query embedding.
- * @param chunkIds - row-aligned chunk identifiers used for deterministic ties.
+ * @param chunkIds - optional row-aligned chunk identifiers used for deterministic ties.
  * @param dimensions - values per embedding.
  * @param limit - maximum matches to return.
  * @param signal - optional cooperative cancellation signal.
@@ -81,7 +83,7 @@ function throwIfCancelled(signal: AbortSignal | undefined): void {
 export function searchDense(
   vectors: Float32Array,
   query: Float32Array,
-  chunkIds: readonly string[],
+  chunkIds: readonly string[] | undefined,
   dimensions: number,
   limit: number,
   signal?: AbortSignal,
@@ -90,12 +92,16 @@ export function searchDense(
   if (!Number.isSafeInteger(dimensions) || dimensions < 1) {
     throw new TypeError('knowledge-local: dense dimensions are invalid')
   }
-  if (vectors.length !== chunkIds.length * dimensions) {
+  if (vectors.length % dimensions !== 0) {
+    throw new TypeError('knowledge-local: dense index dimensions do not match its data length')
+  }
+  const rowCount = vectors.length / dimensions
+  if (chunkIds !== undefined && chunkIds.length !== rowCount) {
     throw new TypeError('knowledge-local: dense index dimensions do not match its data length')
   }
   validateDenseVectors(query, 1, dimensions, 'knowledge-local: dense query')
   const matches: DenseMatch[] = []
-  for (let ordinal = 0; ordinal < chunkIds.length; ordinal += 1) {
+  for (let ordinal = 0; ordinal < rowCount; ordinal += 1) {
     if (ordinal % 256 === 0) throwIfCancelled(signal)
     const score = dotProduct(vectors, ordinal * dimensions, query, dimensions)
     if (!Number.isFinite(score)) throw new TypeError('knowledge-local: dense index contains a non-finite value')
@@ -107,6 +113,8 @@ export function searchDense(
   throwIfCancelled(signal)
   return matches
     .sort((left, right) => right.score - left.score
-      || compareCodePoints(chunkIds[left.ordinal] ?? '', chunkIds[right.ordinal] ?? ''))
+      || (chunkIds === undefined
+        ? left.ordinal - right.ordinal
+        : compareCodePoints(chunkIds[left.ordinal] as string, chunkIds[right.ordinal] as string)))
     .slice(0, limit)
 }

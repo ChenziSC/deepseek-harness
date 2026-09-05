@@ -11,17 +11,22 @@ Experimental local provider for [`ctx.knowledge`](../knowledge/README.md). It lo
   name: '@deepseek-ai/dsh-experimental-knowledge-local'
   config:
     indexDir: ./path/to/index
-    mode: hybrid
-    rerank: false
+    defaultRetrieval: hybrid
+    defaultDenseIndex: auto
+    defaultRerank: off
+    allowedRetrieval: [bm25, dense, hybrid]
+    allowedDenseIndexes: [exact, hnsw]
+    allowedRerank: true
     candidateCount: 50
-    bm25K1: 1.2
-    bm25B: 0.75
+    rerankerCandidateCount: 20
     rrfK: 60
     modelCacheDir: ./model-cache
-    denseModelId: onnx-community/bge-small-en-v1.5-ONNX
-    denseModelRevision: 4a9a46c7b88fa408e650a571a1800243f26309bd
+    denseModelId: onnx-community/bge-m3-ONNX
+    denseModelRevision: 25b9af8e87a38eb120cfe87125383677b9cd309e
     denseDtype: q8
     denseMaxTokens: 512
+    hnswExpansionSearch: 1024
+    verifyPayloadHashes: false
     rerankerModelId: onnx-community/bge-reranker-v2-m3-ONNX
     rerankerModelRevision: 6f5ff65298512715a1e669753bc754d2bc8f367b
     rerankerDtype: q8
@@ -29,11 +34,11 @@ Experimental local provider for [`ctx.knowledge`](../knowledge/README.md). It lo
     rerankerMaxTokens: 512
 ```
 
-Startup fails when the manifest or payloads are missing, corrupted, incompatible, or use different configured retrieval parameters. Dense, Hybrid, and reranked modes require an explicit model cache; runtime model loading is local-only and never downloads missing files. BM25 without reranking needs no model cache and does not load ONNX weights.
+Startup fails when the manifest or payloads are missing, corrupted, incompatible, or cannot support every allowed strategy. Allowing Dense, Hybrid, or reranked requests requires an explicit model cache; runtime model loading is local-only and never downloads missing files. A BM25-only policy with reranking disabled needs no model cache and does not load ONNX weights.
 
-## Prepare SciFact and models
+## Prepare benchmark data and models
 
-The preparation command downloads the English BEIR SciFact dataset, verifies its published MD5 digest, reports SHA-256, and populates an explicit Transformers.js cache with both fixed q8 model revisions:
+The SciFact preparation command verifies the published archive digest and populates an explicit Transformers.js cache with the fixed BGE-M3 and reranker q8 revisions:
 
 ```sh
 pnpm exec tsx packages/experimental/knowledge-local/src/bin.ts prepare scifact \
@@ -41,11 +46,19 @@ pnpm exec tsx packages/experimental/knowledge-local/src/bin.ts prepare scifact \
   --model-cache-dir ./model-cache
 ```
 
-The downloaded q8 weights occupy approximately 32 MiB for Dense retrieval and 544 MiB for reranking; tokenizers and configuration bring the combined cache to approximately 594 MiB.
+MLDR, T2Ranking, and MLQA Retrieval use fixed Hugging Face revisions and write source URLs, licenses, sizes, and SHA-256 digests to `source.json`:
+
+```sh
+pnpm exec tsx packages/experimental/knowledge-local/src/bin.ts prepare mldr --language zh --data-dir ./rag-data
+pnpm exec tsx packages/experimental/knowledge-local/src/bin.ts prepare t2ranking --data-dir ./rag-data
+pnpm exec tsx packages/experimental/knowledge-local/src/bin.ts prepare mlqa-eng-zho --data-dir ./rag-data
+```
+
+The BGE-M3 and reranker q8 weights occupy approximately 542 MiB and 544 MiB respectively. Benchmark data and models are local experiment inputs and are not committed.
 
 ## Build an index
 
-The index command parses strict JSONL documents, chunks them with the fixed-revision BGE tokenizer, builds the English BM25 postings, optionally embeds the same chunks, writes payloads, and publishes `manifest.json` last:
+The index command streams documents through bounded SQLite transactions, chunks them with the fixed-revision BGE-M3 tokenizer, builds the selected FTS5 analyzer, optionally embeds the same chunks in batches, and publishes `manifest.json` last:
 
 ```sh
 pnpm exec tsx packages/experimental/knowledge-local/src/bin.ts index \
@@ -54,10 +67,13 @@ pnpm exec tsx packages/experimental/knowledge-local/src/bin.ts index \
   --output ./index \
   --model-cache-dir ./model-cache \
   --components bm25,dense \
+  --analyzer mixed-zh-en-v1 \
+  --dense-index auto \
+  --sqlite-batch-size 500 \
   --embedding-batch-size 32
 ```
 
-The tokenizer and any requested q8 ONNX weights must already exist in the explicit cache. Use `--components bm25` to build the baseline without loading ONNX weights. `--corpus-format` accepts `generic` or `scifact` and defaults to `generic`.
+The tokenizer and any requested q8 ONNX weights must already exist in the explicit cache. Use `--components bm25` to build the baseline without loading ONNX weights. `--corpus-format` accepts `generic`, `scifact`, `mldr`, or `t2ranking`. Index format 2 stores chunk metadata and BM25 data in `knowledge.sqlite`. `auto` builds Exact-only when `vectorCount × dimensions` is at most `50,000,000` and HNSW-only above it; `exact` and `hnsw` each retain one payload, while `both` retains `dense.f32le` and `dense.usearch`. An interactive terminal shows the exact scale, estimated sizes, and recommendation before embedding and asks for confirmation; non-interactive commands deterministically accept the recommendation. The runtime opens SQLite read-only, validates payload types and sizes on startup, recomputes hashes through `dsh-knowledge verify`, and loads Exact vectors or the HNSW graph only when requested.
 
 The generic corpus format is one object per line:
 
@@ -65,21 +81,23 @@ The generic corpus format is one object per line:
 {"id":"doc-1","title":"Example","text":"Non-empty body","source":"fixture"}
 ```
 
-The package also exports strict SciFact corpus, query, and qrels parsers for the later evaluation command.
+The package also exports strict SciFact, MLDR, T2Ranking, and MLQA Retrieval parsers for the evaluation command.
 
 ## Retrieval behavior
 
-`english-v1` applies Unicode NFKC normalization, lowercase conversion, and consecutive Unicode letter-or-number token extraction. Query tokens are de-duplicated. Okapi BM25 uses configurable `k1` and `b`; score ties use chunk-id Unicode code-point order. `explainBm25` exposes local-only token and term-contribution diagnostics.
+Each request may select BM25, Dense, or Hybrid recall, Exact or HNSW Dense search, and optional reranking within the provider's allowed sets. Omitted fields use `defaultRetrieval`, `defaultDenseIndex`, and `defaultRerank`; the defaults are Hybrid, the index manifest's automatic Dense choice, and reranking off. Search results include the resolved strategy. The model-facing tool exposes only these high-level choices and does not expose candidate counts, fusion weights, thresholds, model paths, or HNSW parameters.
 
-Dense mode uses the fixed-revision `onnx-community/bge-small-en-v1.5-ONNX` q8 model. Documents are embedded as title, newline, and body; queries receive the BGE retrieval prefix. Inputs are right-truncated to at most 512 model tokens, embeddings use CLS pooling and L2 normalization, and retrieval performs an exact float32 dot-product scan. `dense.f32le` stores one 384-value little-endian row per chunk.
+`mixed-zh-en-v1` applies Unicode NFKC normalization, lowercases ASCII words, preserves digits and underscores, and emits Chinese unigram and bigram terms. Query terms are de-duplicated. Runtime BM25 uses SQLite FTS5's fixed scoring parameters; score ties use chunk-id Unicode code-point order. `english-v1` remains available for first-phase English reproduction.
+
+Dense mode uses fixed-revision `onnx-community/bge-m3-ONNX` q8 weights. Documents use title plus body, inputs are right-truncated to the configured model-token limit, and 1024-dimensional CLS embeddings are L2-normalized. Exact scans `dense.f32le`; HNSW searches the persisted USearch graph with ordinal keys and the configured `hnswExpansionSearch`.
 
 Hybrid mode runs BM25 and Dense sequentially, takes up to `candidateCount` results from each route, and fuses their union with Reciprocal Rank Fusion. The default `rrfK` is 60; ties use the better route rank and then chunk-id Unicode code-point order. Either route failing fails the request without returning partial results.
 
-Reranking can be enabled independently for BM25, Dense, and Hybrid. The fixed-revision `onnx-community/bge-reranker-v2-m3-ONNX` q8 cross-encoder scores query and candidate text pairs in batches of eight, uses at most 512 tokens, and sorts by raw logit while preserving recall order on ties.
+Reranking can be enabled independently for BM25, Dense, and Hybrid. Recall retains 50 candidates by default; the cross-encoder reranks only the leading 20 by default and appends the remaining candidates in recall order. Developers may override `rerankerCandidateCount`. The fixed-revision `onnx-community/bge-reranker-v2-m3-ONNX` q8 model scores query and candidate text pairs in batches of eight, uses at most 512 tokens, and sorts by raw logit while preserving recall order on ties.
 
-## Evaluate SciFact
+## Evaluate datasets
 
-The evaluation command runs BM25, Dense, and Hybrid with and without reranking, folds chunk hits to unique documents, and writes Recall, MRR, nDCG, Success, and latency measurements:
+The evaluation command selects BM25, Dense, and Hybrid matrices, folds chunk hits to unique documents, and writes Recall, MRR, nDCG, Success, latency, payload sizes, and HNSW recall relative to Exact:
 
 ```sh
 pnpm exec tsx packages/experimental/knowledge-local/src/bin.ts evaluate \
@@ -88,10 +106,15 @@ pnpm exec tsx packages/experimental/knowledge-local/src/bin.ts evaluate \
   --qrels ./rag-data/scifact/qrels/test.tsv \
   --model-cache-dir ./model-cache \
   --max-results 20 \
+  --candidate-count 50 \
+  --reranker-candidate-count 20 \
+  --modes bm25,dense,hybrid \
+  --dense-indexes exact,hnsw \
+  --rerank off,on \
   --output ./report
 ```
 
-The six combinations use the same 50-candidate recall depth. Warmup queries are excluded from latency statistics, and a failed combination is recorded without calculating partial averages.
+`--dataset` accepts `scifact`, `mldr`, `t2ranking`, or `mlqa`; `--query-limit` supports explicitly labeled sample runs. `--candidate-count` controls recall depth, and `--reranker-candidate-count` limits the leading candidates sent through the cross-encoder. A BM25-only matrix works with a BM25-only index. Warmup queries are excluded from latency statistics, and a failed combination is recorded without calculating partial averages.
 
 ## Model Experience
 
@@ -103,8 +126,8 @@ No direct invalidation; a Consumer owns any request-prefix changes and appends r
 
 ## Known Limitations and Deferred Work
 
-- SciFact contains English scientific claims and abstracts; its results do not establish Chinese retrieval quality or general-domain behavior.
-- The 544 MiB reranker is substantially slower and more memory-intensive than BM25 or the 32 MiB embedding model; this package does not add an inference queue or resource scheduler.
-- Chunk fallback locates original-text boundaries by repeated tokenizer counts because Transformers.js does not expose token offsets. The result is deterministic for the fixed tokenizer but is not a general offset API for arbitrary tokenizers.
-- Index construction permits an absent or empty target directory and leaves incomplete payloads after a failure; it does not provide atomic directory replacement or recovery.
-- The default analyzer is an English teaching baseline without stemming, stop-word removal, or synonyms.
+- No single benchmark establishes general-domain quality. SciFact is English, MLDR is synthetic long-document retrieval, T2Ranking is Chinese, and MLQA Retrieval `eng-zho` covers Chinese queries over English passages.
+- The BGE-M3 and reranker models are each larger than 500 MiB. CPU inference, especially reranking and offline embedding of large corpora, is substantially slower and more memory-intensive than BM25; this package does not add an inference queue or resource scheduler.
+- Transformers.js does not expose token offsets. Chunk fallback therefore uses bounded tokenizer-count probes around each chunk and records cumulative local token positions; the result is deterministic for the fixed tokenizer but is not a general offset API for arbitrary tokenizers.
+- Index construction permits an absent or empty target directory and leaves an unpublished incomplete directory after a failure; it does not provide atomic directory replacement or recovery. Full benchmark indexes are intended to be built, evaluated, and removed in sequence on storage-constrained machines rather than retained together.
+- The mixed Chinese-English analyzer is deterministic and dictionary-free; it does not provide word segmentation, stemming, stop-word removal, synonyms, or learned sparse retrieval.

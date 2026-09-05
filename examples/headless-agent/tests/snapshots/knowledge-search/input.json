@@ -1,0 +1,8 @@
+{
+  "steps": [
+    {
+      "op": "prompt",
+      "text": "Use the configured knowledge base to answer: What converts light energy in plants? Cite the evidence identifier."
+    }
+  ]
+}

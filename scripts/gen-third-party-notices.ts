@@ -69,6 +69,9 @@ const OVERRIDES: Record<string, { license?: string; repo?: string }> = {
   // Rust workspaces publishing npm bins without `license` in package.json.
   'oxlint': { license: 'MIT', repo: 'https://github.com/oxc-project/oxc' },
   'oxlint-tsgolint': { license: 'MIT', repo: 'https://github.com/oxc-project/tsgolint' },
+  // The published manifest uses the non-SPDX spelling `Apache 2.0`; the
+  // bundled LICENSE contains the Apache License, Version 2.0.
+  'usearch': { license: 'Apache-2.0' },
   // `license: SEE LICENSE IN LICENSE`: the servers repo is mid MIT→Apache-2.0
   // relicensing, so the effective terms are per-contribution.
   '@modelcontextprotocol/server-everything': { license: 'MIT / Apache-2.0', repo: 'https://github.com/modelcontextprotocol/servers' },

@@ -40,7 +40,9 @@
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:^",
     "@huggingface/transformers": "^4.2.0",
-    "fflate": "^0.8.2"
+    "fflate": "^0.8.2",
+    "hyparquet": "1.29.2",
+    "usearch": "2.26.2"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
