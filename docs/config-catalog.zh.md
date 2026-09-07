@@ -633,14 +633,14 @@ export interface LocalKnowledgeConfig {
   indexDir: string
   /** Recompute all payload hashes during activation instead of checking sizes only. */
   verifyPayloadHashes?: boolean
-  /** Recall algorithm used when a request omits it. */
+  /** Recall preference used when a request omits it. */
   defaultRetrieval?: KnowledgeRetrieval
   /** Dense index preference used when a request omits it. */
   defaultDenseIndex?: KnowledgeDenseIndex
   /** Reranking preference used when a request omits it or requests `auto`. */
   defaultRerank?: Exclude<KnowledgeRerank, 'auto'>
   /** Recall algorithms callers may request. */
-  allowedRetrieval?: KnowledgeRetrieval[]
+  allowedRetrieval?: ResolvedKnowledgeRetrieval[]
   /** Concrete Dense indexes callers may request. */
   allowedDenseIndexes?: Array<Exclude<KnowledgeDenseIndex, 'auto'>>
   /** Whether callers may request reranking. */
@@ -649,6 +649,10 @@ export interface LocalKnowledgeConfig {
   candidateCount?: number
   /** Maximum leading recall candidates submitted to the reranker. */
   rerankerCandidateCount?: number
+  /** Normalized top-two score gap at or above which adaptive reranking is skipped. */
+  adaptiveRerankMinScoreGapRatio?: number
+  /** Number of same-document chunks attached before and after each ranked match. */
+  adjacentChunkCount?: number
   /** Reciprocal Rank Fusion constant used by Hybrid mode. */
   rrfK?: number
   /** Explicit Transformers.js cache required by Dense, Hybrid, and reranked modes. */
@@ -682,9 +686,9 @@ export interface LocalKnowledgeConfig {
 }
 ```
 
-依赖：[`KnowledgeDenseIndex`](../packages/experimental/knowledge/src/index.ts) · [`KnowledgeRerank`](../packages/experimental/knowledge/src/index.ts) · [`KnowledgeRetrieval`](../packages/experimental/knowledge/src/index.ts)
+依赖：[`KnowledgeDenseIndex`](../packages/experimental/knowledge/src/index.ts) · [`KnowledgeRerank`](../packages/experimental/knowledge/src/index.ts) · [`KnowledgeRetrieval`](../packages/experimental/knowledge/src/index.ts) · [`ResolvedKnowledgeRetrieval`](../packages/experimental/knowledge/src/index.ts)
 
-来源：[`packages/experimental/knowledge-local/src/index.ts:34`](../packages/experimental/knowledge-local/src/index.ts)
+来源：[`packages/experimental/knowledge-local/src/index.ts:37`](../packages/experimental/knowledge-local/src/index.ts)
 
 <a id="deepseek-aidsh-experimental-tool-agent-team"></a>
 
@@ -725,10 +729,12 @@ export interface Config {
   outputMaxChars?: number
   /** Cooperative tool deadline in milliseconds. */
   timeoutMs?: number
+  /** Maximum model-driven searches allowed in one agent turn. */
+  maxSearchesPerTurn?: number
 }
 ```
 
-来源：[`packages/experimental/tool-knowledge/src/index.ts:24`](../packages/experimental/tool-knowledge/src/index.ts)
+来源：[`packages/experimental/tool-knowledge/src/index.ts:25`](../packages/experimental/tool-knowledge/src/index.ts)
 
 <a id="deepseek-aidsh-file-reference-local"></a>
 

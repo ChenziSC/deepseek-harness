@@ -1,22 +1,24 @@
 {
-  "formatVersion": 2,
+  "formatVersion": 3,
   "createdBy": {
     "package": "@deepseek-ai/dsh-experimental-knowledge-local",
     "version": "0.1.1-rc.2"
   },
   "build": {
-    "durationMs": 6.946292
+    "durationMs": 8.365583000000015
   },
   "corpus": {
-    "sha256": "4ee9cf8949417925edd39042e7944786c01a9ad0796956b75bd8c3ce0958d3fa",
+    "sha256": "744d7a71df469df9e2810b40a8f96ce842d48b832a87c2214c356d860a2d14d4",
     "documentCount": 2,
-    "chunkCount": 2
+    "chunkCount": 2,
+    "scriptProfile": "latin"
   },
   "chunking": {
     "tokenizerModelId": "onnx-community/bge-small-en-v1.5-ONNX",
     "tokenizerRevision": "4a9a46c7b88fa408e650a571a1800243f26309bd",
     "maxTokens": 384,
-    "overlapTokens": 64
+    "overlapTokens": 64,
+    "strategy": "markdown-structure-v1"
   },
   "bm25": {
     "analyzer": "english-v1",
@@ -26,7 +28,7 @@
     {
       "path": "knowledge.sqlite",
       "bytes": 40960,
-      "sha256": "69a82bd5c17dea193f9c799de3c121adb638f745e17f58b7cb279de49eb93873"
+      "sha256": "c1c5efa1ca4391508184ef4dc873f812cd45ca00cf714e7de0e8ee97f434d14f"
     }
   ]
 }

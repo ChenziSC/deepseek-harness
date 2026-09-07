@@ -40,6 +40,46 @@ describe('deterministic chunking', () => {
     expect(chunks[0]).toMatchObject({ title: 'A', source: 'fixture' })
   })
 
+  it('uses Markdown heading paths and keeps a bounded fenced code block intact', () => {
+    const fence = '```'
+    const text = [
+      '# Guide',
+      'intro words',
+      '',
+      '## Install',
+      `${fence}ts`,
+      'const value = 1',
+      fence,
+      '',
+      'closing words',
+    ].join('\n')
+    const chunks = chunkDocuments(
+      parseCorpusJsonl(`${JSON.stringify({ id: 'markdown', text })}\n`),
+      whitespaceTokenizer,
+      { maxTokens: 8, overlapTokens: 0 },
+    )
+
+    expect(chunks.map(chunk => ({ sectionPath: chunk.sectionPath, text: chunk.text }))).toEqual([
+      { sectionPath: 'Guide', text: '# Guide\nintro words' },
+      { sectionPath: 'Guide > Install', text: '## Install\n```ts\nconst value = 1\n```' },
+      { sectionPath: 'Guide > Install', text: 'closing words' },
+    ])
+  })
+
+  it('falls back to token limits for oversized or unclosed code fences', () => {
+    const fence = '```'
+    const text = ['# Code', fence, 'one two three four five six'].join('\n')
+    const chunks = chunkDocuments(
+      parseCorpusJsonl(`${JSON.stringify({ id: 'long-code', text })}\n`),
+      whitespaceTokenizer,
+      { maxTokens: 3, overlapTokens: 0 },
+    )
+
+    expect(chunks.length).toBeGreaterThan(1)
+    expect(chunks.every(chunk => chunk.sectionPath === 'Code')).toBe(true)
+    expect(chunks.every(chunk => whitespaceTokenizer.countTokens(chunk.text) <= 3)).toBe(true)
+  })
+
   it('advances past a short boundary when overlap covers the complete chunk', () => {
     const documents = parseCorpusJsonl('{"id":"doc","text":"One. Two three four five."}')
     expect(chunkDocuments(documents, whitespaceTokenizer, { maxTokens: 4, overlapTokens: 3 })

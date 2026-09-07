@@ -25,8 +25,13 @@ type KnowledgeChunkId = Branded<'KnowledgeChunkId'>
 Callers may request only provider-neutral choices. The provider applies its allowed sets and defaults, resolves `auto`, and returns the strategy it actually executed. Dense index details are absent from a resolved BM25 strategy.
 
 ```ts type-equiv
-/** Provider-neutral recall algorithm requested for one search. */
-type KnowledgeRetrieval = 'bm25' | 'dense' | 'hybrid'
+/** Provider-neutral recall preference requested for one search. */
+type KnowledgeRetrieval = 'auto' | 'bm25' | 'dense' | 'hybrid'
+```
+
+```ts type-equiv
+/** Concrete recall algorithm executed by a provider. */
+type ResolvedKnowledgeRetrieval = Exclude<KnowledgeRetrieval, 'auto'>
 ```
 
 ```ts type-equiv
@@ -42,7 +47,7 @@ type KnowledgeRerank = 'auto' | 'on' | 'off'
 ```ts type-equiv
 /** Optional high-level retrieval choices for one search. */
 interface KnowledgeSearchStrategy {
-  /** Recall algorithm; the provider default applies when omitted. */
+  /** Recall preference; `auto` lets the provider route the query. */
   readonly retrieval?: KnowledgeRetrieval
   /** Dense index preference; meaningful only for Dense and Hybrid recall. */
   readonly denseIndex?: KnowledgeDenseIndex
@@ -55,7 +60,7 @@ interface KnowledgeSearchStrategy {
 /** High-level retrieval choices executed by a provider. */
 interface ResolvedKnowledgeSearchStrategy {
   /** Recall algorithm used for this result. */
-  readonly retrieval: KnowledgeRetrieval
+  readonly retrieval: ResolvedKnowledgeRetrieval
   /** Dense index used by Dense or Hybrid recall. */
   readonly denseIndex?: Exclude<KnowledgeDenseIndex, 'auto'>
   /** Whether neural reranking was applied. */
@@ -81,7 +86,7 @@ interface KnowledgeSearchRequest {
 
 ## Search result
 
-Hits are ordered by descending provider rank. Scores are finite and comparable only within one response; consumers use the supplied order rather than comparing scores across calls or providers.
+Hits are ordered by descending provider rank. Scores are finite and comparable only within one response; consumers use the supplied order rather than comparing scores across calls or providers. Optional adjacent text supplies local reading context without creating additional ranked hits.
 
 ```ts type-equiv
 /** One ranked fragment returned by a knowledge provider. */
@@ -92,8 +97,14 @@ interface KnowledgeHit {
   readonly chunkId: KnowledgeChunkId
   /** Optional source title. */
   readonly title?: string
+  /** Optional Markdown heading path enclosing the ranked fragment. */
+  readonly sectionPath?: string
   /** Original fragment text. */
   readonly text: string
+  /** Optional de-duplicated text immediately before the ranked fragment. */
+  readonly previousText?: string
+  /** Optional de-duplicated text immediately after the ranked fragment. */
+  readonly nextText?: string
   /** Optional source label; not necessarily a URL or filesystem path. */
   readonly source?: string
   /** Finite score comparable only within this response. */

@@ -17,9 +17,18 @@ import {
   MIXED_ZH_EN_ANALYZER,
   type KnowledgeBm25Analyzer,
 } from './bm25.ts'
-import type { DenseIndexManifest, KnowledgeIndexManifest, PayloadManifest } from './index-format.ts'
+import {
+  loadKnowledgeIndex,
+  type DenseIndexManifest,
+  type KnowledgeIndexManifest,
+  type PayloadManifest,
+} from './index-format.ts'
 import type { DenseEncoder } from './model-runtime.ts'
-import { KNOWLEDGE_SQLITE_FILE, KnowledgeSqliteWriter } from './sqlite-index.ts'
+import {
+  KNOWLEDGE_SQLITE_FILE,
+  KnowledgeSqliteWriter,
+  type KnowledgeSqliteIndex,
+} from './sqlite-index.ts'
 import {
   DEFAULT_HNSW_CONNECTIVITY,
   DEFAULT_HNSW_EXPANSION_ADD,
@@ -32,6 +41,7 @@ import {
   BGE_SMALL_EN_REVISION,
   type ChunkTokenizer,
 } from './tokenizer.ts'
+import { countTextScripts, resolveTextScriptProfile, type TextScriptCounts } from './script-profile.ts'
 
 const DENSE_FILE = 'dense.f32le'
 const MANIFEST_FILE = 'manifest.json'
@@ -102,6 +112,18 @@ export interface BuildDenseIndexOptions {
 /** Complete local index construction inputs. */
 export interface BuildKnowledgeIndexOptions extends BuildBm25IndexOptions {
   readonly dense?: BuildDenseIndexOptions
+}
+
+/** Inputs for deriving a smaller index from the ordinal prefix of an existing Exact index. */
+export interface DeriveKnowledgeIndexOptions extends BuildBm25IndexOptions {
+  /** Format-version-three source index that retains `dense.f32le`. */
+  readonly sourceIndexDir: string
+  /** Dense payloads retained by the derived index. */
+  readonly denseIndex: DenseIndexMode
+  /** Maximum scalar comparisons used only to record the size recommendation. */
+  readonly exactScanMaxElements?: number
+  readonly connectivity?: number
+  readonly expansionAdd?: number
 }
 
 interface SourceDocumentRow {
@@ -231,7 +253,7 @@ function commitSourceBatch(
 async function stageCorpus(
   options: BuildBm25IndexOptions,
   batchSize: number,
-): Promise<{ database: DatabaseSync; corpusSha256: string; documentCount: number }> {
+): Promise<{ database: DatabaseSync; corpusSha256: string; documentCount: number; scriptCounts: TextScriptCounts }> {
   const source = options.corpusSource ?? options.corpusPath ?? 'corpus.jsonl'
   const database = new DatabaseSync(join(options.outputDir, SOURCE_DATABASE_FILE))
   try {
@@ -249,11 +271,17 @@ async function stageCorpus(
     const digest = createHash('sha256')
     const batch: PendingDocument[] = []
     let documentCount = 0
+    let latin = 0
+    let cjk = 0
     for await (const input of nonBlankCorpusLines(options, digest)) {
+      const document = parseCorpusDocumentLine(input.text, options.corpusFormat ?? 'generic', source, input.line)
       batch.push({
-        document: parseCorpusDocumentLine(input.text, options.corpusFormat ?? 'generic', source, input.line),
+        document,
         line: input.line,
       })
+      const counts = countTextScripts(`${document.title ?? ''}\n${document.text}`)
+      latin += counts.latin
+      cjk += counts.cjk
       documentCount += 1
       if (batch.length === batchSize) {
         commitSourceBatch(database, insert, batch, source)
@@ -261,7 +289,7 @@ async function stageCorpus(
       }
     }
     if (batch.length > 0) commitSourceBatch(database, insert, batch, source)
-    return { database, corpusSha256: digest.digest('hex'), documentCount }
+    return { database, corpusSha256: digest.digest('hex'), documentCount, scriptCounts: { latin, cjk } }
   } catch (error) {
     database.close()
     throw error
@@ -316,6 +344,19 @@ function validateDenseOptions(options: BuildDenseIndexOptions): void {
   }
 }
 
+function validateDeriveOptions(options: DeriveKnowledgeIndexOptions): void {
+  const exactScanMaxElements = options.exactScanMaxElements ?? DEFAULT_EXACT_SCAN_MAX_ELEMENTS
+  if (!Number.isSafeInteger(exactScanMaxElements) || exactScanMaxElements < 1) {
+    throw new TypeError('knowledge-local: Dense exactScanMaxElements must be a positive safe integer')
+  }
+  for (const [label, value] of [
+    ['connectivity', options.connectivity ?? DEFAULT_HNSW_CONNECTIVITY],
+    ['expansionAdd', options.expansionAdd ?? DEFAULT_HNSW_EXPANSION_ADD],
+  ] as const) {
+    if (!Number.isSafeInteger(value) || value < 1) throw new TypeError(`knowledge-local: Dense ${label} must be positive`)
+  }
+}
+
 /**
  * Resolve the storage recommendation from the completed chunk count.
  * @param documentCount - source documents stored in SQLite.
@@ -328,12 +369,27 @@ export function createDenseIndexBuildPlan(
   chunkCount: number,
   options: BuildDenseIndexOptions,
 ): DenseIndexBuildPlan {
-  const dimensions = options.dimensions ?? DENSE_DIMENSIONS
+  return denseIndexBuildPlan(
+    documentCount,
+    chunkCount,
+    options.dimensions ?? DENSE_DIMENSIONS,
+    options.exactScanMaxElements ?? DEFAULT_EXACT_SCAN_MAX_ELEMENTS,
+    options.denseIndex ?? 'auto',
+    options.connectivity ?? DEFAULT_HNSW_CONNECTIVITY,
+  )
+}
+
+function denseIndexBuildPlan(
+  documentCount: number,
+  chunkCount: number,
+  dimensions: number,
+  exactScanMaxElements: number,
+  requestedIndex: DenseIndexRequest,
+  connectivity: number,
+): DenseIndexBuildPlan {
   const scanElements = chunkCount * dimensions
   if (!Number.isSafeInteger(scanElements)) throw new TypeError('knowledge-local: Dense scanElements exceeds safe integer range')
-  const exactScanMaxElements = options.exactScanMaxElements ?? DEFAULT_EXACT_SCAN_MAX_ELEMENTS
   const estimatedExactBytes = scanElements * Float32Array.BYTES_PER_ELEMENT
-  const connectivity = options.connectivity ?? DEFAULT_HNSW_CONNECTIVITY
   const estimatedHnswBytes = estimatedExactBytes + chunkCount * connectivity * BigUint64Array.BYTES_PER_ELEMENT
   return {
     documentCount,
@@ -341,7 +397,7 @@ export function createDenseIndexBuildPlan(
     dimensions,
     scanElements,
     exactScanMaxElements,
-    requestedIndex: options.denseIndex ?? 'auto',
+    requestedIndex,
     recommendedIndex: scanElements <= exactScanMaxElements ? 'exact' : 'hnsw',
     estimatedExactBytes,
     estimatedHnswBytes,
@@ -384,6 +440,67 @@ async function writeDenseVectors(
   }
   /* v8 ignore next -- denseInputs reads every consecutive ordinal from the just-built owned SQLite table. */
   if (writtenRows !== chunkCount) throw new TypeError('knowledge-local: Dense row count does not match SQLite chunks')
+}
+
+async function readExactVectorBatch(
+  source: FileHandle,
+  firstOrdinal: number,
+  rowCount: number,
+  dimensions: number,
+): Promise<{ readonly bytes: Buffer; readonly vectors: Float32Array }> {
+  const rowBytes = dimensions * Float32Array.BYTES_PER_ELEMENT
+  const bytes = Buffer.allocUnsafeSlow(rowCount * rowBytes)
+  let bytesRead = 0
+  while (bytesRead < bytes.length) {
+    const result = await source.read(bytes, bytesRead, bytes.length - bytesRead, firstOrdinal * rowBytes + bytesRead)
+    /* v8 ignore next 3 -- source payload size is validated before the read; only a concurrent external truncation can reach this. */
+    if (result.bytesRead === 0) {
+      throw new TypeError('knowledge-local: source Dense payload ended before the target prefix')
+    }
+    bytesRead += result.bytesRead
+  }
+  const vectors = new Float32Array(bytes.buffer, bytes.byteOffset, rowCount * dimensions)
+  validateDenseVectors(vectors, rowCount, dimensions, 'knowledge-local: source Dense prefix')
+  return { bytes, vectors }
+}
+
+async function writeDerivedDenseVectors(
+  sourceFile: FileHandle,
+  sourceSqlite: KnowledgeSqliteIndex,
+  exactFile: FileHandle | undefined,
+  writer: KnowledgeSqliteWriter,
+  chunkCount: number,
+  dimensions: number,
+  batchSize: number,
+  hnsw: HnswBuilder | undefined,
+): Promise<void> {
+  let writtenRows = 0
+  for (;;) {
+    const targetRows = writer.denseInputs(writtenRows - 1, batchSize)
+    if (targetRows.length === 0) break
+    const sourceRows = sourceSqlite.denseInputs(writtenRows - 1, batchSize)
+    for (const [index, targetRow] of targetRows.entries()) {
+      const sourceRow = sourceRows[index]
+      if (
+        sourceRow === undefined
+        /* v8 ignore next -- both validated SQLite queries return the requested consecutive ordinal range. */
+        || sourceRow.ordinal !== targetRow.ordinal
+        || sourceRow.chunkId !== targetRow.chunkId
+        || sourceRow.documentId !== targetRow.documentId
+        || sourceRow.text !== targetRow.text
+      ) {
+        throw new TypeError(
+          `knowledge-local: target Dense input at ordinal ${targetRow.ordinal} does not match the source index prefix`,
+        )
+      }
+    }
+    const batch = await readExactVectorBatch(sourceFile, writtenRows, targetRows.length, dimensions)
+    if (exactFile !== undefined) await exactFile.write(batch.bytes)
+    hnsw?.add(writtenRows, batch.vectors)
+    writtenRows += targetRows.length
+  }
+  /* v8 ignore next -- denseInputs reads every consecutive ordinal from the just-built owned SQLite table. */
+  if (writtenRows !== chunkCount) throw new TypeError('knowledge-local: derived Dense row count does not match SQLite chunks')
 }
 
 /**
@@ -466,7 +583,7 @@ export async function buildKnowledgeIndex(options: BuildKnowledgeIndexOptions): 
       autoDenseIndex: autoDenseIndex as 'exact' | 'hnsw',
     }
   const manifest: KnowledgeIndexManifest = {
-    formatVersion: 2,
+    formatVersion: 3,
     createdBy: {
       package: '@deepseek-ai/dsh-experimental-knowledge-local',
       version: await packageVersion(),
@@ -476,12 +593,14 @@ export async function buildKnowledgeIndex(options: BuildKnowledgeIndexOptions): 
       sha256: staged.corpusSha256,
       documentCount: staged.documentCount,
       chunkCount,
+      scriptProfile: resolveTextScriptProfile(staged.scriptCounts),
     },
     chunking: {
       tokenizerModelId: options.tokenizerModelId ?? BGE_SMALL_EN_MODEL_ID,
       tokenizerRevision: options.tokenizerRevision ?? BGE_SMALL_EN_REVISION,
       maxTokens: options.chunking.maxTokens,
       overlapTokens: options.chunking.overlapTokens,
+      strategy: 'markdown-structure-v1',
     },
     bm25: { analyzer, implementation: 'sqlite-fts5' },
     ...(dense === undefined ? {} : { dense }),
@@ -502,6 +621,171 @@ export async function buildKnowledgeIndex(options: BuildKnowledgeIndexOptions): 
     flag: 'wx',
   })
   return manifest
+}
+
+/**
+ * Derive a smaller format-version-three index from the ordinal prefix of an existing Exact index.
+ *
+ * The target corpus is chunked again and every Dense input is compared with the source SQLite row
+ * at the same ordinal before its existing vector is copied. No embedding model is loaded or called.
+ *
+ * @param options - source Exact index, target corpus, output, and retained Dense payloads.
+ * @returns the target manifest written after SQLite, Exact, and optional HNSW payloads succeed.
+ */
+export async function deriveKnowledgeIndexFromExact(
+  options: DeriveKnowledgeIndexOptions,
+): Promise<KnowledgeIndexManifest> {
+  const sqliteBatchSize = options.sqliteBatchSize ?? DEFAULT_SQLITE_BATCH_SIZE
+  if (!Number.isSafeInteger(sqliteBatchSize) || sqliteBatchSize < 1) {
+    throw new TypeError('knowledge-local: sqliteBatchSize must be a positive safe integer')
+  }
+  validateDeriveOptions(options)
+  await prepareOutputDirectory(options.outputDir)
+  const source = await loadKnowledgeIndex(options.sourceIndexDir)
+  try {
+    const sourceDense = source.manifest.dense
+    if (sourceDense === undefined || source.dense === undefined) {
+      throw new TypeError('knowledge-local: source index must retain dense.f32le')
+    }
+    const analyzer = options.analyzer ?? source.manifest.bm25.analyzer
+    const tokenizerModelId = options.tokenizerModelId ?? source.manifest.chunking.tokenizerModelId
+    const tokenizerRevision = options.tokenizerRevision ?? source.manifest.chunking.tokenizerRevision
+    if (analyzer !== source.manifest.bm25.analyzer) {
+      throw new TypeError('knowledge-local: derived analyzer must match the source index')
+    }
+    if (
+      options.chunking.maxTokens !== source.manifest.chunking.maxTokens
+      || options.chunking.overlapTokens !== source.manifest.chunking.overlapTokens
+    ) {
+      throw new TypeError('knowledge-local: derived chunking must match the source index')
+    }
+    if (
+      tokenizerModelId !== source.manifest.chunking.tokenizerModelId
+      || tokenizerRevision !== source.manifest.chunking.tokenizerRevision
+    ) {
+      throw new TypeError('knowledge-local: derived tokenizer must match the source index')
+    }
+    const startedAt = performance.now()
+    const staged = await stageCorpus(options, sqliteBatchSize)
+    let writer: KnowledgeSqliteWriter
+    try {
+      writer = new KnowledgeSqliteWriter(join(options.outputDir, KNOWLEDGE_SQLITE_FILE), analyzer)
+    } catch (error) {
+      /* v8 ignore next -- only an external filesystem or SQLite failure can prevent opening this new payload. */
+      staged.database.close()
+      /* v8 ignore next -- the original external error is propagated unchanged. */
+      throw error
+    }
+    const connectivity = options.connectivity ?? source.manifest.hnsw?.connectivity ?? DEFAULT_HNSW_CONNECTIVITY
+    const expansionAdd = options.expansionAdd ?? source.manifest.hnsw?.expansionAdd ?? DEFAULT_HNSW_EXPANSION_ADD
+    const exactScanMaxElements = options.exactScanMaxElements ?? sourceDense.exactScanMaxElements
+    let chunkCount: number
+    let hnsw: HnswBuilder | undefined
+    let densePlan: DenseIndexBuildPlan
+    try {
+      chunkCount = writeChunks(staged.database, writer, options.tokenizer, options.chunking, sqliteBatchSize)
+      writer.finalize(staged.documentCount, chunkCount)
+      densePlan = denseIndexBuildPlan(
+        staged.documentCount,
+        chunkCount,
+        sourceDense.dimensions,
+        exactScanMaxElements,
+        options.denseIndex,
+        connectivity,
+      )
+      if (options.denseIndex === 'hnsw' || options.denseIndex === 'both') {
+        hnsw = new HnswBuilder({ dimensions: sourceDense.dimensions, connectivity, expansionAdd })
+      }
+      const sourceFile = await open(source.dense.path, 'r')
+      let exactFile: FileHandle | undefined
+      try {
+        exactFile = options.denseIndex === 'exact' || options.denseIndex === 'both'
+          ? await open(join(options.outputDir, DENSE_FILE), 'wx')
+          : undefined
+        await writeDerivedDenseVectors(
+          sourceFile,
+          source.sqlite,
+          exactFile,
+          writer,
+          chunkCount,
+          sourceDense.dimensions,
+          sqliteBatchSize,
+          hnsw,
+        )
+      } finally {
+        await Promise.all([sourceFile.close(), exactFile?.close()])
+      }
+      hnsw?.save(join(options.outputDir, HNSW_FILE))
+    } finally {
+      staged.database.close()
+      writer.close()
+    }
+    await unlink(join(options.outputDir, SOURCE_DATABASE_FILE))
+    const payloads = [await payloadManifest(options.outputDir, KNOWLEDGE_SQLITE_FILE)]
+    if (options.denseIndex === 'exact' || options.denseIndex === 'both') {
+      payloads.push(await payloadManifest(options.outputDir, DENSE_FILE))
+    }
+    if (hnsw !== undefined) payloads.push(await payloadManifest(options.outputDir, HNSW_FILE))
+    const dense: DenseIndexManifest = {
+      modelId: sourceDense.modelId,
+      revision: sourceDense.revision,
+      dtype: sourceDense.dtype,
+      modelFile: sourceDense.modelFile,
+      pooling: sourceDense.pooling,
+      normalized: sourceDense.normalized,
+      dimensions: sourceDense.dimensions,
+      maxTokens: sourceDense.maxTokens,
+      queryPrefix: sourceDense.queryPrefix,
+      vectorCount: chunkCount,
+      scanElements: densePlan.scanElements,
+      exactScanMaxElements: densePlan.exactScanMaxElements,
+      requestedIndex: options.denseIndex,
+      recommendedIndex: densePlan.recommendedIndex,
+      resolvedIndex: options.denseIndex,
+      autoDenseIndex: options.denseIndex === 'both' ? densePlan.recommendedIndex : options.denseIndex,
+    }
+    const manifest: KnowledgeIndexManifest = {
+      formatVersion: 3,
+      createdBy: {
+        package: '@deepseek-ai/dsh-experimental-knowledge-local',
+        version: await packageVersion(),
+      },
+      build: { durationMs: performance.now() - startedAt },
+      corpus: {
+        sha256: staged.corpusSha256,
+        documentCount: staged.documentCount,
+        chunkCount,
+        scriptProfile: resolveTextScriptProfile(staged.scriptCounts),
+      },
+      chunking: {
+        tokenizerModelId,
+        tokenizerRevision,
+        maxTokens: options.chunking.maxTokens,
+        overlapTokens: options.chunking.overlapTokens,
+        strategy: 'markdown-structure-v1',
+      },
+      bm25: { analyzer, implementation: 'sqlite-fts5' },
+      dense,
+      ...(hnsw === undefined ? {} : {
+        hnsw: {
+          library: 'usearch',
+          libraryVersion: USEARCH_VERSION,
+          metric: 'cosine',
+          dtype: 'f32',
+          connectivity,
+          expansionAdd,
+        },
+      }),
+      payloads,
+    }
+    await writeFile(join(options.outputDir, MANIFEST_FILE), `${JSON.stringify(manifest, null, 2)}\n`, {
+      encoding: 'utf8',
+      flag: 'wx',
+    })
+    return manifest
+  } finally {
+    source.sqlite.close()
+  }
 }
 
 /**

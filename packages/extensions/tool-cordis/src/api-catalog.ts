@@ -3604,7 +3604,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'KnowledgeHit',
-    declaration: 'export interface KnowledgeHit {\n    readonly documentId: KnowledgeDocumentId;\n    readonly chunkId: KnowledgeChunkId;\n    readonly title?: string;\n    readonly text: string;\n    readonly source?: string;\n    readonly score: number;\n}',
+    declaration: 'export interface KnowledgeHit {\n    readonly documentId: KnowledgeDocumentId;\n    readonly chunkId: KnowledgeChunkId;\n    readonly title?: string;\n    readonly sectionPath?: string;\n    readonly text: string;\n    readonly previousText?: string;\n    readonly nextText?: string;\n    readonly source?: string;\n    readonly score: number;\n}',
   },
   {
     name: 'KnowledgeRerank',
@@ -3612,7 +3612,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'KnowledgeRetrieval',
-    declaration: 'export type KnowledgeRetrieval = \'bm25\' | \'dense\' | \'hybrid\';',
+    declaration: 'export type KnowledgeRetrieval = \'auto\' | \'bm25\' | \'dense\' | \'hybrid\';',
   },
   {
     name: 'KnowledgeSearchRequest',
@@ -3995,8 +3995,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ResolvedCredential {\n    value: string;\n    source: string;\n}',
   },
   {
+    name: 'ResolvedKnowledgeRetrieval',
+    declaration: 'export type ResolvedKnowledgeRetrieval = Exclude<KnowledgeRetrieval, \'auto\'>;',
+  },
+  {
     name: 'ResolvedKnowledgeSearchStrategy',
-    declaration: 'export interface ResolvedKnowledgeSearchStrategy {\n    readonly retrieval: KnowledgeRetrieval;\n    readonly denseIndex?: Exclude<KnowledgeDenseIndex, \'auto\'>;\n    readonly rerank: boolean;\n}',
+    declaration: 'export interface ResolvedKnowledgeSearchStrategy {\n    readonly retrieval: ResolvedKnowledgeRetrieval;\n    readonly denseIndex?: Exclude<KnowledgeDenseIndex, \'auto\'>;\n    readonly rerank: boolean;\n}',
   },
   {
     name: 'ResolvedNormalRetryPolicy',

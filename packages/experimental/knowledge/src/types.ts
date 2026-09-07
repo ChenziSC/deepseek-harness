@@ -26,8 +26,11 @@ export function KnowledgeChunkId(value: string): KnowledgeChunkId {
   return value as KnowledgeChunkId
 }
 
-/** Provider-neutral recall algorithm requested for one search. */
-export type KnowledgeRetrieval = 'bm25' | 'dense' | 'hybrid'
+/** Provider-neutral recall preference requested for one search. */
+export type KnowledgeRetrieval = 'auto' | 'bm25' | 'dense' | 'hybrid'
+
+/** Concrete recall algorithm executed by a provider. */
+export type ResolvedKnowledgeRetrieval = Exclude<KnowledgeRetrieval, 'auto'>
 
 /** Provider-neutral Dense index preference requested for one search. */
 export type KnowledgeDenseIndex = 'auto' | 'exact' | 'hnsw'
@@ -37,7 +40,7 @@ export type KnowledgeRerank = 'auto' | 'on' | 'off'
 
 /** Optional high-level retrieval choices for one search. */
 export interface KnowledgeSearchStrategy {
-  /** Recall algorithm; the provider default applies when omitted. */
+  /** Recall preference; `auto` lets the provider route the query. */
   readonly retrieval?: KnowledgeRetrieval
   /** Dense index preference; meaningful only for Dense and Hybrid recall. */
   readonly denseIndex?: KnowledgeDenseIndex
@@ -48,7 +51,7 @@ export interface KnowledgeSearchStrategy {
 /** High-level retrieval choices executed by a provider. */
 export interface ResolvedKnowledgeSearchStrategy {
   /** Recall algorithm used for this result. */
-  readonly retrieval: KnowledgeRetrieval
+  readonly retrieval: ResolvedKnowledgeRetrieval
   /** Dense index used by Dense or Hybrid recall. */
   readonly denseIndex?: Exclude<KnowledgeDenseIndex, 'auto'>
   /** Whether neural reranking was applied. */
@@ -73,8 +76,14 @@ export interface KnowledgeHit {
   readonly chunkId: KnowledgeChunkId
   /** Optional source title. */
   readonly title?: string
+  /** Optional Markdown heading path enclosing the ranked fragment. */
+  readonly sectionPath?: string
   /** Original fragment text. */
   readonly text: string
+  /** Optional de-duplicated text immediately before the ranked fragment. */
+  readonly previousText?: string
+  /** Optional de-duplicated text immediately after the ranked fragment. */
+  readonly nextText?: string
   /** Optional source label; not necessarily a URL or filesystem path. */
   readonly source?: string
   /** Finite score comparable only within this response. */

@@ -108,12 +108,12 @@ afterEach(async () => {
   await Promise.all(temporaryDirectories.splice(0).map(directory => rm(directory, { recursive: true, force: true })))
 })
 
-describe('version-two knowledge index validation', () => {
+describe('version-three knowledge index validation', () => {
   it.each([
     ['manifest JSON', async (indexDir: string) => writeFile(join(indexDir, 'manifest.json'), '{'), 'manifest.json is not valid JSON'],
     ['manifest object', async (indexDir: string) => writeFile(join(indexDir, 'manifest.json'), '[]'), 'manifest must be an object'],
     ['manifest fields', async (indexDir: string) => rewriteManifest(indexDir, (value) => { value['extra'] = true }), 'manifest fields are incompatible'],
-    ['format version', async (indexDir: string) => rewriteManifest(indexDir, (value) => { value['formatVersion'] = 1 }), 'formatVersion must be 2'],
+    ['format version', async (indexDir: string) => rewriteManifest(indexDir, (value) => { value['formatVersion'] = 2 }), 'formatVersion must be 3'],
     ['nested manifest objects', async (indexDir: string) => rewriteManifest(indexDir, (value) => { value['build'] = null }), 'manifest fields are incomplete'],
     ['createdBy fields', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['createdBy'])['extra'] = true }), 'manifest createdBy fields are incompatible'],
     ['package identity', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['createdBy'])['package'] = 'other' }), 'manifest package is unsupported'],
@@ -125,8 +125,10 @@ describe('version-two knowledge index validation', () => {
     ['chunking fields', async (indexDir: string) => rewriteManifest(indexDir, (value) => { delete record(value['chunking'])['maxTokens'] }), 'manifest chunking fields are incompatible'],
     ['chunking tokenizer', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['chunking'])['tokenizerModelId'] = '' }), 'manifest chunking.tokenizerModelId must be a non-empty string'],
     ['chunking revision', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['chunking'])['tokenizerRevision'] = '' }), 'manifest chunking.tokenizerRevision must be a non-empty string'],
-    ['chunking maximum', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['chunking'])['maxTokens'] = 0 }), 'manifest chunking limits are invalid'],
-    ['chunking overlap', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['chunking'])['overlapTokens'] = 8 }), 'manifest chunking limits are invalid'],
+    ['chunking maximum', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['chunking'])['maxTokens'] = 0 }), 'manifest chunking or script profile is invalid'],
+    ['chunking overlap', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['chunking'])['overlapTokens'] = 8 }), 'manifest chunking or script profile is invalid'],
+    ['chunking strategy', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['chunking'])['strategy'] = 'other' }), 'manifest chunking or script profile is invalid'],
+    ['script profile', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['corpus'])['scriptProfile'] = 'other' }), 'manifest chunking or script profile is invalid'],
     ['BM25 fields', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['bm25'])['extra'] = true }), 'manifest bm25 fields are incompatible'],
     ['BM25 analyzer', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['bm25'])['analyzer'] = 'other' }), 'manifest BM25 configuration is unsupported'],
     ['BM25 implementation', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['bm25'])['implementation'] = 'other' }), 'manifest BM25 configuration is unsupported'],
@@ -173,6 +175,7 @@ describe('version-two knowledge index validation', () => {
     expect(loaded.sqlite.searchBm25('!!!', 2)).toEqual([])
     expect(loaded.sqlite.chunks([1, 0]).map(chunk => chunk.documentId)).toEqual(['doc-b', 'doc-a'])
     expect(() => loaded.sqlite.chunks([99])).toThrow('ordinal 99 is missing')
+    expect(() => loaded.sqlite.adjacentChunks(99)).toThrow('ordinal 99 is missing')
     loaded.sqlite.close()
     expect(await readdir(indexDir)).toEqual(before)
 
@@ -327,7 +330,7 @@ describe('version-two knowledge index validation', () => {
   it('verifies and closes a complete index', async () => {
     const indexDir = await createIndex('hnsw')
     await expect(verifyKnowledgeIndex(indexDir)).resolves.toMatchObject({
-      formatVersion: 2,
+      formatVersion: 3,
       hnsw: { library: 'usearch' },
     })
   })

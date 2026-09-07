@@ -4,6 +4,7 @@ import type {
   KnowledgeDenseIndex,
   KnowledgeRerank,
   KnowledgeRetrieval,
+  ResolvedKnowledgeRetrieval,
 } from '@deepseek-ai/dsh-experimental-knowledge'
 import {
   BGE_DENSE_DTYPE,
@@ -28,13 +29,17 @@ export const DEFAULT_CANDIDATE_COUNT = 50
 /** Default number of recalled candidates scored by the cross-encoder. */
 export const DEFAULT_RERANKER_CANDIDATE_COUNT = 20
 /** Default recall algorithm for requests without an explicit strategy. */
-export const DEFAULT_RETRIEVAL: KnowledgeRetrieval = 'hybrid'
+export const DEFAULT_RETRIEVAL: KnowledgeRetrieval = 'auto'
 /** Default Dense index preference for requests without an explicit strategy. */
 export const DEFAULT_DENSE_INDEX: KnowledgeDenseIndex = 'auto'
 /** Default reranking preference for requests without an explicit strategy. */
 export const DEFAULT_RERANK: Exclude<KnowledgeRerank, 'auto'> = 'off'
 /** Default recall algorithms exposed by the provider. */
-export const DEFAULT_ALLOWED_RETRIEVAL: readonly KnowledgeRetrieval[] = ['bm25', 'dense', 'hybrid']
+export const DEFAULT_ALLOWED_RETRIEVAL: readonly ResolvedKnowledgeRetrieval[] = ['bm25', 'dense', 'hybrid']
+/** Default normalized score-gap ratio above which adaptive reranking is skipped. */
+export const DEFAULT_ADAPTIVE_RERANK_MIN_SCORE_GAP_RATIO = 0.15
+/** Default number of adjacent chunks attached to each ranked match. */
+export const DEFAULT_ADJACENT_CHUNK_COUNT = 1
 /** Dense indexes supported by the local provider. */
 export const DEFAULT_ALLOWED_DENSE_INDEXES: readonly Exclude<KnowledgeDenseIndex, 'auto'>[] = ['exact', 'hnsw']
 
@@ -44,14 +49,14 @@ export interface LocalKnowledgeConfig {
   indexDir: string
   /** Recompute all payload hashes during activation instead of checking sizes only. */
   verifyPayloadHashes?: boolean
-  /** Recall algorithm used when a request omits it. */
+  /** Recall preference used when a request omits it. */
   defaultRetrieval?: KnowledgeRetrieval
   /** Dense index preference used when a request omits it. */
   defaultDenseIndex?: KnowledgeDenseIndex
   /** Reranking preference used when a request omits it or requests `auto`. */
   defaultRerank?: Exclude<KnowledgeRerank, 'auto'>
   /** Recall algorithms callers may request. */
-  allowedRetrieval?: KnowledgeRetrieval[]
+  allowedRetrieval?: ResolvedKnowledgeRetrieval[]
   /** Concrete Dense indexes callers may request. */
   allowedDenseIndexes?: Array<Exclude<KnowledgeDenseIndex, 'auto'>>
   /** Whether callers may request reranking. */
@@ -60,6 +65,10 @@ export interface LocalKnowledgeConfig {
   candidateCount?: number
   /** Maximum leading recall candidates submitted to the reranker. */
   rerankerCandidateCount?: number
+  /** Normalized top-two score gap at or above which adaptive reranking is skipped. */
+  adaptiveRerankMinScoreGapRatio?: number
+  /** Number of same-document chunks attached before and after each ranked match. */
+  adjacentChunkCount?: number
   /** Reciprocal Rank Fusion constant used by Hybrid mode. */
   rrfK?: number
   /** Explicit Transformers.js cache required by Dense, Hybrid, and reranked modes. */
@@ -99,11 +108,13 @@ export interface ResolvedConfig {
   readonly defaultRetrieval: KnowledgeRetrieval
   readonly defaultDenseIndex: KnowledgeDenseIndex
   readonly defaultRerank: Exclude<KnowledgeRerank, 'auto'>
-  readonly allowedRetrieval: readonly KnowledgeRetrieval[]
+  readonly allowedRetrieval: readonly ResolvedKnowledgeRetrieval[]
   readonly allowedDenseIndexes: readonly Exclude<KnowledgeDenseIndex, 'auto'>[]
   readonly allowedRerank: boolean
   readonly candidateCount: number
   readonly rerankerCandidateCount: number
+  readonly adaptiveRerankMinScoreGapRatio: number
+  readonly adjacentChunkCount: number
   readonly rrfK: number
   readonly modelCacheDir?: string
   readonly denseModelId: string
@@ -139,6 +150,8 @@ export function resolveConfig(config: LocalKnowledgeConfig): ResolvedConfig {
     allowedRerank: config.allowedRerank ?? true,
     candidateCount,
     rerankerCandidateCount: Math.min(config.rerankerCandidateCount ?? DEFAULT_RERANKER_CANDIDATE_COUNT, candidateCount),
+    adaptiveRerankMinScoreGapRatio: config.adaptiveRerankMinScoreGapRatio ?? DEFAULT_ADAPTIVE_RERANK_MIN_SCORE_GAP_RATIO,
+    adjacentChunkCount: config.adjacentChunkCount ?? DEFAULT_ADJACENT_CHUNK_COUNT,
     rrfK: config.rrfK ?? DEFAULT_RRF_K,
     ...(config.modelCacheDir === undefined ? {} : { modelCacheDir: config.modelCacheDir }),
     denseModelId: config.denseModelId ?? BGE_M3_MODEL_ID,
@@ -159,8 +172,8 @@ export function resolveConfig(config: LocalKnowledgeConfig): ResolvedConfig {
   if (resolved.allowedRetrieval.length === 0) {
     throw new TypeError('knowledge-local: allowedRetrieval must contain at least one value')
   }
-  if (!resolved.allowedRetrieval.includes(resolved.defaultRetrieval)) {
-    throw new TypeError('knowledge-local: defaultRetrieval must be included in allowedRetrieval')
+  if (resolved.defaultRetrieval !== 'auto' && !resolved.allowedRetrieval.includes(resolved.defaultRetrieval)) {
+    throw new TypeError('knowledge-local: defaultRetrieval must be auto or included in allowedRetrieval')
   }
   const denseAllowed = resolved.allowedRetrieval.some(value => value !== 'bm25')
   if (denseAllowed && resolved.allowedDenseIndexes.length === 0) {
@@ -172,6 +185,16 @@ export function resolveConfig(config: LocalKnowledgeConfig): ResolvedConfig {
     && !resolved.allowedDenseIndexes.includes(resolved.defaultDenseIndex)
   ) {
     throw new TypeError('knowledge-local: defaultDenseIndex must be auto or included in allowedDenseIndexes')
+  }
+  if (
+    !Number.isFinite(resolved.adaptiveRerankMinScoreGapRatio)
+    || resolved.adaptiveRerankMinScoreGapRatio < 0
+    || resolved.adaptiveRerankMinScoreGapRatio > 1
+  ) {
+    throw new TypeError('knowledge-local: adaptiveRerankMinScoreGapRatio must be from 0 through 1')
+  }
+  if (!Number.isSafeInteger(resolved.adjacentChunkCount) || resolved.adjacentChunkCount < 0 || resolved.adjacentChunkCount > 1) {
+    throw new TypeError('knowledge-local: adjacentChunkCount must be 0 or 1')
   }
   if (resolved.defaultRerank === 'on' && !resolved.allowedRerank) {
     throw new TypeError('knowledge-local: defaultRerank cannot be on when reranking is not allowed')

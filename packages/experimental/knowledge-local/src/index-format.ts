@@ -20,6 +20,7 @@ import {
   type KnowledgeSqliteIndex,
 } from './sqlite-index.ts'
 import type { DenseIndexMode, DenseIndexRequest } from './index-builder.ts'
+import type { TextScriptProfile } from './script-profile.ts'
 
 const MANIFEST_FILE = 'manifest.json'
 const DENSE_FILE = 'dense.f32le'
@@ -61,9 +62,9 @@ export interface HnswIndexManifest {
   readonly expansionAdd: number
 }
 
-/** Version-two local knowledge index manifest. */
+/** Version-three local knowledge index manifest. */
 export interface KnowledgeIndexManifest {
-  readonly formatVersion: 2
+  readonly formatVersion: 3
   readonly createdBy: {
     readonly package: '@deepseek-ai/dsh-experimental-knowledge-local'
     readonly version: string
@@ -73,12 +74,14 @@ export interface KnowledgeIndexManifest {
     readonly sha256: string
     readonly documentCount: number
     readonly chunkCount: number
+    readonly scriptProfile: TextScriptProfile
   }
   readonly chunking: {
     readonly tokenizerModelId: string
     readonly tokenizerRevision: string
     readonly maxTokens: number
     readonly overlapTokens: number
+    readonly strategy: 'markdown-structure-v1'
   }
   readonly bm25: {
     readonly analyzer: KnowledgeBm25Analyzer
@@ -239,7 +242,7 @@ function parseManifest(value: unknown): KnowledgeIndexManifest {
     ],
     'manifest',
   )
-  if (value['formatVersion'] !== 2) fail('manifest formatVersion must be 2')
+  if (value['formatVersion'] !== 3) fail('manifest formatVersion must be 3')
   const createdBy = value['createdBy']
   const build = value['build']
   const corpus = value['corpus']
@@ -251,8 +254,8 @@ function parseManifest(value: unknown): KnowledgeIndexManifest {
   }
   exactFields(createdBy, ['package', 'version'], 'manifest createdBy')
   exactFields(build, ['durationMs'], 'manifest build')
-  exactFields(corpus, ['sha256', 'documentCount', 'chunkCount'], 'manifest corpus')
-  exactFields(chunking, ['tokenizerModelId', 'tokenizerRevision', 'maxTokens', 'overlapTokens'], 'manifest chunking')
+  exactFields(corpus, ['sha256', 'documentCount', 'chunkCount', 'scriptProfile'], 'manifest corpus')
+  exactFields(chunking, ['tokenizerModelId', 'tokenizerRevision', 'maxTokens', 'overlapTokens', 'strategy'], 'manifest chunking')
   exactFields(bm25, ['analyzer', 'implementation'], 'manifest bm25')
   if (createdBy['package'] !== '@deepseek-ai/dsh-experimental-knowledge-local') fail('manifest package is unsupported')
   const durationMs = finiteNumber(build['durationMs'], 'manifest build.durationMs')
@@ -261,7 +264,12 @@ function parseManifest(value: unknown): KnowledgeIndexManifest {
   const chunkCount = safeInteger(corpus['chunkCount'], 'manifest corpus.chunkCount')
   const maxTokens = safeInteger(chunking['maxTokens'], 'manifest chunking.maxTokens')
   const overlapTokens = safeInteger(chunking['overlapTokens'], 'manifest chunking.overlapTokens')
-  if (maxTokens < 1 || overlapTokens >= maxTokens) fail('manifest chunking limits are invalid')
+  if (
+    maxTokens < 1
+    || overlapTokens >= maxTokens
+    || !['latin', 'cjk', 'mixed', 'neutral'].includes(corpus['scriptProfile'] as string)
+    || chunking['strategy'] !== 'markdown-structure-v1'
+  ) fail('manifest chunking or script profile is invalid')
   if (
     (bm25['analyzer'] !== ENGLISH_ANALYZER && bm25['analyzer'] !== MIXED_ZH_EN_ANALYZER)
     || bm25['implementation'] !== 'sqlite-fts5'
@@ -312,7 +320,7 @@ function parseManifest(value: unknown): KnowledgeIndexManifest {
     fail(`${DENSE_FILE} byte length does not match the manifest dimensions`)
   }
   return {
-    formatVersion: 2,
+    formatVersion: 3,
     createdBy: {
       package: '@deepseek-ai/dsh-experimental-knowledge-local',
       version: nonEmptyString(createdBy['version'], 'manifest createdBy.version'),
@@ -322,12 +330,14 @@ function parseManifest(value: unknown): KnowledgeIndexManifest {
       sha256: hash(corpus['sha256'], 'manifest corpus.sha256'),
       documentCount,
       chunkCount,
+      scriptProfile: corpus['scriptProfile'] as TextScriptProfile,
     },
     chunking: {
       tokenizerModelId: nonEmptyString(chunking['tokenizerModelId'], 'manifest chunking.tokenizerModelId'),
       tokenizerRevision: nonEmptyString(chunking['tokenizerRevision'], 'manifest chunking.tokenizerRevision'),
       maxTokens,
       overlapTokens,
+      strategy: 'markdown-structure-v1',
     },
     bm25: { analyzer: bm25['analyzer'], implementation: 'sqlite-fts5' },
     ...(dense === undefined ? {} : { dense }),

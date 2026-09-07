@@ -2049,8 +2049,9 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
     },
     "retrieval": {
       "type": "string",
-      "description": "Optional high-level recall choice. Omit to use the configured default.",
+      "description": "Optional high-level recall choice. Omit or use auto for provider routing.",
       "enum": [
+        "auto",
         "bm25",
         "dense",
         "hybrid"
@@ -2067,7 +2068,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
     },
     "rerank": {
       "type": "string",
-      "description": "Optional quality choice. Use on for quality-first and off for performance-first retrieval.",
+      "description": "Optional quality choice. Use auto for quality-first, on to require reranking, and off for performance-first retrieval.",
       "enum": [
         "auto",
         "on",

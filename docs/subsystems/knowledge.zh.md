@@ -25,8 +25,13 @@ type KnowledgeChunkId = Branded<'KnowledgeChunkId'>
 调用方只能请求与提供方无关的选项。提供方应用允许集合和默认值、解析 `auto`，并返回实际执行的策略。解析后的 BM25 策略不包含 Dense 索引信息。
 
 ```ts type-equiv
-/** Provider-neutral recall algorithm requested for one search. */
-type KnowledgeRetrieval = 'bm25' | 'dense' | 'hybrid'
+/** Provider-neutral recall preference requested for one search. */
+type KnowledgeRetrieval = 'auto' | 'bm25' | 'dense' | 'hybrid'
+```
+
+```ts type-equiv
+/** Concrete recall algorithm executed by a provider. */
+type ResolvedKnowledgeRetrieval = Exclude<KnowledgeRetrieval, 'auto'>
 ```
 
 ```ts type-equiv
@@ -42,7 +47,7 @@ type KnowledgeRerank = 'auto' | 'on' | 'off'
 ```ts type-equiv
 /** Optional high-level retrieval choices for one search. */
 interface KnowledgeSearchStrategy {
-  /** Recall algorithm; the provider default applies when omitted. */
+  /** Recall preference; `auto` lets the provider route the query. */
   readonly retrieval?: KnowledgeRetrieval
   /** Dense index preference; meaningful only for Dense and Hybrid recall. */
   readonly denseIndex?: KnowledgeDenseIndex
@@ -55,7 +60,7 @@ interface KnowledgeSearchStrategy {
 /** High-level retrieval choices executed by a provider. */
 interface ResolvedKnowledgeSearchStrategy {
   /** Recall algorithm used for this result. */
-  readonly retrieval: KnowledgeRetrieval
+  readonly retrieval: ResolvedKnowledgeRetrieval
   /** Dense index used by Dense or Hybrid recall. */
   readonly denseIndex?: Exclude<KnowledgeDenseIndex, 'auto'>
   /** Whether neural reranking was applied. */
@@ -81,7 +86,7 @@ interface KnowledgeSearchRequest {
 
 ## 检索结果
 
-命中结果按提供方排序降序排列。分数是有限数值，且只能在同一次响应内比较；消费方应使用提供的顺序，不应跨调用或跨提供方比较分数。
+命中结果按提供方排序降序排列。分数是有限数值，且只能在同一次响应内比较；消费方应使用提供的顺序，不应跨调用或跨提供方比较分数。可选的相邻文本提供局部阅读上下文，但不会形成额外的排序命中。
 
 ```ts type-equiv
 /** One ranked fragment returned by a knowledge provider. */
@@ -92,8 +97,14 @@ interface KnowledgeHit {
   readonly chunkId: KnowledgeChunkId
   /** Optional source title. */
   readonly title?: string
+  /** Optional Markdown heading path enclosing the ranked fragment. */
+  readonly sectionPath?: string
   /** Original fragment text. */
   readonly text: string
+  /** Optional de-duplicated text immediately before the ranked fragment. */
+  readonly previousText?: string
+  /** Optional de-duplicated text immediately after the ranked fragment. */
+  readonly nextText?: string
   /** Optional source label; not necessarily a URL or filesystem path. */
   readonly source?: string
   /** Finite score comparable only within this response. */

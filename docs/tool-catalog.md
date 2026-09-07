@@ -2043,8 +2043,9 @@ Search the configured knowledge base for evidence relevant to a natural-language
     },
     "retrieval": {
       "type": "string",
-      "description": "Optional high-level recall choice. Omit to use the configured default.",
+      "description": "Optional high-level recall choice. Omit or use auto for provider routing.",
       "enum": [
+        "auto",
         "bm25",
         "dense",
         "hybrid"
@@ -2061,7 +2062,7 @@ Search the configured knowledge base for evidence relevant to a natural-language
     },
     "rerank": {
       "type": "string",
-      "description": "Optional quality choice. Use on for quality-first and off for performance-first retrieval.",
+      "description": "Optional quality choice. Use auto for quality-first, on to require reranking, and off for performance-first retrieval.",
       "enum": [
         "auto",
         "on",

@@ -57,4 +57,23 @@ describe('knowledge_search output', () => {
     expect(renderKnowledgeResult(result)).not.toContain('Title:')
     expect(renderKnowledgeResult(result)).not.toContain('Source:')
   })
+
+  it('renders the matched chunk before bounded adjacent context', () => {
+    const contextual: KnowledgeHit = {
+      ...hit('matched evidence'),
+      sectionPath: 'Guide > Install',
+      previousText: 'previous context',
+      nextText: 'next context',
+    }
+    const complete = collectKnowledgeResult([contextual], 300, 1_000, strategy)
+    const rendered = renderKnowledgeResult(complete)
+    expect(rendered).toContain('Section: Guide > Install')
+    expect(rendered.indexOf('Matched chunk:\nmatched evidence')).toBeLessThan(rendered.indexOf('Previous chunk:'))
+    expect(rendered.indexOf('Previous chunk:')).toBeLessThan(rendered.indexOf('Next chunk:'))
+
+    const bounded = collectKnowledgeResult([contextual], 105, 1_000, strategy)
+    expect(bounded.evidence[0]?.text).toContain('matched')
+    expect(bounded.truncated).toBe(true)
+    expect(Array.from(renderKnowledgeResult(bounded)).length).toBeLessThanOrEqual(1_000)
+  })
 })

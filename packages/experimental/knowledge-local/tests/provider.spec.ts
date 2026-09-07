@@ -1,6 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import { Context } from '@deepseek-ai/cordis'
 import {
   BGE_M3_MODEL_ID,
@@ -17,7 +18,7 @@ import {
   type LocalKnowledgeConfig,
   type RerankerBackend,
 } from '@deepseek-ai/dsh-experimental-knowledge-local'
-import type { KnowledgeRetrieval } from '@deepseek-ai/dsh-experimental-knowledge'
+import type { ResolvedKnowledgeRetrieval } from '@deepseek-ai/dsh-experimental-knowledge'
 import { afterEach, describe, expect, it } from 'vitest'
 
 const temporaryDirectories: string[] = []
@@ -29,7 +30,7 @@ const whitespaceTokenizer: ChunkTokenizer = {
 }
 
 function fixedStrategy(
-  retrieval: KnowledgeRetrieval,
+  retrieval: ResolvedKnowledgeRetrieval,
   rerank = false,
 ): Pick<LocalKnowledgeConfig, 'defaultRetrieval' | 'defaultDenseIndex' | 'defaultRerank' | 'allowedRetrieval' | 'allowedDenseIndexes' | 'allowedRerank'> {
   return {
@@ -102,6 +103,19 @@ async function denseIndex(requestedIndex: 'auto' | 'exact' | 'hnsw' = 'auto'): P
       dtype: 'q8',
       denseIndex: requestedIndex,
     },
+  })
+  return outputDir
+}
+
+async function bm25Index(text: string, maxTokens = 2, overlapTokens = 0): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-knowledge-provider-bm25-'))
+  const outputDir = join(root, 'index')
+  temporaryDirectories.push(root)
+  await buildKnowledgeIndex({
+    corpusText: `${JSON.stringify({ id: 'doc-a', text })}\n${JSON.stringify({ id: 'doc-b', text: 'unrelated material' })}`,
+    outputDir,
+    tokenizer: whitespaceTokenizer,
+    chunking: { maxTokens, overlapTokens },
   })
   return outputDir
 }
@@ -335,9 +349,146 @@ describe('LocalKnowledge model-backed modes', () => {
     })
     await expect(context.knowledge.search({ query: 'absent-term', maxResults: 1 })).resolves.toEqual({
       hits: [],
-      strategy: { retrieval: 'bm25', rerank: true },
+      strategy: { retrieval: 'bm25', rerank: false },
     })
     expect(rerankerLoads).toBe(0)
+  })
+
+  it('uses candidate ambiguity for adaptive reranking', async () => {
+    let rerankerLoads = 0
+    class TestKnowledge extends LocalKnowledge {
+      protected override createDenseEncoder(): Promise<DenseEncoder> {
+        return Promise.resolve(queryEncoder(0))
+      }
+
+      protected override createReranker(): Promise<Reranker> {
+        rerankerLoads += 1
+        return Promise.resolve(contentReranker())
+      }
+    }
+    const context = new Context()
+    contexts.push(context)
+    await context.plugin(TestKnowledge, {
+      indexDir: await denseIndex(),
+      ...fixedStrategy('dense', true),
+      defaultRerank: 'off',
+      modelCacheDir: '/cache',
+      candidateCount: 2,
+      adaptiveRerankMinScoreGapRatio: 0.15,
+    })
+
+    await expect(context.knowledge.search({
+      query: 'clear winner',
+      maxResults: 2,
+      strategy: { rerank: 'auto' },
+    })).resolves.toMatchObject({ strategy: { rerank: false } })
+    expect(rerankerLoads).toBe(0)
+
+    class AmbiguousKnowledge extends TestKnowledge {
+      protected override createDenseEncoder(): Promise<DenseEncoder> {
+        return Promise.resolve(queryEncoder(2))
+      }
+    }
+    const ambiguousContext = new Context()
+    contexts.push(ambiguousContext)
+    await ambiguousContext.plugin(AmbiguousKnowledge, {
+      indexDir: await denseIndex(),
+      ...fixedStrategy('dense', true),
+      defaultRerank: 'off',
+      modelCacheDir: '/cache',
+      candidateCount: 2,
+      adaptiveRerankMinScoreGapRatio: 0.15,
+    })
+    await expect(ambiguousContext.knowledge.search({
+      query: 'ambiguous',
+      maxResults: 2,
+      strategy: { rerank: 'auto' },
+    })).resolves.toMatchObject({ strategy: { rerank: true } })
+    expect(rerankerLoads).toBe(1)
+  })
+
+  it('attaches de-duplicated same-document neighbors after ranking', async () => {
+    const context = new Context()
+    contexts.push(context)
+    await context.plugin(LocalKnowledge, {
+      indexDir: await bm25Index('alpha beta gamma delta', 2, 1),
+      ...fixedStrategy('bm25'),
+      candidateCount: 5,
+      adjacentChunkCount: 1,
+    })
+
+    const result = await context.knowledge.search({ query: 'gamma', maxResults: 1 })
+    expect(result.hits).toEqual([
+      expect.objectContaining({
+        text: 'beta gamma',
+        previousText: 'alpha',
+        nextText: 'delta',
+      }),
+    ])
+  })
+
+  it('preserves non-overlapping neighbors and can disable expansion', async () => {
+    const indexDir = await bm25Index('alpha beta gamma delta', 2, 0)
+    const expanded = new Context()
+    contexts.push(expanded)
+    await expanded.plugin(LocalKnowledge, {
+      indexDir,
+      ...fixedStrategy('bm25'),
+      candidateCount: 5,
+      adjacentChunkCount: 1,
+    })
+    await expect(expanded.knowledge.search({ query: 'gamma', maxResults: 1 })).resolves.toMatchObject({
+      hits: [{ text: 'gamma delta', previousText: 'alpha beta' }],
+    })
+    await expect(expanded.knowledge.search({ query: 'alpha', maxResults: 1 })).resolves.toMatchObject({
+      hits: [{ text: 'alpha beta', nextText: 'gamma delta' }],
+    })
+
+    const disabled = new Context()
+    contexts.push(disabled)
+    await disabled.plugin(LocalKnowledge, {
+      indexDir,
+      ...fixedStrategy('bm25'),
+      candidateCount: 5,
+      adjacentChunkCount: 0,
+    })
+    await expect(disabled.knowledge.search({ query: 'gamma', maxResults: 1 })).resolves.toMatchObject({
+      hits: [{ text: 'gamma delta' }],
+    })
+    expect((await disabled.knowledge.search({ query: 'gamma', maxResults: 1 })).hits[0])
+      .not.toHaveProperty('previousText')
+  })
+
+  it('drops adjacent chunks fully duplicated by their ranked neighbor', async () => {
+    const previousIndex = await bm25Index('alpha beta gamma delta', 2, 0)
+    const previousDatabase = new DatabaseSync(join(previousIndex, 'knowledge.sqlite'))
+    previousDatabase.exec("UPDATE chunks SET text = 'gamma delta' WHERE ordinal = 0")
+    previousDatabase.close()
+    const previousOverlap = new Context()
+    contexts.push(previousOverlap)
+    await previousOverlap.plugin(LocalKnowledge, {
+      indexDir: previousIndex,
+      ...fixedStrategy('bm25'),
+      candidateCount: 5,
+      adjacentChunkCount: 1,
+    })
+    const previousResult = await previousOverlap.knowledge.search({ query: 'gamma', maxResults: 1 })
+    expect(previousResult.hits[0]?.previousText).toBeUndefined()
+
+    const nextIndex = await bm25Index('alpha beta gamma delta', 2, 0)
+    const nextDatabase = new DatabaseSync(join(nextIndex, 'knowledge.sqlite'))
+    nextDatabase.exec("UPDATE chunks SET text = 'alpha beta' WHERE ordinal = 1")
+    nextDatabase.close()
+    const nextOverlap = new Context()
+    contexts.push(nextOverlap)
+    await nextOverlap.plugin(LocalKnowledge, {
+      indexDir: nextIndex,
+      ...fixedStrategy('bm25'),
+      candidateCount: 5,
+      adjacentChunkCount: 1,
+    })
+    const nextResult = await nextOverlap.knowledge.search({ query: 'alpha', maxResults: 1 })
+    expect(nextResult.hits[0]?.nextText).toBeUndefined()
   })
 
   it('observes cancellation after a lazy Dense load', async () => {
@@ -430,7 +581,10 @@ describe('LocalKnowledge model-backed modes', () => {
   it.each([
     [{ indexDir: '   ' }, 'indexDir must be non-empty'],
     [{ indexDir: './index', allowedRetrieval: [] }, 'allowedRetrieval must contain at least one value'],
-    [{ indexDir: './index', defaultRetrieval: 'dense', allowedRetrieval: ['bm25'] }, 'defaultRetrieval must be included'],
+    [{ indexDir: './index', defaultRetrieval: 'dense', allowedRetrieval: ['bm25'] }, 'defaultRetrieval must be auto or included'],
+    [{ indexDir: './index', adaptiveRerankMinScoreGapRatio: -0.1 }, 'adaptiveRerankMinScoreGapRatio must be from 0 through 1'],
+    [{ indexDir: './index', adaptiveRerankMinScoreGapRatio: 1.1 }, 'adaptiveRerankMinScoreGapRatio must be from 0 through 1'],
+    [{ indexDir: './index', adjacentChunkCount: 2 }, 'adjacentChunkCount must be 0 or 1'],
     [{ indexDir: './index', defaultRetrieval: 'dense', allowedRetrieval: ['dense'], allowedDenseIndexes: [] }, 'allowedDenseIndexes must contain at least one value'],
     [{ indexDir: './index', defaultRetrieval: 'dense', defaultDenseIndex: 'exact', allowedRetrieval: ['dense'], allowedDenseIndexes: ['hnsw'] }, 'defaultDenseIndex must be auto or included'],
     [{ indexDir: './index', defaultRerank: 'on', allowedRerank: false }, 'defaultRerank cannot be on'],

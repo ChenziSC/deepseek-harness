@@ -6,11 +6,12 @@ import { createInterface } from 'node:readline'
 import { parseArgs } from 'node:util'
 import {
   buildKnowledgeIndex,
+  deriveKnowledgeIndexFromExact,
   type BuildDenseIndexOptions,
   type DenseIndexBuildPlan,
   type DenseIndexMode,
 } from './index-builder.ts'
-import { verifyKnowledgeIndex, type KnowledgeIndexManifest } from './index-format.ts'
+import { loadKnowledgeIndex, verifyKnowledgeIndex, type KnowledgeIndexManifest } from './index-format.ts'
 import { evaluateDataset, renderEvaluationReport } from './evaluation.ts'
 import {
   BGE_DENSE_DTYPE,
@@ -29,12 +30,18 @@ import {
 import { DEFAULT_EXACT_SCAN_MAX_ELEMENTS } from './index-builder.ts'
 import { BGE_M3_MODEL_ID, BGE_M3_REVISION, loadBgeChunkTokenizer } from './tokenizer.ts'
 import { DEFAULT_CANDIDATE_COUNT, DEFAULT_RERANKER_CANDIDATE_COUNT } from './config.ts'
+import {
+  buildT2RankingBenchmarkSlices,
+  DEFAULT_T2RANKING_CHUNK_TARGETS,
+} from './t2ranking-benchmark.ts'
 
 const HELP = `Usage: dsh-knowledge <command> [options]
 
 Commands:
   prepare   Prepare a fixed benchmark dataset
+  slice     Build deterministic nested T2Ranking benchmark slices
   index     Build an immutable local index
+  derive    Reuse Exact vectors to build a smaller prefix index
   evaluate  Run the fixed retrieval evaluations
   verify    Recompute and validate every index payload hash`
 
@@ -55,6 +62,14 @@ function listOption<T extends string>(value: string, option: string, allowed: re
     throw new TypeError(`--${option} must be a comma-separated subset of ${allowed.join(',')}`)
   }
   return [...new Set(items as T[])]
+}
+
+function numberListOption(value: string, option: string): number[] {
+  const items = value.split(',').map(item => Number(item))
+  if (items.length === 0 || items.some(item => !Number.isSafeInteger(item) || item < 1)) {
+    throw new TypeError(`--${option} must be a comma-separated list of positive integers`)
+  }
+  return items
 }
 
 interface CliInput extends NodeJS.ReadableStream {
@@ -269,6 +284,128 @@ async function runPrepare(argv: readonly string[], stdout: Pick<NodeJS.WriteStre
   return 0
 }
 
+async function runSlice(argv: readonly string[], stdout: Pick<NodeJS.WriteStream, 'write'>): Promise<number> {
+  const { values } = parseArgs({
+    args: [...argv],
+    allowPositionals: false,
+    strict: true,
+    options: {
+      collection: { type: 'string' },
+      queries: { type: 'string' },
+      qrels: { type: 'string' },
+      'bm25-run': { type: 'string' },
+      output: { type: 'string' },
+      'model-cache-dir': { type: 'string' },
+      'query-limit': { type: 'string', default: '100' },
+      'chunk-targets': { type: 'string', default: DEFAULT_T2RANKING_CHUNK_TARGETS.join(',') },
+    },
+  })
+  const modelCacheDir = required(values['model-cache-dir'], 'model-cache-dir')
+  const tokenizer = await loadBgeChunkTokenizer({
+    cacheDir: modelCacheDir,
+    localFilesOnly: true,
+    modelId: BGE_M3_MODEL_ID,
+    revision: BGE_M3_REVISION,
+  })
+  const result = await buildT2RankingBenchmarkSlices({
+    collectionPath: required(values.collection, 'collection'),
+    queriesPath: required(values.queries, 'queries'),
+    qrelsPath: required(values.qrels, 'qrels'),
+    bm25Path: required(values['bm25-run'], 'bm25-run'),
+    outputDir: required(values.output, 'output'),
+    tokenizer,
+    queryLimit: numberOption(values['query-limit'], 'query-limit'),
+    chunkTargets: numberListOption(values['chunk-targets'], 'chunk-targets'),
+  })
+  stdout.write(`${JSON.stringify(result)}\n`)
+  return 0
+}
+
+async function runDerive(argv: readonly string[], stdout: Pick<NodeJS.WriteStream, 'write'>): Promise<number> {
+  const { values } = parseArgs({
+    args: [...argv],
+    allowPositionals: false,
+    strict: true,
+    options: {
+      'source-index': { type: 'string' },
+      corpus: { type: 'string' },
+      'corpus-format': { type: 'string', default: 't2ranking' },
+      output: { type: 'string' },
+      'model-cache-dir': { type: 'string' },
+      'dense-index': { type: 'string', default: 'both' },
+      'sqlite-batch-size': { type: 'string', default: '500' },
+      'exact-scan-max-elements': { type: 'string' },
+      connectivity: { type: 'string' },
+      'expansion-add': { type: 'string' },
+    },
+  })
+  if (
+    values['corpus-format'] !== 'generic'
+    && values['corpus-format'] !== 'scifact'
+    && values['corpus-format'] !== 'mldr'
+    && values['corpus-format'] !== 't2ranking'
+  ) {
+    throw new TypeError('--corpus-format must be generic, scifact, mldr, or t2ranking')
+  }
+  if (
+    values['dense-index'] !== 'exact'
+    && values['dense-index'] !== 'hnsw'
+    && values['dense-index'] !== 'both'
+  ) {
+    throw new TypeError('--dense-index must be exact, hnsw, or both')
+  }
+  const sourceIndexDir = required(values['source-index'], 'source-index')
+  const modelCacheDir = required(values['model-cache-dir'], 'model-cache-dir')
+  const corpusPath = required(values.corpus, 'corpus')
+  const outputDir = required(values.output, 'output')
+  const source = await loadKnowledgeIndex(sourceIndexDir)
+  const manifest = source.manifest
+  source.sqlite.close()
+  const tokenizer = await loadBgeChunkTokenizer({
+    cacheDir: modelCacheDir,
+    localFilesOnly: true,
+    modelId: manifest.chunking.tokenizerModelId,
+    revision: manifest.chunking.tokenizerRevision,
+  })
+  const derived = await deriveKnowledgeIndexFromExact({
+    sourceIndexDir,
+    corpusPath,
+    corpusSource: corpusPath,
+    corpusFormat: values['corpus-format'],
+    outputDir,
+    tokenizer,
+    chunking: {
+      maxTokens: manifest.chunking.maxTokens,
+      overlapTokens: manifest.chunking.overlapTokens,
+    },
+    tokenizerModelId: manifest.chunking.tokenizerModelId,
+    tokenizerRevision: manifest.chunking.tokenizerRevision,
+    analyzer: manifest.bm25.analyzer,
+    sqliteBatchSize: numberOption(values['sqlite-batch-size'], 'sqlite-batch-size'),
+    denseIndex: values['dense-index'],
+    ...(values['exact-scan-max-elements'] === undefined
+      ? {}
+      : { exactScanMaxElements: numberOption(values['exact-scan-max-elements'], 'exact-scan-max-elements') }),
+    ...(values.connectivity === undefined
+      ? {}
+      : { connectivity: numberOption(values.connectivity, 'connectivity') }),
+    ...(values['expansion-add'] === undefined
+      ? {}
+      : { expansionAdd: numberOption(values['expansion-add'], 'expansion-add') }),
+  })
+  stdout.write(`${JSON.stringify({
+    manifest: join(outputDir, 'manifest.json'),
+    corpusSha256: derived.corpus.sha256,
+    documentCount: derived.corpus.documentCount,
+    chunkCount: derived.corpus.chunkCount,
+    durationMs: derived.build.durationMs,
+    payloadBytes: derived.payloads.reduce((sum, payload) => sum + payload.bytes, 0),
+    denseIndex: derived.dense?.resolvedIndex,
+    recommendedDenseIndex: derived.dense?.recommendedIndex,
+  })}\n`)
+  return 0
+}
+
 async function prepareReportDirectory(outputDir: string): Promise<void> {
   try {
     if ((await readdir(outputDir)).length > 0) {
@@ -299,7 +436,7 @@ async function runEvaluate(argv: readonly string[], stdout: Pick<NodeJS.WriteStr
       'query-limit': { type: 'string' },
       modes: { type: 'string', default: 'bm25,dense,hybrid' },
       'dense-indexes': { type: 'string' },
-      rerank: { type: 'string', default: 'off,on' },
+      rerank: { type: 'string', default: 'off,auto,on' },
       'expansion-search': { type: 'string', default: String(DEFAULT_HNSW_EXPANSION_SEARCH) },
     },
   })
@@ -329,7 +466,7 @@ async function runEvaluate(argv: readonly string[], stdout: Pick<NodeJS.WriteStr
     ...(values['dense-indexes'] === undefined
       ? {}
       : { denseIndexes: listOption(values['dense-indexes'], 'dense-indexes', ['exact', 'hnsw'] as const) }),
-    rerankValues: listOption(values.rerank, 'rerank', ['off', 'on'] as const).map(value => value === 'on'),
+    rerankValues: listOption(values.rerank, 'rerank', ['off', 'auto', 'on'] as const),
     hnswExpansionSearch: numberOption(values['expansion-search'], 'expansion-search'),
   })
   const jsonPath = join(outputDir, 'report.json')
@@ -378,7 +515,9 @@ export async function runCli(
     }
     const [command, ...options] = argv
     if (command === 'prepare') return await runPrepare(options, stdout)
+    if (command === 'slice') return await runSlice(options, stdout)
     if (command === 'index') return await runIndex(options, stdin, stdout, stderr)
+    if (command === 'derive') return await runDerive(options, stdout)
     if (command === 'evaluate') return await runEvaluate(options, stdout)
     if (command === 'verify') return await runVerify(options, stdout)
     stderr.write(`dsh-knowledge: unknown command "${command}"\n`)

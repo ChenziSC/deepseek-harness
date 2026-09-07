@@ -106,16 +106,20 @@ describe('SciFact evaluation', () => {
     expect(metrics.successAt20).toBe(0)
   })
 
-  it('runs all six configurations and isolates one failed combination', async () => {
+  it('runs all nine configurations and isolates one failed combination', async () => {
     const created: string[] = []
     const runs = await evaluateMatrix(queries, 20, 1, (mode, rerank) => {
-      created.push(`${mode}:${String(rerank)}`)
-      if (mode === 'dense' && rerank) return Promise.reject(new Error('fixture failure'))
+      created.push(`${mode}:${rerank}`)
+      if (mode === 'dense' && rerank === 'on') return Promise.reject(new Error('fixture failure'))
       return Promise.resolve({
         search(query: string) {
           const documentId = query === 'first query' ? 'a' : 'c'
           return Promise.resolve({
-            strategy: { retrieval: mode, ...(mode === 'bm25' ? {} : { denseIndex: 'exact' as const }), rerank },
+            strategy: {
+              retrieval: mode,
+              ...(mode === 'bm25' ? {} : { denseIndex: 'exact' as const }),
+              rerank: rerank === 'on' || (rerank === 'auto' && query === 'first query'),
+            },
             hits: [{
               documentId: KnowledgeDocumentId(documentId),
               chunkId: KnowledgeChunkId(`${documentId}:0-1`),
@@ -129,19 +133,25 @@ describe('SciFact evaluation', () => {
     })
 
     expect(created).toEqual([
-      'bm25:false',
-      'bm25:true',
-      'dense:false',
-      'dense:true',
-      'hybrid:false',
-      'hybrid:true',
+      'bm25:off',
+      'bm25:auto',
+      'bm25:on',
+      'dense:off',
+      'dense:auto',
+      'dense:on',
+      'hybrid:off',
+      'hybrid:auto',
+      'hybrid:on',
     ])
-    expect(runs).toHaveLength(6)
-    expect(runs.find(run => run.mode === 'dense' && run.rerank)).toMatchObject({
+    expect(runs).toHaveLength(9)
+    expect(runs.find(run => run.mode === 'dense' && run.rerank === 'on')).toMatchObject({
       status: 'failed',
       error: 'fixture failure',
     })
-    expect(runs.filter(run => run.status === 'success')).toHaveLength(5)
+    expect(runs.filter(run => run.status === 'success')).toHaveLength(8)
+    expect(runs.find(run => run.mode === 'bm25' && run.rerank === 'auto')).toMatchObject({
+      rerankAppliedRate: 0.5,
+    })
 
     // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- verifies normalization of external non-Error rejections.
     const nonErrorRuns = await evaluateMatrix([], 20, 1, () => Promise.reject('string failure'))
@@ -177,8 +187,22 @@ describe('SciFact evaluation', () => {
         })),
       }),
       dispose: () => Promise.resolve(),
-    }), ['exact', 'hnsw'], ['dense'], [false])
+    }), ['exact', 'hnsw'], ['dense'], ['off'])
     expect(approximateRuns[1]?.approximation).toEqual({ recallAt10: 0.5, recallAt100: 0.5 })
+
+    const reversedApproximateRuns = await evaluateMatrix([queries[0]], 20, 0, (_mode, _rerank, denseIndex) => Promise.resolve({
+      search: () => Promise.resolve({
+        strategy: { retrieval: 'dense', denseIndex, rerank: false },
+        hits: (denseIndex === 'exact' ? ['a', 'b'] : ['a', 'x']).map((documentId, index) => ({
+          documentId: KnowledgeDocumentId(documentId),
+          chunkId: KnowledgeChunkId(`${documentId}:0`),
+          text: documentId,
+          score: 2 - index,
+        })),
+      }),
+      dispose: () => Promise.resolve(),
+    }), ['hnsw', 'exact'], ['dense'], ['off'])
+    expect(reversedApproximateRuns[0]?.approximation).toEqual({ recallAt10: 0.5, recallAt100: 0.5 })
 
     const emptyApproximation = await evaluateMatrix([queries[0]], 20, 0, () => Promise.resolve({
       search: () => Promise.resolve({
@@ -186,7 +210,7 @@ describe('SciFact evaluation', () => {
         hits: [],
       }),
       dispose: () => Promise.resolve(),
-    }), ['exact', 'hnsw'], ['dense'], [false])
+    }), ['exact', 'hnsw'], ['dense'], ['off'])
     expect(emptyApproximation[1]?.approximation).toEqual({ recallAt10: 1, recallAt100: 1 })
   })
 
@@ -233,7 +257,7 @@ describe('SciFact evaluation', () => {
       maxResults: 20,
       warmupQueries: 1,
     })
-    expect(report.runs).toHaveLength(6)
+    expect(report.runs).toHaveLength(9)
     expect(report.runs.every(run => run.status === 'success')).toBe(true)
     expect(report.build.indexBytes).toBeGreaterThan(5)
 
@@ -277,6 +301,17 @@ describe('SciFact evaluation', () => {
       rerankerCandidateCount: 0,
       warmupQueries: 0,
     })).rejects.toThrow('rerankerCandidateCount must be a positive safe integer')
+    for (const adaptiveRerankMinScoreGapRatio of [Number.NaN, -0.1, 1.1]) {
+      await expect(evaluateDataset({
+        indexDir: '/unused',
+        queriesPath: '/unused',
+        qrelsPath: '/unused',
+        modelCacheDir: '/unused',
+        maxResults: 20,
+        warmupQueries: 0,
+        adaptiveRerankMinScoreGapRatio,
+      })).rejects.toThrow('adaptiveRerankMinScoreGapRatio must be from 0 through 1')
+    }
     await expect(evaluateDataset({
       indexDir: '/unused',
       queriesPath: '/unused',
@@ -358,7 +393,7 @@ describe('SciFact evaluation', () => {
       warmupQueries: 0,
       modes: ['bm25'],
       denseIndexes: [],
-      rerankValues: [false],
+      rerankValues: ['off'],
     })
     expect(bm25Only.models).toEqual({})
     expect(bm25Only.runs).toHaveLength(1)
@@ -418,7 +453,7 @@ describe('SciFact evaluation', () => {
       queryLimit: 1,
       modes: ['bm25'],
       denseIndexes: [],
-      rerankValues: [false],
+      rerankValues: ['off'],
     })
     expect(report.dataset).toBe(dataset)
     expect(report.config.queryLimit).toBe(1)
@@ -461,7 +496,7 @@ describe('SciFact evaluation', () => {
       maxResults: 20,
       warmupQueries: 0,
       modes: ['dense'],
-      rerankValues: [false],
+      rerankValues: ['off'],
     })
     expect(hnsw.config.denseIndexes).toEqual(['hnsw'])
     expect(hnsw.runs).toHaveLength(1)
@@ -475,7 +510,7 @@ describe('SciFact evaluation', () => {
       warmupQueries: 0,
       modes: ['bm25'],
       denseIndexes: [],
-      rerankValues: [true],
+      rerankValues: ['on'],
     })
     expect(failed.runs[0]?.status).toBe('failed')
     expect(failed.runs[0]?.error).toContain('modelCacheDir')
@@ -483,7 +518,7 @@ describe('SciFact evaluation', () => {
 
   it('renders Markdown only from report fields', () => {
     const report: EvaluationReport = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       createdAt: '2026-09-03T00:00:00.000Z',
       dataset: 'scifact',
       platform: { os: 'test', release: 'test', arch: 'test', node: 'test' },
@@ -500,7 +535,8 @@ describe('SciFact evaluation', () => {
         warmupQueries: 10,
         modes: ['bm25', 'dense', 'hybrid'],
         denseIndexes: ['exact'],
-        rerankValues: [false, true],
+        rerankValues: ['off', 'auto', 'on'],
+        adaptiveRerankMinScoreGapRatio: 0.15,
         bm25Implementation: 'sqlite-fts5',
         rrfK: 60,
         chunkMaxTokens: 384,
@@ -513,7 +549,7 @@ describe('SciFact evaluation', () => {
       },
       runs: [{
         mode: 'bm25',
-        rerank: false,
+        rerank: 'off',
         status: 'success',
         queryCount: 2,
         metrics: {
@@ -536,7 +572,7 @@ describe('SciFact evaluation', () => {
     }
 
     const markdown = renderEvaluationReport(report)
-    expect(markdown).toContain('| bm25 | — | false | success | 50.00% | 100.00%')
+    expect(markdown).toContain('| bm25 | — | off | 0.00% | success | 50.00% | 100.00%')
     expect(markdown).toContain('Index bytes: 100')
     expect(markdown).toContain('- dense.f32le: 20')
 
@@ -553,8 +589,8 @@ describe('SciFact evaluation', () => {
     const failed = renderEvaluationReport({
       ...report,
       runs: [
-        { mode: 'dense', rerank: true, status: 'failed', queryCount: 2, error: 'bad | model\nresult' },
-        { mode: 'hybrid', rerank: false, status: 'success', queryCount: 2 },
+        { mode: 'dense', rerank: 'on', status: 'failed', queryCount: 2, error: 'bad | model\nresult' },
+        { mode: 'hybrid', rerank: 'off', status: 'success', queryCount: 2 },
       ],
     })
     expect(failed).toContain('failed: bad \\| model result')

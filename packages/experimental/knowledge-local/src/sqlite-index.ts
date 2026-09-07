@@ -13,16 +13,17 @@ import {
 } from './bm25.ts'
 import type { ChunkRecord } from './chunker.ts'
 
-/** Fixed SQLite payload name in index format version 2. */
+/** Fixed SQLite payload name in index format version 3. */
 export const KNOWLEDGE_SQLITE_FILE = 'knowledge.sqlite'
 /** Monotonic schema version stored in SQLite `user_version`. */
-export const KNOWLEDGE_SQLITE_SCHEMA_VERSION = 1
+export const KNOWLEDGE_SQLITE_SCHEMA_VERSION = 2
 
 interface ChunkRow {
   readonly ordinal: unknown
   readonly chunk_id: unknown
   readonly document_id: unknown
   readonly title: unknown
+  readonly section_path: unknown
   readonly source: unknown
   readonly text: unknown
   readonly start_token: unknown
@@ -32,6 +33,8 @@ interface ChunkRow {
 /** One ordinal-aligned text input read back for Dense encoding. */
 export interface DenseInputRow {
   readonly ordinal: number
+  readonly chunkId: string
+  readonly documentId: string
   readonly text: string
 }
 
@@ -79,14 +82,32 @@ function chunkFromRow(value: unknown): KnowledgeHit {
     throw new TypeError('knowledge-local: SQLite chunk identity or token range is invalid')
   }
   const title = optionalString(row.title, 'chunk title')
+  const sectionPath = optionalString(row.section_path, 'chunk section path')
   const source = optionalString(row.source, 'chunk source')
   return {
     documentId: KnowledgeDocumentId(documentId),
     chunkId: KnowledgeChunkId(chunkId),
     ...(title === undefined ? {} : { title }),
+    ...(sectionPath === undefined ? {} : { sectionPath }),
     text: string(row.text, 'chunk text'),
     ...(source === undefined ? {} : { source }),
     score: 0,
+  }
+}
+
+function retrievalText(title: string | undefined, sectionPath: string | undefined, text: string): string {
+  return [...new Set([title, sectionPath, text].filter((value): value is string => value !== undefined))].join('\n')
+}
+
+function denseInputFromRow(value: unknown): DenseInputRow {
+  const row = value as Record<string, unknown>
+  const title = optionalString(row['title'], 'chunk title')
+  const sectionPath = optionalString(row['section_path'], 'chunk section path')
+  return {
+    ordinal: integer(row['ordinal'], 'chunk ordinal'),
+    chunkId: string(row['chunk_id'], 'chunk id'),
+    documentId: string(row['document_id'], 'document id'),
+    text: retrievalText(title, sectionPath, string(row['text'], 'chunk text')),
   }
 }
 
@@ -124,6 +145,7 @@ export class KnowledgeSqliteWriter {
           chunk_id TEXT NOT NULL UNIQUE,
           document_id TEXT NOT NULL,
           title TEXT,
+          section_path TEXT,
           source TEXT,
           text TEXT NOT NULL,
           start_token INTEGER NOT NULL,
@@ -141,8 +163,8 @@ export class KnowledgeSqliteWriter {
         );
       `)
       this.insertChunk = database.prepare(`
-        INSERT INTO chunks(ordinal, chunk_id, document_id, title, source, text, start_token, end_token)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO chunks(ordinal, chunk_id, document_id, title, section_path, source, text, start_token, end_token)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       this.insertFts = database.prepare('INSERT INTO bm25_fts(rowid, analyzed) VALUES (?, ?)')
     } catch (error) {
@@ -164,13 +186,16 @@ export class KnowledgeSqliteWriter {
           chunk.id,
           chunk.documentId,
           chunk.title ?? null,
+          chunk.sectionPath ?? null,
           chunk.source ?? null,
           chunk.text,
           chunk.startToken,
           chunk.endToken,
         )
-        const retrievalText = chunk.title === undefined ? chunk.text : `${chunk.title}\n${chunk.text}`
-        this.insertFts.run(chunk.ordinal, analyzeBm25(this.analyzer, retrievalText).join(' '))
+        this.insertFts.run(
+          chunk.ordinal,
+          analyzeBm25(this.analyzer, retrievalText(chunk.title, chunk.sectionPath, chunk.text)).join(' '),
+        )
       }
     })
   }
@@ -199,20 +224,12 @@ export class KnowledgeSqliteWriter {
    */
   denseInputs(afterOrdinal: number, limit: number): DenseInputRow[] {
     return this.database.prepare(`
-      SELECT ordinal, title, text
+      SELECT ordinal, chunk_id, document_id, title, section_path, text
       FROM chunks
       WHERE ordinal > ?
       ORDER BY ordinal
       LIMIT ?
-    `).all(afterOrdinal, limit).map((value) => {
-      const row = value as Record<string, unknown>
-      const title = optionalString(row['title'], 'chunk title')
-      const text = string(row['text'], 'chunk text')
-      return {
-        ordinal: integer(row['ordinal'], 'chunk ordinal'),
-        text: title === undefined ? text : `${title}\n${text}`,
-      }
-    })
+    `).all(afterOrdinal, limit).map(denseInputFromRow)
   }
 
   /** Close the build connection before hashing the payload. */
@@ -227,6 +244,7 @@ export class KnowledgeSqliteWriter {
 /** Read-only SQLite handle retained for the provider lifetime. */
 export class KnowledgeSqliteIndex {
   private readonly chunkByOrdinal: StatementSync
+  private readonly denseInputAfterOrdinal: StatementSync
   private readonly bm25Search: StatementSync
   private closed = false
 
@@ -235,8 +253,15 @@ export class KnowledgeSqliteIndex {
     private readonly analyzer: KnowledgeBm25Analyzer,
   ) {
     this.chunkByOrdinal = database.prepare(`
-      SELECT ordinal, chunk_id, document_id, title, source, text, start_token, end_token
+      SELECT ordinal, chunk_id, document_id, title, section_path, source, text, start_token, end_token
       FROM chunks WHERE ordinal = ?
+    `)
+    this.denseInputAfterOrdinal = database.prepare(`
+      SELECT ordinal, chunk_id, document_id, title, section_path, text
+      FROM chunks
+      WHERE ordinal > ?
+      ORDER BY ordinal
+      LIMIT ?
     `)
     this.bm25Search = database.prepare(`
       SELECT c.ordinal AS ordinal, -bm25(bm25_fts) AS score
@@ -284,15 +309,44 @@ export class KnowledgeSqliteIndex {
   }
 
   /**
+   * Load immediate same-document neighbors for one ranked chunk.
+   * @param ordinal - ranked chunk ordinal.
+   * @returns optional previous and next chunks without retrieval scores.
+   */
+  adjacentChunks(ordinal: number): { readonly previous?: KnowledgeHit; readonly next?: KnowledgeHit } {
+    const currentRow = this.chunkByOrdinal.get(ordinal)
+    if (currentRow === undefined) throw new TypeError(`knowledge-local: SQLite chunk ordinal ${ordinal} is missing`)
+    const current = chunkFromRow(currentRow)
+    const previousRow = ordinal === 0 ? undefined : this.chunkByOrdinal.get(ordinal - 1)
+    const nextRow = this.chunkByOrdinal.get(ordinal + 1)
+    const previous = previousRow === undefined ? undefined : chunkFromRow(previousRow)
+    const next = nextRow === undefined ? undefined : chunkFromRow(nextRow)
+    return {
+      ...(previous?.documentId === current.documentId ? { previous } : {}),
+      ...(next?.documentId === current.documentId ? { next } : {}),
+    }
+  }
+
+  /**
    * Load the complete validated corpus for explicit offline evaluation.
    * @returns all chunks in ordinal order.
    */
   allChunks(): KnowledgeHit[] {
     const rows = this.database.prepare(`
-      SELECT ordinal, chunk_id, document_id, title, source, text, start_token, end_token
+      SELECT ordinal, chunk_id, document_id, title, section_path, source, text, start_token, end_token
       FROM chunks ORDER BY ordinal
     `).all()
     return rows.map(row => ({ ...chunkFromRow(row), score: 0 }))
+  }
+
+  /**
+   * Read one bounded consecutive batch of the exact inputs used for Dense encoding.
+   * @param afterOrdinal - exclusive lower ordinal bound.
+   * @param limit - maximum rows to return.
+   * @returns title, section, and text inputs ordered by ordinal.
+   */
+  denseInputs(afterOrdinal: number, limit: number): DenseInputRow[] {
+    return this.denseInputAfterOrdinal.all(afterOrdinal, limit).map(denseInputFromRow)
   }
 
   /**

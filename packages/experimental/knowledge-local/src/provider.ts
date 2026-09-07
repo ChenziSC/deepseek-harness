@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
 import Knowledge, {
   KnowledgeError,
+  type KnowledgeHit,
   type KnowledgeSearchRequest,
   type KnowledgeSearchResult,
 } from '@deepseek-ai/dsh-experimental-knowledge'
@@ -23,6 +24,40 @@ function cancelled(): KnowledgeError {
 
 function throwIfCancelled(signal: AbortSignal | undefined): void {
   if (signal?.aborted === true) throw cancelled()
+}
+
+function shouldRerank(
+  preference: 'auto' | 'on' | 'off',
+  matches: readonly RerankMatch[],
+  minimumGapRatio: number,
+): boolean {
+  if (matches.length === 0) return false
+  if (preference === 'on') return true
+  if (preference === 'off' || matches.length === 1) return false
+  const first = matches[0]?.score as number
+  const second = matches[1]?.score as number
+  const scale = Math.max(Math.abs(first), Math.abs(second), Number.EPSILON)
+  return (first - second) / scale < minimumGapRatio
+}
+
+function trimPreviousOverlap(previous: string, current: string): string | undefined {
+  for (let length = Math.min(previous.length, current.length); length > 0; length -= 1) {
+    if (previous.endsWith(current.slice(0, length))) {
+      const trimmed = previous.slice(0, -length).trimEnd()
+      return trimmed.length === 0 ? undefined : trimmed
+    }
+  }
+  return previous
+}
+
+function trimNextOverlap(current: string, next: string): string | undefined {
+  for (let length = Math.min(current.length, next.length); length > 0; length -= 1) {
+    if (current.endsWith(next.slice(0, length))) {
+      const trimmed = next.slice(length).trimStart()
+      return trimmed.length === 0 ? undefined : trimmed
+    }
+  }
+  return next
 }
 
 /** Local immutable BM25, Dense, and Hybrid knowledge provider implementation. */
@@ -239,31 +274,55 @@ export class LocalKnowledgeProvider extends Knowledge {
     /* v8 ignore next -- Cordis publishes the service only after Service.init completes. */
     if (index === undefined) throw new KnowledgeError('Knowledge index is not ready.', 'KNOWLEDGE_SEARCH_FAILED')
     try {
-      const strategy = resolveKnowledgeSearchStrategy(request.strategy, this.config, {
+      const plan = resolveKnowledgeSearchStrategy(query, request.strategy, this.config, {
         autoDenseIndex: index.manifest.dense?.autoDenseIndex ?? 'exact',
         availableDenseIndexes: [
           ...(index.dense === undefined ? [] : ['exact' as const]),
           ...(index.hnsw === undefined ? [] : ['hnsw' as const]),
         ],
+        corpusScript: index.manifest.corpus.scriptProfile,
       })
       const searchBm25Candidates = () => index.sqlite.searchBm25(query, this.config.candidateCount)
-      const matches = strategy.retrieval === 'bm25'
+      const matches = plan.retrieval === 'bm25'
         ? searchBm25Candidates()
-        : strategy.retrieval === 'dense'
-          ? await this.searchDense(index, query, strategy.denseIndex as 'exact' | 'hnsw', signal)
+        : plan.retrieval === 'dense'
+          ? await this.searchDense(index, query, plan.denseIndex as 'exact' | 'hnsw', signal)
           : await searchHybrid(
             searchBm25Candidates,
-            () => this.searchDense(index, query, strategy.denseIndex as 'exact' | 'hnsw', signal),
+            () => this.searchDense(index, query, plan.denseIndex as 'exact' | 'hnsw', signal),
             undefined,
             this.config.rrfK,
             this.config.candidateCount,
           )
-      const finalMatches = strategy.rerank
+      const rerank = shouldRerank(plan.rerank, matches, this.config.adaptiveRerankMinScoreGapRatio)
+      const finalMatches = rerank
         ? await this.rerank(query, matches, index, signal)
         : matches
       const selected = finalMatches.slice(0, request.maxResults)
       const chunks = index.sqlite.chunks(selected.map(match => match.ordinal))
-      const hits = chunks.map((chunk, position) => ({ ...chunk, score: (selected[position] as RerankMatch).score }))
+      const selectedChunkIds = new Set(chunks.map(chunk => chunk.chunkId))
+      const hits = chunks.map((chunk, position): KnowledgeHit => {
+        const match = selected[position] as RerankMatch
+        if (this.config.adjacentChunkCount === 0) return { ...chunk, score: match.score }
+        const adjacent = index.sqlite.adjacentChunks(match.ordinal)
+        const previousText = adjacent.previous === undefined || selectedChunkIds.has(adjacent.previous.chunkId)
+          ? undefined
+          : trimPreviousOverlap(adjacent.previous.text, chunk.text)
+        const nextText = adjacent.next === undefined || selectedChunkIds.has(adjacent.next.chunkId)
+          ? undefined
+          : trimNextOverlap(chunk.text, adjacent.next.text)
+        return {
+          ...chunk,
+          ...(previousText === undefined ? {} : { previousText }),
+          ...(nextText === undefined ? {} : { nextText }),
+          score: match.score,
+        }
+      })
+      const strategy = {
+        retrieval: plan.retrieval,
+        ...(plan.denseIndex === undefined ? {} : { denseIndex: plan.denseIndex }),
+        rerank,
+      }
       return { hits, strategy }
     } catch (error) {
       if (error instanceof KnowledgeError) throw error
@@ -277,7 +336,6 @@ export class LocalKnowledgeProvider extends Knowledge {
     index: LoadedKnowledgeIndex,
     signal: AbortSignal | undefined,
   ): Promise<RerankMatch[]> {
-    if (matches.length === 0) return []
     throwIfCancelled(signal)
     const reranker = await this.getReranker()
     throwIfCancelled(signal)

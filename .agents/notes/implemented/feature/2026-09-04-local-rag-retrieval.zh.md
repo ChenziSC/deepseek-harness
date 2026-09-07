@@ -12,11 +12,15 @@ DSH 原本没有与提供方无关的方式，让 agent 从开发者提供的知
 
 该实验能力拆成一个完整 seam 的三个角色。`@deepseek-ai/dsh-experimental-knowledge` 定义与提供方无关的 `ctx.knowledge` 服务、品牌化文档与分片标识、排序结果和稳定的调用方可见错误。`@deepseek-ai/dsh-experimental-knowledge-local` 从一份不可变本地索引提供该服务。`@deepseek-ai/dsh-experimental-tool-knowledge` 通过只读模型工具 `knowledge_search(query)` 消费该服务。
 
-本地提供方支持使用确定性英文或中英文混合分析器的 SQLite FTS5 BM25、固定 revision BGE-M3 的 float32 精确 Dense 扫描、USearch HNSW，以及对稀疏和 Dense 结果执行 Reciprocal Rank Fusion。HNSW 查询的 `expansionSearch` 默认为 1024；该值仍可由部署配置，但不向模型开放。固定 revision 的多语言 BGE 跨编码器可以为任意召回模式重排前部候选；召回默认保留 50 条，跨编码器最多处理前 20 条。Service 调用方和面向模型的工具 Consumer 可以在部署配置的允许集合内请求与提供方无关的召回方式、Dense 索引偏好和重排序偏好；省略的选项使用不可变的提供方默认值，每个结果都会报告解析后的策略。Consumer 限制查询和证据文本长度，把检索段落标记为不可信证据，分配单次调用内有效的引用编号，并且不向模型上下文发送分数和底层调参字段。
+本地提供方支持使用确定性英文或中英文混合分析器的 SQLite FTS5 BM25、固定 revision BGE-M3 的 float32 精确 Dense 扫描、USearch HNSW，以及对稀疏和 Dense 结果执行 Reciprocal Rank Fusion。HNSW 查询的 `expansionSearch` 默认为 1024；该值仍可由部署配置，但不向模型开放。请求态自动路由把精确标识符交给 BM25，把查询与语料脚本不同的情况交给 Dense，并把普通查询交给 Hybrid；首选路径不可用时只在部署配置的允许集合内按固定顺序回退。固定 revision 的多语言 BGE 跨编码器可为任意召回模式重排前部候选；`off` 是性能优先默认值，`on` 对非空结果强制重排，`auto` 仅当前两名召回分数的归一化差距低于可配置的默认值 `0.15` 时执行。召回默认保留 50 条，跨编码器最多处理前 20 条。每个结果都会报告具体召回方式、Dense 索引，以及是否实际执行重排序。
 
-索引准备是显式的离线操作。格式版本 2 通过有界事务把源文档流式写入 `knowledge.sqlite`，其中的分片元数据和预分析 SQLite FTS5 输入与可选 `dense.f32le`、`dense.usearch` 载荷共用 ordinal。完成分片后，构建器记录准确规模，并按 `vectorCount × dimensions` 给出保守推荐；交互式命令可以在 embedding 前确认 Exact-only、HNSW-only 或 Both，非交互命令确定性接受推荐。HNSW-only 仍会编码全部分片，但不保留额外的 Exact 文件；Both 只用于明确的对照实验。长文档分片通过有界的局部探测定位每个 token 硬上限，不再重复 token 化剩余全文或完整前缀。清单记录 Dense 模型、向量数量、维度、扫描阈值、推荐值、请求值、保留的载荷模式、查询默认值和 HNSW 构建参数。运行时以只读方式打开 SQLite，校验载荷类型与大小和 schema 元数据，可按配置在启动时校验摘要，并提供始终重算全部载荷摘要的独立命令。Exact 向量和 HNSW 图仅在请求需要时加载。SQLite FTS5 使用固定 BM25 评分参数，部署配置不再暴露第一版内存实现的 `k1` 和 `b`。插件启动和搜索不会下载语料或模型，也不会重建或修改索引。Dense 检索与重排序需要显式且已填充的本地模型缓存；BM25 无需模型权重即可运行。
+Markdown 感知分片优先使用 ATX 章节边界，其次使用段落与句子边界；除非单个围栏代码块超过 token 上限，否则保持代码块完整。章节路径会加入 BM25 和 Dense 索引文本。完成排序后，提供方可以为每条命中附加前后各一个同文档分片，但不增加结果数；实现会去除 overlap 文本，也不会重复已入选的相邻分片。Consumer 限制命中证据和相邻证据长度，把检索段落标为不可信，分配单次调用内有效的引用编号，并且不向模型上下文发送分数和底层调参字段。工具提示优先执行一次搜索，同一 agent 轮次最多允许一次互补的第二次搜索；参数校验通过后，即使提供方失败也会占用名额，不带 agent 的直接调用不受轮次限制。
 
-离线命令能够准备固定 revision 的 BEIR SciFact、MLDR 中英文、T2Ranking 和 MLQA Retrieval `eng-zho`，构建索引、校验摘要，并在同一文档级评测器下选择 BM25、Dense、Hybrid、Exact、HNSW 和重排序组合。评测器先把分片结果折叠为唯一文档，再报告 Recall、MRR、nDCG、Success、延迟、载荷体积和 HNSW 相对 Exact 的召回率。每个数据集只支持有限结论：SciFact 用于英文回归，MLDR 覆盖多语言长文档，T2Ranking 覆盖中文检索和规模，MLQA Retrieval 覆盖中文查询检索英文段落。
+索引准备是显式的离线操作。格式版本 3 通过有界事务把源文档流式写入 `knowledge.sqlite`，其中的分片元数据、章节路径和预分析 SQLite FTS5 输入与可选 `dense.f32le`、`dense.usearch` 载荷共用 ordinal。清单通过流式统计记录 Latin/CJK 语料画像，不额外保留一份语料。完成分片后，构建器记录准确规模，并按 `vectorCount × dimensions` 给出保守推荐；交互式命令可以在 embedding 前确认 Exact-only、HNSW-only 或 Both，非交互命令确定性接受推荐。HNSW-only 仍会编码全部分片，但不保留额外的 Exact 文件；Both 只用于明确的对照实验。长文档分片通过有界的局部探测定位每个 token 硬上限，不再重复 token 化剩余全文或完整前缀。清单记录 Dense 模型、向量数量、维度、扫描阈值、推荐值、请求值、保留的载荷模式、查询默认值和 HNSW 构建参数。运行时以只读方式打开 SQLite，校验载荷类型与大小和 schema 元数据，可按配置在启动时校验摘要，并提供始终重算全部载荷摘要的独立命令。Exact 向量和 HNSW 图仅在请求需要时加载。SQLite FTS5 使用固定 BM25 评分参数，部署配置不再暴露第一版内存实现的 `k1` 和 `b`。插件启动和搜索不会下载语料或模型，也不会重建或修改索引。Dense 检索与重排序需要显式且已填充的本地模型缓存；BM25 无需模型权重即可运行。
+
+离线命令能够准备固定 revision 的 BEIR SciFact、MLDR 中英文、T2Ranking 和 MLQA Retrieval `eng-zho`，构建索引、校验摘要，并在同一文档级评测器下选择 BM25、Dense、Hybrid、Exact、HNSW 和 `off`／`auto`／`on` 重排序组合。评测器先把分片结果折叠为唯一文档，再报告 Recall、MRR、nDCG、Success、延迟、载荷体积、自适应重排序触发比例和 HNSW 相对 Exact 的召回率。每个数据集只支持有限结论：SciFact 用于英文回归，MLDR 覆盖多语言长文档，T2Ranking 覆盖中文检索和规模，MLQA Retrieval 覆盖中文查询检索英文段落。
+
+Exact/HNSW 阈值校准使用确定性的嵌套 T2Ranking 切片：先包含所选查询的全部正例，再加入官方 BM25 困难负例。最大档只生成一次嵌入；较小的 ordinal 前缀索引复制通过校验的 Exact 向量批次，并重新构建 SQLite 和 HNSW。分片身份、检索文本、分析器、tokenizer 或分片配置只要不一致，派生就会失败，避免复用向量静默关联到不同内容。
 
 ## 备选方案
 
@@ -34,6 +38,8 @@ DSH 原本没有与提供方无关的方式，让 agent 从开发者提供的知
 
 ## 结果
 
-部署挂载一个 Knowledge 提供方，并可选择挂载工具 Consumer；抽象 Service Definition 不单独挂载。提供方在检索前通过部署默认值和允许集合解析每个请求。索引格式 2 有意只支持一份只读语料、不可变的全量索引发布、SQLite FTS5 BM25、Exact Dense 扫描和一种 HNSW 实现。Dense 自动选择使用清单记录的向量数乘维度，不根据当前机器重新判断。默认的 `50,000,000` 个扫描元素是可配置的保守甜点值，不是跨机器实测临界点。请求不可用的 Dense 索引会失败，不会回退。USearch 使用原生自动线程建图时，相同向量可能生成不同的图文件字节和近似邻居，因此每份评测都记录具体索引指纹。构建失败可能留下未发布的不完整目录；本机存储受限时，完整基准索引按顺序构建、评测和删除。当前实现不提供增量更新、多语料路由、访问控制、远程存储、第二种 ANN、推理调度或生产恢复。
+部署挂载一个 Knowledge 提供方，并可选择挂载工具 Consumer；抽象 Service Definition 不单独挂载。提供方在检索前通过部署默认值和允许集合解析每个请求。索引格式 3 有意只支持一份只读语料、不可变的全量索引发布、SQLite FTS5 BM25、Exact Dense 扫描和一种 HNSW 实现。Dense 自动选择使用清单记录的向量数乘维度，不根据当前机器重新判断。默认的 `50,000,000` 个扫描元素是可配置的保守甜点值，不是跨机器实测临界点。请求不可用的 Dense 索引会失败，不会回退。查询自动路由和自适应重排序是透明、确定的启发式规则，而不是学习型分类器；调用方可以覆盖高层策略，只有部署方能配置阈值。USearch 使用原生自动线程建图时，相同向量可能生成不同的图文件字节和近似邻居，因此每份评测都记录具体索引指纹。构建失败可能留下未发布的不完整目录；本机存储受限时，完整基准索引按顺序构建、评测和删除。当前实现不提供增量更新、多语料路由、访问控制、远程存储、第二种 ANN、推理调度或生产恢复。
 
-仓库内的 `rag-knowledge` 示例无需外部模型即可验证完整 BM25 组合路径。包测试覆盖服务生命周期、索引校验、分片、多语言 BM25、Exact-only、HNSW-only 和双载荷 Dense 检索、RRF、有界重排序、策略限制、工具边界、取消、离线命令和数据集评测。无密钥快照覆盖真实 Loader 组合以及模型可见的默认、关键词、精确和质量优先请求。模型缓存烟测位于独立测试模块，不使用单元测试中的 Transformers.js mock。本地基准结果和与硬件相关的延迟只作为实验依据，不成为产品保证。SciFact 和 MLQA Retrieval 已生成全量查询报告；T2Ranking 和 MLDR 使用固定切片。HNSW 结果重合度属于观察指标，数据集质量结论以标准 qrels 指标为准。
+仓库内的 `rag-knowledge` 示例无需外部模型即可验证完整 BM25 组合路径。包测试覆盖服务生命周期、索引校验、Markdown 感知分片、脚本画像、多语言 BM25、Exact-only、HNSW-only 和双载荷 Dense 检索、RRF、自动路由、自适应有界重排序、相邻扩展、轮次级工具限制、取消、离线命令和数据集评测。无密钥快照覆盖真实 Loader 组合以及模型可见的默认、关键词、精确和质量优先请求。模型缓存烟测位于独立测试模块，不使用单元测试中的 Transformers.js mock。本地基准结果和与硬件相关的延迟只作为实验依据，不成为产品保证。SciFact 和 MLQA Retrieval 已生成全量查询报告；T2Ranking 和 MLDR 使用固定切片。HNSW 结果重合度属于观察指标，数据集质量结论以标准 qrels 指标为准。
+
+向量复用有意限制为 ordinal 前缀。任意文档子集需要按身份映射的向量复制器和更多元数据校验，当前校准实验不足以证明这部分复杂度合理。

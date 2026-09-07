@@ -18,32 +18,55 @@ const policy: KnowledgeSearchPolicy = {
 const capabilities: KnowledgeSearchCapabilities = {
   autoDenseIndex: 'exact',
   availableDenseIndexes: ['exact'],
+  corpusScript: 'latin',
 }
 
 describe('knowledge search strategy resolution', () => {
   it('resolves the default performance strategy without mutating policy', () => {
-    expect(resolveKnowledgeSearchStrategy(undefined, policy, capabilities)).toEqual({
+    expect(resolveKnowledgeSearchStrategy('ordinary scientific question', undefined, policy, capabilities)).toEqual({
       retrieval: 'hybrid',
       denseIndex: 'exact',
-      rerank: false,
+      rerank: 'off',
     })
     expect(policy).toMatchObject({ defaultDenseIndex: 'auto', defaultRerank: 'off' })
   })
 
   it('resolves caller-selected high-level combinations', () => {
-    expect(resolveKnowledgeSearchStrategy({ retrieval: 'bm25', denseIndex: 'auto' }, policy, capabilities)).toEqual({
+    expect(resolveKnowledgeSearchStrategy('alpha', { retrieval: 'bm25', denseIndex: 'auto' }, policy, capabilities)).toEqual({
       retrieval: 'bm25',
-      rerank: false,
+      rerank: 'off',
     })
-    expect(resolveKnowledgeSearchStrategy({ retrieval: 'dense', denseIndex: 'exact', rerank: 'on' }, policy, capabilities)).toEqual({
+    expect(resolveKnowledgeSearchStrategy('alpha', { retrieval: 'dense', denseIndex: 'exact', rerank: 'on' }, policy, capabilities)).toEqual({
       retrieval: 'dense',
       denseIndex: 'exact',
-      rerank: true,
+      rerank: 'on',
     })
   })
 
+  it('routes exact terms, cross-script queries, and ordinary language deterministically', () => {
+    const automatic = { ...policy, defaultRetrieval: 'auto' as const }
+    expect(resolveKnowledgeSearchStrategy('ERR_CONNECTION_RESET in api_client', undefined, automatic, capabilities))
+      .toMatchObject({ retrieval: 'bm25' })
+    expect(resolveKnowledgeSearchStrategy('光合作用是什么', undefined, automatic, capabilities))
+      .toMatchObject({ retrieval: 'dense' })
+    expect(resolveKnowledgeSearchStrategy('what powers photosynthesis', undefined, automatic, capabilities))
+      .toMatchObject({ retrieval: 'hybrid' })
+    expect(resolveKnowledgeSearchStrategy('what powers photosynthesis', undefined, automatic, {
+      ...capabilities,
+      corpusScript: 'cjk',
+    })).toMatchObject({ retrieval: 'dense' })
+  })
+
+  it('keeps explicit choices and constrains automatic routing to the allowed set', () => {
+    const automatic = { ...policy, defaultRetrieval: 'auto' as const, allowedRetrieval: ['bm25'] as const }
+    expect(resolveKnowledgeSearchStrategy('ordinary question', undefined, automatic, capabilities))
+      .toEqual({ retrieval: 'bm25', rerank: 'off' })
+    expect(resolveKnowledgeSearchStrategy('ERR_123456', { retrieval: 'dense' }, policy, capabilities))
+      .toMatchObject({ retrieval: 'dense' })
+  })
+
   it('rejects invalid and deployment-disabled combinations with stable error codes', () => {
-    expect(() => resolveKnowledgeSearchStrategy({ retrieval: 'bm25', denseIndex: 'exact' }, policy, capabilities))
+    expect(() => resolveKnowledgeSearchStrategy('alpha', { retrieval: 'bm25', denseIndex: 'exact' }, policy, capabilities))
       .toThrow(expect.objectContaining({ code: 'KNOWLEDGE_INVALID_REQUEST' }))
 
     const restricted: KnowledgeSearchPolicy = {
@@ -57,7 +80,7 @@ describe('knowledge search strategy resolution', () => {
       { retrieval: 'bm25' as const, rerank: 'on' as const },
     ]) {
       try {
-        resolveKnowledgeSearchStrategy(request, restricted, capabilities)
+        resolveKnowledgeSearchStrategy('alpha', request, restricted, capabilities)
         throw new Error('expected strategy rejection')
       } catch (error) {
         expect(error).toBeInstanceOf(KnowledgeError)
@@ -66,12 +89,14 @@ describe('knowledge search strategy resolution', () => {
     }
 
     expect(() => resolveKnowledgeSearchStrategy(
+      'alpha',
       { retrieval: 'dense', denseIndex: 'hnsw' },
       policy,
       capabilities,
     )).toThrow(expect.objectContaining({ code: 'KNOWLEDGE_STRATEGY_NOT_ALLOWED' }))
 
     expect(() => resolveKnowledgeSearchStrategy(
+      'alpha',
       { retrieval: 'dense', denseIndex: 'hnsw' },
       { ...policy, allowedDenseIndexes: ['exact', 'hnsw'] },
       capabilities,

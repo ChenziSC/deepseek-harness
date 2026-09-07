@@ -11,8 +11,11 @@ export interface KnowledgeEvidence {
   readonly documentId: string
   readonly chunkId: string
   readonly title?: string
+  readonly sectionPath?: string
   readonly source?: string
   readonly text: string
+  readonly previousText?: string
+  readonly nextText?: string
 }
 
 /** Canonical successful value of `knowledge_search`. */
@@ -34,13 +37,17 @@ function clip(value: string, maxChars: number): { text: string; truncated: boole
 }
 
 function renderEvidence(evidence: KnowledgeEvidence): string {
+  const hasContext = evidence.previousText !== undefined || evidence.nextText !== undefined
   return [
     `[${evidence.citation}]`,
     `Document: ${evidence.documentId}`,
     `Chunk: ${evidence.chunkId}`,
     ...(evidence.title === undefined ? [] : [`Title: ${evidence.title}`]),
+    ...(evidence.sectionPath === undefined ? [] : [`Section: ${evidence.sectionPath}`]),
     ...(evidence.source === undefined ? [] : [`Source: ${evidence.source}`]),
-    evidence.text,
+    ...(hasContext ? ['Matched chunk:', evidence.text] : [evidence.text]),
+    ...(evidence.previousText === undefined ? [] : ['Previous chunk:', evidence.previousText]),
+    ...(evidence.nextText === undefined ? [] : ['Next chunk:', evidence.nextText]),
   ].join('\n')
 }
 
@@ -62,13 +69,31 @@ function evidenceFromHit(hit: KnowledgeHit, citation: string, hitMaxChars: numbe
     documentId: hit.documentId,
     chunkId: hit.chunkId,
     ...(hit.title === undefined ? {} : { title: hit.title }),
+    ...(hit.sectionPath === undefined ? {} : { sectionPath: hit.sectionPath }),
     ...(hit.source === undefined ? {} : { source: hit.source }),
     text: '',
   }
   const fixedLength = codePoints(renderEvidence(fixed)).length
   if (fixedLength >= hitMaxChars) return { truncated: true }
   const clipped = clip(hit.text, hitMaxChars - fixedLength)
-  return { evidence: { ...fixed, text: clipped.text }, truncated: clipped.truncated }
+  let evidence: KnowledgeEvidence = { ...fixed, text: clipped.text }
+  let truncated = clipped.truncated
+  for (const [field, value] of [
+    ['previousText', hit.previousText],
+    ['nextText', hit.nextText],
+  ] as const) {
+    if (value === undefined) continue
+    const withEmpty = { ...evidence, [field]: '' }
+    const available = hitMaxChars - codePoints(renderEvidence(withEmpty)).length
+    if (available <= 0) {
+      truncated = true
+      continue
+    }
+    const context = clip(value, available)
+    evidence = { ...evidence, [field]: context.text }
+    truncated ||= context.truncated
+  }
+  return { evidence, truncated }
 }
 
 /**

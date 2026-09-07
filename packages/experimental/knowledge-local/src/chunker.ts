@@ -1,4 +1,4 @@
-/** Deterministic paragraph, sentence, and tokenizer-length chunking. */
+/** Deterministic Markdown-structure, paragraph, sentence, and tokenizer-length chunking. */
 
 import {
   KnowledgeChunkId,
@@ -15,6 +15,7 @@ export interface ChunkRecord {
   readonly id: KnowledgeChunkIdType
   readonly documentId: KnowledgeDocumentId
   readonly title?: string
+  readonly sectionPath?: string
   readonly text: string
   readonly source?: string
   readonly startToken: number
@@ -123,6 +124,72 @@ function boundaryEnds(text: string, pattern: RegExp): number[] {
   return ends
 }
 
+interface MarkdownStructure {
+  readonly sectionEnds: readonly number[]
+  readonly fenceRanges: ReadonlyArray<{ readonly start: number; readonly end: number }>
+  readonly headingPaths: ReadonlyArray<{ readonly offset: number; readonly path: string }>
+}
+
+function markdownStructure(text: string): MarkdownStructure {
+  const sectionEnds: number[] = []
+  const fenceRanges: Array<{ start: number; end: number }> = []
+  const headingPaths: Array<{ offset: number; path: string }> = []
+  const headings: string[] = []
+  let fence: { marker: '`' | '~'; length: number; start: number } | undefined
+  let offset = 0
+  for (const line of text.matchAll(/.*(?:\n|$)/gu)) {
+    const raw = line[0]
+    if (raw.length === 0) break
+    const content = raw.replace(/\r?\n$/u, '')
+    const fenceMatch = /^[\t ]{0,3}(`{3,}|~{3,})/u.exec(content)
+    if (fence !== undefined) {
+      if (
+        fenceMatch !== null
+        && fenceMatch[1]?.[0] === fence.marker
+        && fenceMatch[1].length >= fence.length
+      ) {
+        fenceRanges.push({ start: fence.start, end: offset + raw.length })
+        fence = undefined
+      }
+      offset += raw.length
+      continue
+    }
+    if (fenceMatch !== null) {
+      fence = {
+        marker: fenceMatch[1]?.[0] as '`' | '~',
+        length: fenceMatch[1]?.length as number,
+        start: offset,
+      }
+      offset += raw.length
+      continue
+    }
+    const heading = /^[\t ]{0,3}(#{1,6})[\t ]+(.+?)[\t ]*#*[\t ]*$/u.exec(content)
+    if (heading !== null) {
+      if (offset > 0) sectionEnds.push(offset)
+      const level = heading[1]?.length as number
+      headings.length = level - 1
+      headings[level - 1] = heading[2] as string
+      headingPaths.push({ offset, path: headings.filter(Boolean).join(' > ') })
+    }
+    offset += raw.length
+  }
+  if (fence !== undefined) fenceRanges.push({ start: fence.start, end: text.length })
+  return { sectionEnds, fenceRanges, headingPaths }
+}
+
+function inFence(offset: number, ranges: MarkdownStructure['fenceRanges']): boolean {
+  return ranges.some(range => offset > range.start && offset < range.end)
+}
+
+function sectionPathAt(offset: number, headings: MarkdownStructure['headingPaths']): string | undefined {
+  let path: string | undefined
+  for (const heading of headings) {
+    if (heading.offset > offset) break
+    path = heading.path
+  }
+  return path
+}
+
 function preferredEnd(candidates: readonly number[], minimum: number, maximum: number): number | undefined {
   let selected: number | undefined
   for (const candidate of candidates) {
@@ -154,8 +221,12 @@ function skipWhitespaceBackward(text: string, start: number, end: number): numbe
 
 function chunkDocument(document: CorpusDocument, tokenizer: ChunkTokenizer, options: ChunkingOptions): Omit<ChunkRecord, 'ordinal'>[] {
   const boundaries = codePointBoundaries(document.text, 0, document.text.length)
-  const paragraphEnds = boundaryEnds(document.text, /\n[\t ]*\n+/gu).map(end => skipWhitespaceBackward(document.text, 0, end))
+  const structure = markdownStructure(document.text)
+  const paragraphEnds = boundaryEnds(document.text, /\n[\t ]*\n+/gu)
+    .map(end => skipWhitespaceBackward(document.text, 0, end))
+    .filter(end => !inFence(end, structure.fenceRanges))
   const sentenceEnds = boundaryEnds(document.text, /[.!?。！？](?=\s|$)/gu)
+    .filter(end => !inFence(end, structure.fenceRanges))
   const records: Omit<ChunkRecord, 'ordinal'>[] = []
   let start = skipWhitespaceForward(document.text, 0)
   let startBoundary = boundaryIndex(boundaries, start)
@@ -163,18 +234,27 @@ function chunkDocument(document: CorpusDocument, tokenizer: ChunkTokenizer, opti
   let previousEnd = start
   while (start < document.text.length) {
     const hardEnd = fitEnd(document.text, start, startBoundary, boundaries, options.maxTokens, tokenizer)
-    const chosen = preferredEnd(paragraphEnds, previousEnd, hardEnd)
-      ?? preferredEnd(sentenceEnds, previousEnd, hardEnd)
+    const minimumBoundary = Math.max(previousEnd, start)
+    const enclosingFence = structure.fenceRanges.find(range => start >= range.start && start < range.end)
+    const enteringFence = structure.fenceRanges.find(range => range.start > start && range.start < hardEnd && range.end > hardEnd)
+    const chosen = enclosingFence !== undefined && enclosingFence.end <= hardEnd
+      ? enclosingFence.end
+      : preferredEnd(structure.sectionEnds, minimumBoundary, hardEnd)
+        ?? enteringFence?.start
+        ?? preferredEnd(paragraphEnds, minimumBoundary, hardEnd)
+      ?? preferredEnd(sentenceEnds, minimumBoundary, hardEnd)
       ?? hardEnd
     const end = skipWhitespaceBackward(document.text, start, chosen)
     /* v8 ignore next -- validated non-whitespace starts and code-point boundaries make this an internal invariant. */
     if (end <= start) throw new TypeError('knowledge-local: tokenizer could not produce a non-empty chunk')
     // Transformers.js exposes token counts but not source offsets, so positions accumulate from bounded local slices.
     const endToken = startToken + Math.max(1, tokenizer.countTokens(document.text.slice(start, end)))
+    const sectionPath = sectionPathAt(start, structure.headingPaths)
     records.push({
       id: KnowledgeChunkId(`${encodeURIComponent(document.id)}:${startToken}-${endToken}`),
       documentId: document.id,
       ...(document.title === undefined ? {} : { title: document.title }),
+      ...(sectionPath === undefined ? {} : { sectionPath }),
       text: document.text.slice(start, end),
       ...(document.source === undefined ? {} : { source: document.source }),
       startToken,

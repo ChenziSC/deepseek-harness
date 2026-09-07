@@ -10,6 +10,7 @@ import { promisify } from 'node:util'
 import { Context } from '@deepseek-ai/cordis'
 import {
   KnowledgeDocumentId,
+  type KnowledgeRerank,
   type KnowledgeSearchResult,
 } from '@deepseek-ai/dsh-experimental-knowledge'
 import {
@@ -25,7 +26,11 @@ import { DEFAULT_RRF_K } from './hybrid.ts'
 import { DEFAULT_HNSW_EXPANSION_SEARCH } from './hnsw.ts'
 import { loadKnowledgeIndex } from './index-format.ts'
 import LocalKnowledgeProvider from './provider.ts'
-import { DEFAULT_CANDIDATE_COUNT, DEFAULT_RERANKER_CANDIDATE_COUNT } from './config.ts'
+import {
+  DEFAULT_ADAPTIVE_RERANK_MIN_SCORE_GAP_RATIO,
+  DEFAULT_CANDIDATE_COUNT,
+  DEFAULT_RERANKER_CANDIDATE_COUNT,
+} from './config.ts'
 import {
   BGE_RERANKER_DTYPE,
   BGE_RERANKER_MODEL_ID,
@@ -57,18 +62,19 @@ export interface EvaluationMetrics {
 export interface EvaluationRun {
   readonly mode: EvaluationMode
   readonly denseIndex?: 'exact' | 'hnsw'
-  readonly rerank: boolean
+  readonly rerank: KnowledgeRerank
   readonly status: 'success' | 'failed'
   readonly queryCount: number
   readonly error?: string
   readonly metrics?: EvaluationMetrics
   readonly latencyMs?: { readonly p50: number; readonly p95: number }
+  readonly rerankAppliedRate?: number
   readonly approximation?: { readonly recallAt10: number; readonly recallAt100: number }
 }
 
 /** Machine-readable result of one fixed dataset evaluation matrix. */
 export interface EvaluationReport {
-  readonly schemaVersion: 1
+  readonly schemaVersion: 2
   readonly createdAt: string
   readonly dataset: 'scifact' | 'mldr' | 't2ranking' | 'mlqa'
   readonly platform: {
@@ -91,7 +97,8 @@ export interface EvaluationReport {
     readonly queryLimit?: number
     readonly modes: readonly EvaluationMode[]
     readonly denseIndexes: readonly ('exact' | 'hnsw')[]
-    readonly rerankValues: readonly boolean[]
+    readonly rerankValues: readonly KnowledgeRerank[]
+    readonly adaptiveRerankMinScoreGapRatio: number
     readonly bm25Implementation: 'sqlite-fts5'
     readonly rrfK: 60
     readonly chunkMaxTokens: number
@@ -119,7 +126,7 @@ export interface EvaluationProvider {
 /** Factory for one immutable mode and reranking combination. */
 export type EvaluationProviderFactory = (
   mode: EvaluationMode,
-  rerank: boolean,
+  rerank: KnowledgeRerank,
   denseIndex: 'exact' | 'hnsw',
 ) => Promise<EvaluationProvider>
 
@@ -233,6 +240,7 @@ async function evaluateRun(
   metrics: EvaluationMetrics
   latencyMs: { p50: number; p95: number }
   ranked: readonly RankedDocuments[]
+  rerankAppliedRate: number
 }> {
   for (let index = 0; index < warmupQueries; index += 1) {
     const query = queries[index % queries.length]
@@ -240,9 +248,11 @@ async function evaluateRun(
   }
   const ranked: RankedDocuments[] = []
   const latencies: number[] = []
+  let rerankApplied = 0
   for (const query of queries) {
     const startedAt = performance.now()
     const result = await provider.search(query.text, maxResults)
+    if (result.strategy.rerank) rerankApplied += 1
     latencies.push(performance.now() - startedAt)
     ranked.push({ query, documentIds: foldDocuments(result, maxResults) })
   }
@@ -250,6 +260,7 @@ async function evaluateRun(
     metrics: calculateMetrics(ranked),
     latencyMs: { p50: nearestRank(latencies, 0.5), p95: nearestRank(latencies, 0.95) },
     ranked,
+    rerankAppliedRate: rerankApplied / queries.length,
   }
 }
 
@@ -274,7 +285,7 @@ function approximationRecall(
  * @param createProvider - provider factory for each fixed run.
  * @param denseIndexes - Dense implementations to compare.
  * @param modes - recall modes to execute.
- * @param rerankValues - reranking states to execute.
+ * @param rerankValues - reranking preferences to execute.
  * @returns successful or failed run records in stable order.
  */
 export async function evaluateMatrix(
@@ -284,10 +295,10 @@ export async function evaluateMatrix(
   createProvider: EvaluationProviderFactory,
   denseIndexes: readonly ('exact' | 'hnsw')[] = ['exact'],
   modes: readonly EvaluationMode[] = ['bm25', 'dense', 'hybrid'],
-  rerankValues: readonly boolean[] = [false, true],
+  rerankValues: readonly KnowledgeRerank[] = ['off', 'auto', 'on'],
 ): Promise<EvaluationRun[]> {
   const runs: EvaluationRun[] = []
-  const exactRankings = new Map<string, readonly RankedDocuments[]>()
+  const rankings = new Map<string, readonly RankedDocuments[]>()
   for (const mode of modes) {
     const indexes = mode === 'bm25' ? ['exact' as const] : denseIndexes
     for (const denseIndex of indexes) for (const rerank of rerankValues) {
@@ -295,14 +306,7 @@ export async function evaluateMatrix(
       try {
         provider = await createProvider(mode, rerank, denseIndex)
         const result = await evaluateRun(provider, queries, maxResults, warmupQueries)
-        const comparisonKey = `${mode}:${String(rerank)}`
-        const approximation = denseIndex === 'hnsw' && exactRankings.has(comparisonKey)
-          ? {
-            recallAt10: approximationRecall(exactRankings.get(comparisonKey) as readonly RankedDocuments[], result.ranked, 10),
-            recallAt100: approximationRecall(exactRankings.get(comparisonKey) as readonly RankedDocuments[], result.ranked, 100),
-          }
-          : undefined
-        if (mode !== 'bm25' && denseIndex === 'exact') exactRankings.set(comparisonKey, result.ranked)
+        if (mode !== 'bm25') rankings.set(`${mode}:${rerank}:${denseIndex}`, result.ranked)
         runs.push({
           mode,
           ...(mode === 'bm25' ? {} : { denseIndex }),
@@ -311,7 +315,7 @@ export async function evaluateMatrix(
           queryCount: queries.length,
           metrics: result.metrics,
           latencyMs: result.latencyMs,
-          ...(approximation === undefined ? {} : { approximation }),
+          rerankAppliedRate: result.rerankAppliedRate,
         })
       } catch (error) {
         runs.push({
@@ -327,7 +331,19 @@ export async function evaluateMatrix(
       }
     }
   }
-  return runs
+  return runs.map((run) => {
+    if (run.status !== 'success' || run.denseIndex !== 'hnsw') return run
+    const exact = rankings.get(`${run.mode}:${run.rerank}:exact`)
+    const approximate = rankings.get(`${run.mode}:${run.rerank}:hnsw`)
+    if (exact === undefined || approximate === undefined) return run
+    return {
+      ...run,
+      approximation: {
+        recallAt10: approximationRecall(exact, approximate, 10),
+        recallAt100: approximationRecall(exact, approximate, 100),
+      },
+    }
+  })
 }
 
 async function directoryBytes(directory: string): Promise<number> {
@@ -348,12 +364,13 @@ export interface EvaluateDatasetOptions {
   readonly maxResults: number
   readonly candidateCount?: number
   readonly rerankerCandidateCount?: number
+  readonly adaptiveRerankMinScoreGapRatio?: number
   readonly warmupQueries: number
   readonly dataset?: 'scifact' | 'mldr' | 't2ranking' | 'mlqa'
   readonly queryLimit?: number
   readonly modes?: readonly EvaluationMode[]
   readonly denseIndexes?: readonly ('exact' | 'hnsw')[]
-  readonly rerankValues?: readonly boolean[]
+  readonly rerankValues?: readonly KnowledgeRerank[]
   readonly hnswExpansionSearch?: number
 }
 
@@ -374,9 +391,16 @@ export async function evaluateDataset(options: EvaluateDatasetOptions): Promise<
     options.rerankerCandidateCount ?? DEFAULT_RERANKER_CANDIDATE_COUNT,
     candidateCount,
   )
+  const adaptiveRerankMinScoreGapRatio = options.adaptiveRerankMinScoreGapRatio
+    ?? DEFAULT_ADAPTIVE_RERANK_MIN_SCORE_GAP_RATIO
   if (!Number.isSafeInteger(rerankerCandidateCount) || rerankerCandidateCount < 1) {
     throw new TypeError('knowledge-local: rerankerCandidateCount must be a positive safe integer')
   }
+  if (
+    !Number.isFinite(adaptiveRerankMinScoreGapRatio)
+    || adaptiveRerankMinScoreGapRatio < 0
+    || adaptiveRerankMinScoreGapRatio > 1
+  ) throw new TypeError('knowledge-local: adaptiveRerankMinScoreGapRatio must be from 0 through 1')
   if (!Number.isSafeInteger(options.warmupQueries) || options.warmupQueries < 0) {
     throw new TypeError('knowledge-local: warmupQueries must be a non-negative safe integer')
   }
@@ -388,7 +412,7 @@ export async function evaluateDataset(options: EvaluateDatasetOptions): Promise<
     throw new TypeError('knowledge-local: hnswExpansionSearch must be a positive safe integer')
   }
   const modes = options.modes ?? ['bm25', 'dense', 'hybrid']
-  const rerankValues = options.rerankValues ?? [false, true]
+  const rerankValues = options.rerankValues ?? ['off', 'auto', 'on']
   if (modes.length === 0) throw new TypeError('knowledge-local: modes must not be empty')
   if (options.denseIndexes?.length === 0 && modes.some(mode => mode !== 'bm25')) {
     throw new TypeError('knowledge-local: denseIndexes must not be empty when Dense retrieval is evaluated')
@@ -442,12 +466,13 @@ export async function evaluateDataset(options: EvaluateDatasetOptions): Promise<
         indexDir: options.indexDir,
         defaultRetrieval: mode,
         defaultDenseIndex: denseIndex,
-        defaultRerank: rerank ? 'on' : 'off',
+        defaultRerank: 'off',
         allowedRetrieval: [mode],
         allowedDenseIndexes: [denseIndex],
-        allowedRerank: rerank,
+        allowedRerank: rerank !== 'off',
         candidateCount,
         rerankerCandidateCount,
+        adaptiveRerankMinScoreGapRatio,
         modelCacheDir: options.modelCacheDir,
         ...(denseManifest === undefined ? {} : {
           denseModelId: denseManifest.modelId,
@@ -464,13 +489,13 @@ export async function evaluateDataset(options: EvaluateDatasetOptions): Promise<
       throw error
     }
     return {
-      search: (query, maxResults) => context.knowledge.search({ query, maxResults }),
+      search: (query, maxResults) => context.knowledge.search({ query, maxResults, strategy: { rerank } }),
       dispose: () => context.fiber.dispose(),
     }
   }
   const manifestText = await readFile(join(options.indexDir, 'manifest.json'))
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     createdAt: new Date().toISOString(),
     dataset,
     platform: { os: platform(), release: release(), arch: arch(), node: process.version },
@@ -482,7 +507,7 @@ export async function evaluateDataset(options: EvaluateDatasetOptions): Promise<
         revision: denseManifest.revision,
         dtype: denseManifest.dtype,
       } }),
-      ...(rerankValues.includes(true) ? { reranker: {
+      ...(rerankValues.some(value => value !== 'off') ? { reranker: {
         modelId: BGE_RERANKER_MODEL_ID,
         revision: BGE_RERANKER_REVISION,
         dtype: BGE_RERANKER_DTYPE,
@@ -491,6 +516,7 @@ export async function evaluateDataset(options: EvaluateDatasetOptions): Promise<
     config: {
       candidateCount,
       rerankerCandidateCount,
+      adaptiveRerankMinScoreGapRatio,
       maxResults: options.maxResults,
       warmupQueries: options.warmupQueries,
       ...(options.queryLimit === undefined ? {} : { queryLimit: options.queryLimit }),
@@ -545,15 +571,15 @@ export function renderEvaluationReport(report: EvaluationReport): string {
     '',
     `Created: ${report.createdAt}`,
     '',
-    '| Mode | Dense index | Rerank | Status | Recall@1 | Recall@5 | Recall@10 | Recall@20 | Recall@100 | MRR@10 | nDCG@10 | Success@1 | Success@5 | Success@10 | Success@20 | Success@100 | ANN recall@10 | ANN recall@100 | p50 ms | p95 ms |',
-    '| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+    '| Mode | Dense index | Rerank request | Applied | Status | Recall@1 | Recall@5 | Recall@10 | Recall@20 | Recall@100 | MRR@10 | nDCG@10 | Success@1 | Success@5 | Success@10 | Success@20 | Success@100 | ANN recall@10 | ANN recall@100 | p50 ms | p95 ms |',
+    '| --- | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
   ]
   for (const run of report.runs) {
     if (run.status === 'failed' || run.metrics === undefined || run.latencyMs === undefined) {
-      lines.push(`| ${run.mode} | ${run.denseIndex ?? '—'} | ${String(run.rerank)} | failed: ${tableCell(run.error ?? 'unknown error')} | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — |`)
+      lines.push(`| ${run.mode} | ${run.denseIndex ?? '—'} | ${run.rerank} | — | failed: ${tableCell(run.error ?? 'unknown error')} | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — |`)
       continue
     }
-    lines.push(`| ${run.mode} | ${run.denseIndex ?? '—'} | ${String(run.rerank)} | success | ${percentage(run.metrics.recallAt1)} | ${percentage(run.metrics.recallAt5)} | ${percentage(run.metrics.recallAt10)} | ${percentage(run.metrics.recallAt20)} | ${percentage(run.metrics.recallAt100)} | ${percentage(run.metrics.mrrAt10)} | ${percentage(run.metrics.ndcgAt10)} | ${percentage(run.metrics.successAt1)} | ${percentage(run.metrics.successAt5)} | ${percentage(run.metrics.successAt10)} | ${percentage(run.metrics.successAt20)} | ${percentage(run.metrics.successAt100)} | ${run.approximation === undefined ? '—' : percentage(run.approximation.recallAt10)} | ${run.approximation === undefined ? '—' : percentage(run.approximation.recallAt100)} | ${run.latencyMs.p50.toFixed(2)} | ${run.latencyMs.p95.toFixed(2)} |`)
+    lines.push(`| ${run.mode} | ${run.denseIndex ?? '—'} | ${run.rerank} | ${percentage(run.rerankAppliedRate ?? 0)} | success | ${percentage(run.metrics.recallAt1)} | ${percentage(run.metrics.recallAt5)} | ${percentage(run.metrics.recallAt10)} | ${percentage(run.metrics.recallAt20)} | ${percentage(run.metrics.recallAt100)} | ${percentage(run.metrics.mrrAt10)} | ${percentage(run.metrics.ndcgAt10)} | ${percentage(run.metrics.successAt1)} | ${percentage(run.metrics.successAt5)} | ${percentage(run.metrics.successAt10)} | ${percentage(run.metrics.successAt20)} | ${percentage(run.metrics.successAt100)} | ${run.approximation === undefined ? '—' : percentage(run.approximation.recallAt10)} | ${run.approximation === undefined ? '—' : percentage(run.approximation.recallAt100)} | ${run.latencyMs.p50.toFixed(2)} | ${run.latencyMs.p95.toFixed(2)} |`)
   }
   lines.push('', `Index bytes: ${report.build.indexBytes}`)
   for (const [path, bytes] of Object.entries(report.build.payloadBytes)) lines.push(`- ${path}: ${bytes}`)

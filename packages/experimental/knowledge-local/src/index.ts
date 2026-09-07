@@ -5,6 +5,8 @@ import z from '@deepseek-ai/schemastery'
 import {
   DEFAULT_ALLOWED_DENSE_INDEXES,
   DEFAULT_ALLOWED_RETRIEVAL,
+  DEFAULT_ADAPTIVE_RERANK_MIN_SCORE_GAP_RATIO,
+  DEFAULT_ADJACENT_CHUNK_COUNT,
   DEFAULT_CANDIDATE_COUNT,
   DEFAULT_RERANKER_CANDIDATE_COUNT,
   DEFAULT_DENSE_INDEX,
@@ -38,7 +40,7 @@ export type Config = LocalKnowledgeConfig
 export const Config: z<Config> = z.object({
   indexDir: z.string().required(),
   verifyPayloadHashes: z.boolean().default(false),
-  defaultRetrieval: z.union(['bm25', 'dense', 'hybrid'] as const).default(DEFAULT_RETRIEVAL),
+  defaultRetrieval: z.union(['auto', 'bm25', 'dense', 'hybrid'] as const).default(DEFAULT_RETRIEVAL),
   defaultDenseIndex: z.union(['auto', 'exact', 'hnsw'] as const).default(DEFAULT_DENSE_INDEX),
   defaultRerank: z.union(['on', 'off'] as const).default(DEFAULT_RERANK),
   allowedRetrieval: z.array(z.union(['bm25', 'dense', 'hybrid'] as const)).min(1).default([...DEFAULT_ALLOWED_RETRIEVAL]),
@@ -46,6 +48,8 @@ export const Config: z<Config> = z.object({
   allowedRerank: z.boolean().default(true),
   candidateCount: z.number().step(1).min(1).default(DEFAULT_CANDIDATE_COUNT),
   rerankerCandidateCount: z.number().step(1).min(1).default(DEFAULT_RERANKER_CANDIDATE_COUNT),
+  adaptiveRerankMinScoreGapRatio: z.number().min(0).max(1).default(DEFAULT_ADAPTIVE_RERANK_MIN_SCORE_GAP_RATIO),
+  adjacentChunkCount: z.number().step(1).min(0).max(1).default(DEFAULT_ADJACENT_CHUNK_COUNT),
   rrfK: z.number().step(1).min(1).default(DEFAULT_RRF_K),
   modelCacheDir: z.string(),
   denseModelId: z.string().default(BGE_M3_MODEL_ID),
@@ -90,6 +94,8 @@ export { resolveConfig } from './config.ts'
 export {
   DEFAULT_ALLOWED_DENSE_INDEXES,
   DEFAULT_ALLOWED_RETRIEVAL,
+  DEFAULT_ADAPTIVE_RERANK_MIN_SCORE_GAP_RATIO,
+  DEFAULT_ADJACENT_CHUNK_COUNT,
   DEFAULT_DENSE_INDEX,
   DEFAULT_RERANKER_CANDIDATE_COUNT,
   DEFAULT_RERANK,
@@ -149,16 +155,33 @@ export {
   USEARCH_VERSION,
 } from './hnsw.ts'
 export type { HnswBuildOptions } from './hnsw.ts'
-export { buildBm25KnowledgeIndex, buildKnowledgeIndex, createDenseIndexBuildPlan } from './index-builder.ts'
+export {
+  buildBm25KnowledgeIndex,
+  buildKnowledgeIndex,
+  createDenseIndexBuildPlan,
+  deriveKnowledgeIndexFromExact,
+} from './index-builder.ts'
 export { DEFAULT_EXACT_SCAN_MAX_ELEMENTS, DEFAULT_SQLITE_BATCH_SIZE } from './index-builder.ts'
 export type {
   BuildBm25IndexOptions,
   BuildDenseIndexOptions,
   BuildKnowledgeIndexOptions,
+  DeriveKnowledgeIndexOptions,
   DenseIndexBuildPlan,
   DenseIndexMode,
   DenseIndexRequest,
 } from './index-builder.ts'
+export {
+  buildT2RankingBenchmarkSlices,
+  DEFAULT_T2RANKING_CHUNK_TARGETS,
+  T2RANKING_BENCHMARK_MAX_TOKENS,
+  T2RANKING_BENCHMARK_OVERLAP_TOKENS,
+} from './t2ranking-benchmark.ts'
+export type {
+  T2RankingBenchmarkOptions,
+  T2RankingBenchmarkResult,
+  T2RankingBenchmarkSlice,
+} from './t2ranking-benchmark.ts'
 export { loadDenseVectors, loadKnowledgeIndex, verifyKnowledgeIndex } from './index-format.ts'
 export type {
   DenseIndexManifest,
@@ -181,7 +204,9 @@ export {
   loadDenseEncoder,
 } from './model-runtime.ts'
 export { resolveKnowledgeSearchStrategy } from './strategy.ts'
-export type { KnowledgeSearchCapabilities, KnowledgeSearchPolicy } from './strategy.ts'
+export type { KnowledgeSearchCapabilities, KnowledgeSearchExecutionPlan, KnowledgeSearchPolicy } from './strategy.ts'
+export { countTextScripts, profileTextScript, resolveTextScriptProfile } from './script-profile.ts'
+export type { TextScriptCounts, TextScriptProfile } from './script-profile.ts'
 export {
   extractSciFactArchive,
   downloadDatasetFile,

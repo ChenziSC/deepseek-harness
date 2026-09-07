@@ -338,6 +338,11 @@
     },
     {
       "doc": "docs/subsystems/knowledge.md",
+      "symbol": "ResolvedKnowledgeRetrieval",
+      "source": "packages/experimental/knowledge/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/knowledge.md",
       "symbol": "KnowledgeDenseIndex",
       "source": "packages/experimental/knowledge/src/types.ts"
     },

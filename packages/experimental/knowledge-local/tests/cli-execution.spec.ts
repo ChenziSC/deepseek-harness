@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   buildKnowledgeIndex: vi.fn(),
+  buildT2RankingBenchmarkSlices: vi.fn(),
+  deriveKnowledgeIndexFromExact: vi.fn(),
   evaluateDataset: vi.fn(),
   renderEvaluationReport: vi.fn(() => '# report\n'),
   loadDenseEncoder: vi.fn(),
@@ -14,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   prepareMlqaEngZho: vi.fn(),
   prepareT2Ranking: vi.fn(),
   verifyKnowledgeIndex: vi.fn(),
+  loadKnowledgeIndex: vi.fn(),
   loadBgeChunkTokenizer: vi.fn(),
   encoderDispose: vi.fn(() => Promise.resolve()),
 }))
@@ -21,8 +24,12 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../src/index-builder.ts', () => ({
   DEFAULT_EXACT_SCAN_MAX_ELEMENTS: 50_000_000,
   buildKnowledgeIndex: mocks.buildKnowledgeIndex,
+  deriveKnowledgeIndexFromExact: mocks.deriveKnowledgeIndexFromExact,
 }))
-vi.mock('../src/index-format.ts', () => ({ verifyKnowledgeIndex: mocks.verifyKnowledgeIndex }))
+vi.mock('../src/index-format.ts', () => ({
+  loadKnowledgeIndex: mocks.loadKnowledgeIndex,
+  verifyKnowledgeIndex: mocks.verifyKnowledgeIndex,
+}))
 vi.mock('../src/evaluation.ts', () => ({
   evaluateDataset: mocks.evaluateDataset,
   renderEvaluationReport: mocks.renderEvaluationReport,
@@ -44,6 +51,10 @@ vi.mock('../src/tokenizer.ts', () => ({
   BGE_M3_MODEL_ID: 'dense-default',
   BGE_M3_REVISION: 'a'.repeat(40),
   loadBgeChunkTokenizer: mocks.loadBgeChunkTokenizer,
+}))
+vi.mock('../src/t2ranking-benchmark.ts', () => ({
+  DEFAULT_T2RANKING_CHUNK_TARGETS: [10_000, 25_000, 50_000, 100_000],
+  buildT2RankingBenchmarkSlices: mocks.buildT2RankingBenchmarkSlices,
 }))
 
 import { runCli } from '../src/cli.ts'
@@ -75,7 +86,7 @@ function manifest() {
 
 function report(failed = false) {
   return {
-    schemaVersion: 1 as const,
+    schemaVersion: 2 as const,
     createdAt: '2026-09-04T00:00:00.000Z',
     dataset: 'scifact' as const,
     platform: { os: 'test', release: 'test', arch: 'test', node: 'test' },
@@ -92,7 +103,8 @@ function report(failed = false) {
       warmupQueries: 0,
       modes: ['bm25', 'dense', 'hybrid'] as const,
       denseIndexes: ['exact'] as const,
-      rerankValues: [false, true],
+      rerankValues: ['off', 'auto', 'on'] as const,
+      adaptiveRerankMinScoreGapRatio: 0.15,
       bm25Implementation: 'sqlite-fts5' as const,
       rrfK: 60 as const,
       chunkMaxTokens: 8,
@@ -104,20 +116,26 @@ function report(failed = false) {
       hybridExecution: 'sequential' as const,
     },
     runs: failed
-      ? [{ mode: 'dense' as const, rerank: false, status: 'failed' as const, queryCount: 1, error: 'failed' }]
-      : [{ mode: 'bm25' as const, rerank: false, status: 'success' as const, queryCount: 1 }],
+      ? [{ mode: 'dense' as const, rerank: 'on' as const, status: 'failed' as const, queryCount: 1, error: 'failed' }]
+      : [{ mode: 'bm25' as const, rerank: 'off' as const, status: 'success' as const, queryCount: 1 }],
     build: { durationMs: 1, indexBytes: 10, payloadBytes: { 'knowledge.sqlite': 10 } },
   }
 }
 
 beforeEach(() => {
   mocks.buildKnowledgeIndex.mockResolvedValue(manifest())
+  mocks.deriveKnowledgeIndexFromExact.mockResolvedValue(manifest())
+  mocks.buildT2RankingBenchmarkSlices.mockResolvedValue({ queryCount: 100, slices: [] })
   mocks.evaluateDataset.mockResolvedValue(report())
   mocks.prepareSciFact.mockResolvedValue({ datasetDir: '/data/scifact', archiveMd5: 'md5', archiveSha256: 'sha', models: [] })
   mocks.prepareMldr.mockResolvedValue({ dataset: 'mldr-en', datasetDir: '/data/mldr-en', files: [] })
   mocks.prepareMlqaEngZho.mockResolvedValue({ dataset: 'mlqa-eng-zho', datasetDir: '/data/mlqa-eng-zho', files: [] })
   mocks.prepareT2Ranking.mockResolvedValue({ dataset: 't2ranking', datasetDir: '/data/t2ranking', files: [] })
   mocks.verifyKnowledgeIndex.mockResolvedValue(manifest())
+  mocks.loadKnowledgeIndex.mockResolvedValue({
+    manifest: manifest(),
+    sqlite: { close: vi.fn() },
+  })
   mocks.loadBgeChunkTokenizer.mockResolvedValue({ countTokens: () => 1 })
   mocks.loadDenseEncoder.mockResolvedValue({ embedDocuments: vi.fn(), dispose: mocks.encoderDispose })
 })
@@ -372,6 +390,103 @@ describe('dsh-knowledge command execution', () => {
     expect(mocks.prepareMlqaEngZho).toHaveBeenCalledWith('/data', 'https://mirror.example')
   })
 
+  it('builds deterministic T2Ranking threshold slices', async () => {
+    const stdout = sink()
+    expect(await runCli([
+      'slice', '--collection', '/data/collection.tsv', '--queries', '/data/queries.tsv',
+      '--qrels', '/data/qrels.tsv', '--bm25-run', '/data/dev.bm25.tsv', '--output', '/slices',
+      '--model-cache-dir', '/models', '--query-limit', '20', '--chunk-targets', '100,200',
+    ], stdout, sink())).toBe(0)
+    expect(mocks.buildT2RankingBenchmarkSlices).toHaveBeenCalledWith(expect.objectContaining({
+      collectionPath: '/data/collection.tsv',
+      queriesPath: '/data/queries.tsv',
+      qrelsPath: '/data/qrels.tsv',
+      bm25Path: '/data/dev.bm25.tsv',
+      outputDir: '/slices',
+      queryLimit: 20,
+      chunkTargets: [100, 200],
+    }))
+    expect(JSON.parse(stdout.output)).toEqual({ queryCount: 100, slices: [] })
+  })
+
+  it('derives a prefix index without loading the Dense encoder', async () => {
+    const sourceManifest = {
+      ...manifest(),
+      chunking: {
+        tokenizerModelId: 'dense-model',
+        tokenizerRevision: 'b'.repeat(40),
+        maxTokens: 384,
+        overlapTokens: 64,
+        strategy: 'markdown-structure-v1' as const,
+      },
+    }
+    mocks.loadKnowledgeIndex.mockResolvedValueOnce({ manifest: sourceManifest, sqlite: { close: vi.fn() } })
+    mocks.deriveKnowledgeIndexFromExact.mockResolvedValueOnce({
+      ...sourceManifest,
+      dense: { resolvedIndex: 'both', recommendedIndex: 'exact' },
+    })
+    const stdout = sink()
+    expect(await runCli([
+      'derive', '--source-index', '/index-100k', '--corpus', '/slices/chunks-10000/corpus.tsv',
+      '--output', '/index-10k', '--model-cache-dir', '/models', '--dense-index', 'both',
+    ], stdout, sink())).toBe(0)
+    expect(mocks.deriveKnowledgeIndexFromExact).toHaveBeenCalledWith(expect.objectContaining({
+      sourceIndexDir: '/index-100k',
+      corpusPath: '/slices/chunks-10000/corpus.tsv',
+      corpusFormat: 't2ranking',
+      outputDir: '/index-10k',
+      chunking: { maxTokens: 384, overlapTokens: 64 },
+      denseIndex: 'both',
+    }))
+    expect(mocks.loadDenseEncoder).not.toHaveBeenCalled()
+    expect(JSON.parse(stdout.output)).toMatchObject({ denseIndex: 'both', recommendedDenseIndex: 'exact' })
+  })
+
+  it('passes explicit prefix-index format and HNSW options', async () => {
+    const sourceManifest = {
+      ...manifest(),
+      chunking: {
+        tokenizerModelId: 'dense-model',
+        tokenizerRevision: 'b'.repeat(40),
+        maxTokens: 384,
+        overlapTokens: 64,
+        strategy: 'markdown-structure-v1' as const,
+      },
+    }
+    mocks.loadKnowledgeIndex.mockResolvedValueOnce({ manifest: sourceManifest, sqlite: { close: vi.fn() } })
+    mocks.deriveKnowledgeIndexFromExact.mockResolvedValueOnce({
+      ...sourceManifest,
+      dense: { resolvedIndex: 'hnsw', recommendedIndex: 'hnsw' },
+    })
+
+    expect(await runCli([
+      'derive', '--source-index', '/index-100k', '--corpus', '/slices/chunks-50000/corpus.tsv',
+      '--corpus-format', 'generic', '--output', '/index-50k', '--model-cache-dir', '/models',
+      '--dense-index', 'hnsw', '--exact-scan-max-elements', '1', '--connectivity', '2',
+      '--expansion-add', '3',
+    ], sink(), sink())).toBe(0)
+    expect(mocks.deriveKnowledgeIndexFromExact).toHaveBeenCalledWith(expect.objectContaining({
+      corpusFormat: 'generic',
+      denseIndex: 'hnsw',
+      exactScanMaxElements: 1,
+      connectivity: 2,
+      expansionAdd: 3,
+    }))
+  })
+
+  it.each([
+    [[
+      'slice', '--collection', '/collection', '--queries', '/queries', '--qrels', '/qrels',
+      '--bm25-run', '/bm25', '--output', '/output', '--model-cache-dir', '/models', '--chunk-targets', '1,NaN',
+    ], '--chunk-targets must be a comma-separated list of positive integers'],
+    [['derive', '--dense-index', 'auto'], '--dense-index must be exact, hnsw, or both'],
+    [['derive', '--corpus-format', 'other'], '--corpus-format must be generic, scifact, mldr, or t2ranking'],
+  ])('rejects invalid threshold-calibration arguments %j', async (argv, message) => {
+    const stderr = sink()
+    expect(await runCli(argv, sink(), stderr)).toBe(2)
+    expect(stderr.output).toContain(message)
+  })
+
   it('requires a supported dataset and MLDR language for preparation', async () => {
     const stderr = sink()
     expect(await runCli([
@@ -398,7 +513,7 @@ describe('dsh-knowledge command execution', () => {
       candidateCount: 50,
       rerankerCandidateCount: 20,
       modes: ['bm25', 'dense', 'hybrid'],
-      rerankValues: [false, true],
+      rerankValues: ['off', 'auto', 'on'],
       hnswExpansionSearch: 1024,
     }))
 
@@ -412,7 +527,7 @@ describe('dsh-knowledge command execution', () => {
       queryLimit: 3,
       modes: ['dense'],
       denseIndexes: ['exact', 'hnsw'],
-      rerankValues: [false],
+      rerankValues: ['off'],
     }))
 
     mocks.evaluateDataset.mockResolvedValueOnce(report(true))
