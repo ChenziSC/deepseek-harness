@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "sampleCount": 100,
+  "construction": {
+    "offset": 50,
+    "composition": "conjunctive-two-evidence"
+  },
+  "source": {
+    "queriesSha256": "51a8c7662c031e2d30b7bb28d7373b6bf95021ed9aaf136da9dcd106ef93b9ce",
+    "qrelsSha256": "8e6e2eaeb10e5537ae3c4359d91c9efbbc196c5b75d96b19f72101d7dcf9b09f"
+  },
+  "outputs": {
+    "multi-hop-samples.jsonl": {
+      "sha256": "b9b6d598ed6da219dbf1d84457e3c2539c009b9f846f8f63b855d319a86dcf00",
+      "bytes": 53062
+    },
+    "multi-hop-deterministic-queries.tsv": {
+      "sha256": "c4b6fe77853232f946b58da4077c7b7004cf52659e049a9d64454aed0509fe07",
+      "bytes": 10411
+    },
+    "multi-hop-deterministic-qrels.tsv": {
+      "sha256": "a17030c1baaf67c6d3359178bf99d7b621ae1df2dd460856dc6afb80c5537e85",
+      "bytes": 28394
+    }
+  },
+  "validation": {
+    "uniqueEvidenceDocumentCount": 498,
+    "allEvidenceGroupsNonEmpty": true,
+    "allEvidenceDocumentsIndexed": true,
+    "distinctQueryPairCount": 100,
+    "manualSemanticReview": "pending"
+  }
+}

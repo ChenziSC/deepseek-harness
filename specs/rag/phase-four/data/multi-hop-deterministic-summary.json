@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-07",
+  "track": "predefined-deterministic",
+  "sampleSha256": "b9b6d598ed6da219dbf1d84457e3c2539c009b9f846f8f63b855d319a86dcf00",
+  "queryDetailsSha256": "39b41cafaee7b4558cd80847b63998f570337f5f138a3794fa3521deb1c98b37",
+  "indexFingerprint": "55b23dd3d7ab47f6f89b81ef900634f9979a3b59bb05222f196932ab57938e6c",
+  "corpusSha256": "1d800b8a4d78f0252f35b0ae66f351d089ca6d380a35f73f81969e024caab960",
+  "inputs": {
+    "queriesSha256": "c4b6fe77853232f946b58da4077c7b7004cf52659e049a9d64454aed0509fe07",
+    "qrelsSha256": "a17030c1baaf67c6d3359178bf99d7b621ae1df2dd460856dc6afb80c5537e85"
+  },
+  "configuration": {
+    "retrieval": "auto",
+    "rerank": "off",
+    "denseIndex": "exact",
+    "candidateCount": 50,
+    "maxResults": 20,
+    "warmupQueries": 2
+  },
+  "resolvedRetrievalCounts": {
+    "bm25": 2,
+    "dense": 198,
+    "hybrid": 0
+  },
+  "metrics": {
+    "sampleCount": 100,
+    "secondRoundMarginalHitCount": 97,
+    "secondRoundMarginalHitRate": 0.97,
+    "meanSecondRoundDuplicateRatio": 0.0,
+    "highDuplicateSecondRoundRate": 0.0,
+    "singleRoundLatencyMs": {
+      "p50": 30.65216700000019,
+      "p95": 32.292083000000275
+    },
+    "twoRoundLatencyMs": {
+      "p50": 61.2785419999982,
+      "p95": 64.50395800000024
+    },
+    "searchCalls": {
+      "firstPredefinedQuery": 100,
+      "twoPredefinedQueries": 200
+    },
+    "completeEvidenceByMaxResults": {
+      "5": {
+        "firstPredefinedQueryCompleteEvidenceRate": 0.0,
+        "twoPredefinedQueriesCompleteEvidenceRate": 0.74,
+        "constructedCoverageDifference": 0.74
+      },
+      "10": {
+        "firstPredefinedQueryCompleteEvidenceRate": 0.0,
+        "twoPredefinedQueriesCompleteEvidenceRate": 0.88,
+        "constructedCoverageDifference": 0.88
+      },
+      "20": {
+        "firstPredefinedQueryCompleteEvidenceRate": 0.0,
+        "twoPredefinedQueriesCompleteEvidenceRate": 0.94,
+        "constructedCoverageDifference": 0.94
+      }
+    },
+    "firstPredefinedQueryCompleteEvidenceCount": 0,
+    "firstPredefinedQueryCompleteEvidenceRate": 0.0,
+    "twoPredefinedQueriesCompleteEvidenceCount": 94,
+    "twoPredefinedQueriesCompleteEvidenceRate": 0.94,
+    "constructedCoverageDifference": 0.94
+  },
+  "incompleteSamples": [
+    "multi-hop-006",
+    "multi-hop-031",
+    "multi-hop-044",
+    "multi-hop-056",
+    "multi-hop-081",
+    "multi-hop-094"
+  ],
+  "claimClassification": "predefined-query-oracle",
+  "acceptanceStatus": "invalidated",
+  "acceptanceReason": "The semantic review passed only 51 of 100 samples, and the experiment lacks competitive single-search baselines."
+}

@@ -1,0 +1,1688 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-07",
+  "configuration": {
+    "candidateCount": 50,
+    "rerankerCandidateCount": 20,
+    "maxResults": 20,
+    "warmupQueries": 2,
+    "denseIndex": "exact",
+    "candidateThresholds": [
+      0,
+      0.005,
+      0.01,
+      0.02,
+      0.03,
+      0.05,
+      0.1,
+      0.15
+    ]
+  },
+  "decision": {
+    "defaultRerank": "off",
+    "qualityRequestRerank": "on",
+    "adaptiveDefaultRecommended": false,
+    "perRetrievalCandidates": {
+      "bm25": {
+        "threshold": 0.15,
+        "reason": "meets 70% MRR@10 and nDCG@10 gain retention on both datasets"
+      },
+      "dense": {
+        "threshold": null,
+        "reason": "T2Ranking on has negative nDCG@10 gain"
+      },
+      "hybrid": {
+        "threshold": 0.05,
+        "reason": "lowest candidate meeting 70% MRR@10 and nDCG@10 gain retention on both datasets"
+      }
+    }
+  },
+  "datasets": [
+    {
+      "id": "t2ranking",
+      "queryCount": 100,
+      "corpusSha256": "1d800b8a4d78f0252f35b0ae66f351d089ca6d380a35f73f81969e024caab960",
+      "indexFingerprint": "55b23dd3d7ab47f6f89b81ef900634f9979a3b59bb05222f196932ab57938e6c",
+      "inputs": {
+        "queriesSha256": "51a8c7662c031e2d30b7bb28d7373b6bf95021ed9aaf136da9dcd106ef93b9ce",
+        "qrelsSha256": "8e6e2eaeb10e5537ae3c4359d91c9efbbc196c5b75d96b19f72101d7dcf9b09f"
+      },
+      "retrieval": {
+        "bm25": {
+          "gapRatio": {
+            "min": 0.0002565663064454803,
+            "p50": 0.05076669846009317,
+            "p95": 0.26606368925589996,
+            "max": 0.38343936886315544
+          },
+          "off": {
+            "metrics": {
+              "recallAt5": 0.2688921905389297,
+              "recallAt10": 0.4346667529330572,
+              "mrrAt10": 0.4204166666666667,
+              "ndcgAt10": 0.33951359133639236
+            },
+            "latencyMs": {
+              "p50": 130.34991600000103,
+              "p95": 187.90245800000048
+            }
+          },
+          "on": {
+            "metrics": {
+              "recallAt5": 0.37087495294560513,
+              "recallAt10": 0.49029319593450027,
+              "mrrAt10": 0.5123849206349207,
+              "ndcgAt10": 0.4262243169596567
+            },
+            "latencyMs": {
+              "p50": 4274.278041999991,
+              "p95": 4423.348541000014
+            }
+          },
+          "onMinusOff": {
+            "recallAt5": 0.10198276240667542,
+            "recallAt10": 0.05562644300144309,
+            "mrrAt10": 0.09196825396825398,
+            "ndcgAt10": 0.08671072562326432
+          },
+          "thresholds": [
+            {
+              "metrics": {
+                "recallAt5": 0.2688921905389297,
+                "recallAt10": 0.4346667529330572,
+                "mrrAt10": 0.4204166666666667,
+                "ndcgAt10": 0.33951359133639236
+              },
+              "latencyMs": {
+                "p50": 130.34991600000103,
+                "p95": 187.90245800000048
+              },
+              "threshold": 0,
+              "triggerCount": 0,
+              "triggerRate": 0.0,
+              "triggerSetSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "qualityRetention": {
+                "mrrAt10": 0.0,
+                "ndcgAt10": 0.0
+              },
+              "triggeredLatencyMs": null,
+              "untriggeredLatencyMs": {
+                "p50": 130.34991600000103,
+                "p95": 187.90245800000048
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.29131643296317206,
+                "recallAt10": 0.4415246172909216,
+                "mrrAt10": 0.40758333333333335,
+                "ndcgAt10": 0.34601218190683297
+              },
+              "latencyMs": {
+                "p50": 133.8653330000002,
+                "p95": 4304.6261669999985
+              },
+              "threshold": 0.005,
+              "triggerCount": 10,
+              "triggerRate": 0.1,
+              "triggerSetSha256": "dcb5b361a552c87b3d01a77382a615a6827912c021afdf2b96b5c1e0c2315220",
+              "qualityRetention": {
+                "mrrAt10": -0.13954090438384567,
+                "ndcgAt10": 0.07494563704466395
+              },
+              "triggeredLatencyMs": {
+                "p50": 4304.6261669999985,
+                "p95": 4587.341207999998
+              },
+              "untriggeredLatencyMs": {
+                "p50": 130.34991600000103,
+                "p95": 187.90245800000048
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.2951346147813539,
+                "recallAt10": 0.4444337082000125,
+                "mrrAt10": 0.4114166666666666,
+                "ndcgAt10": 0.35210862358897055
+              },
+              "latencyMs": {
+                "p50": 136.1795000000002,
+                "p95": 4338.1152090000105
+              },
+              "threshold": 0.01,
+              "triggerCount": 16,
+              "triggerRate": 0.16,
+              "triggerSetSha256": "df54b5036aa2ad1f822fbe32dc3ecc44ef6c3020e038f7c5bd23c5743a199190",
+              "qualityRetention": {
+                "mrrAt10": -0.09785985502243828,
+                "ndcgAt10": 0.14525345235029338
+              },
+              "triggeredLatencyMs": {
+                "p50": 4304.6261669999985,
+                "p95": 4587.341207999998
+              },
+              "untriggeredLatencyMs": {
+                "p50": 130.5391669999999,
+                "p95": 187.90245800000048
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.2961881862099253,
+                "recallAt10": 0.44815394629525057,
+                "mrrAt10": 0.43301190476190476,
+                "ndcgAt10": 0.36102621037523186
+              },
+              "latencyMs": {
+                "p50": 143.71249999999964,
+                "p95": 4375.510249999999
+              },
+              "threshold": 0.02,
+              "triggerCount": 27,
+              "triggerRate": 0.27,
+              "triggerSetSha256": "34319d48961aaf2273354e70ceafebc34c4dfc5a834503fd5b94803d64907e9e",
+              "qualityRetention": {
+                "mrrAt10": 0.1369520193303412,
+                "ndcgAt10": 0.24809640196423063
+              },
+              "triggeredLatencyMs": {
+                "p50": 4290.017458999995,
+                "p95": 4435.707708000002
+              },
+              "untriggeredLatencyMs": {
+                "p50": 130.34991600000103,
+                "p95": 188.21287499999926
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.2979242973210365,
+                "recallAt10": 0.44815394629525057,
+                "mrrAt10": 0.4421785714285715,
+                "ndcgAt10": 0.36428559170315944
+              },
+              "latencyMs": {
+                "p50": 145.89879199999996,
+                "p95": 4375.510249999999
+              },
+              "threshold": 0.03,
+              "triggerCount": 33,
+              "triggerRate": 0.33,
+              "triggerSetSha256": "62d2f100ab7098f983f1ad9a3970d45a6e101c613ca4e3c6c864cbf497ea652a",
+              "qualityRetention": {
+                "mrrAt10": 0.23662409389023123,
+                "ndcgAt10": 0.2856855387693907
+              },
+              "triggeredLatencyMs": {
+                "p50": 4291.020625000005,
+                "p95": 4435.707708000002
+              },
+              "untriggeredLatencyMs": {
+                "p50": 129.82849999999962,
+                "p95": 187.90245800000048
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.31302574659639876,
+                "recallAt10": 0.4538206129619173,
+                "mrrAt10": 0.4658174603174603,
+                "ndcgAt10": 0.37783675598336386
+              },
+              "latencyMs": {
+                "p50": 182.7467919999999,
+                "p95": 4388.590582999983
+              },
+              "threshold": 0.05,
+              "triggerCount": 49,
+              "triggerRate": 0.49,
+              "triggerSetSha256": "622423bec63bdf75da6ff81fe1c5ebf16ced31bf344d1720dfa346d6136b05f0",
+              "qualityRetention": {
+                "mrrAt10": 0.49365723161891534,
+                "ndcgAt10": 0.441965678080884
+              },
+              "triggeredLatencyMs": {
+                "p50": 4285.151790999982,
+                "p95": 4435.707708000002
+              },
+              "untriggeredLatencyMs": {
+                "p50": 126.1772919999994,
+                "p95": 173.54641700000047
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.3413471751678273,
+                "recallAt10": 0.47101541815672254,
+                "mrrAt10": 0.4785396825396825,
+                "ndcgAt10": 0.39581505191802796
+              },
+              "latencyMs": {
+                "p50": 4190.350584,
+                "p95": 4407.836707999988
+              },
+              "threshold": 0.1,
+              "triggerCount": 67,
+              "triggerRate": 0.67,
+              "triggerSetSha256": "074f1c2254b28b1942904582cc5361d7de90c286bd84e634fe706de0b3722057",
+              "qualityRetention": {
+                "mrrAt10": 0.6319899896444586,
+                "ndcgAt10": 0.6493021500736932
+              },
+              "triggeredLatencyMs": {
+                "p50": 4277.38954199999,
+                "p95": 4435.707708000002
+              },
+              "untriggeredLatencyMs": {
+                "p50": 130.14025000000038,
+                "p95": 170.05095899999833
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.347124952945605,
+                "recallAt10": 0.4761265292678336,
+                "mrrAt10": 0.4953849206349206,
+                "ndcgAt10": 0.4091266028911938
+              },
+              "latencyMs": {
+                "p50": 4253.489957999991,
+                "p95": 4423.348541000014
+              },
+              "threshold": 0.15,
+              "triggerCount": 84,
+              "triggerRate": 0.84,
+              "triggerSetSha256": "b6a8ea7a359018b1f201ced8158dd96d61e6f7f4bcfcbef98f4023b7ae11f4be",
+              "qualityRetention": {
+                "mrrAt10": 0.8151536071798404,
+                "ndcgAt10": 0.8028189252763489
+              },
+              "triggeredLatencyMs": {
+                "p50": 4277.38954199999,
+                "p95": 4435.707708000002
+              },
+              "untriggeredLatencyMs": {
+                "p50": 129.82849999999962,
+                "p95": 187.90245800000048
+              }
+            }
+          ]
+        },
+        "dense": {
+          "gapRatio": {
+            "min": 0.0005233651980446945,
+            "p50": 0.020932773948491586,
+            "p95": 0.10707545355611431,
+            "max": 0.2090536571019188
+          },
+          "off": {
+            "metrics": {
+              "recallAt5": 0.44331019825585044,
+              "recallAt10": 0.6828684123847168,
+              "mrrAt10": 0.5665238095238095,
+              "ndcgAt10": 0.5460803259915415
+            },
+            "latencyMs": {
+              "p50": 32.41304199997103,
+              "p95": 35.76900000002934
+            }
+          },
+          "on": {
+            "metrics": {
+              "recallAt5": 0.4733379760336281,
+              "recallAt10": 0.6712177206851121,
+              "mrrAt10": 0.566714285714286,
+              "ndcgAt10": 0.5427109552371774
+            },
+            "latencyMs": {
+              "p50": 4162.641333000036,
+              "p95": 4274.025417000055
+            }
+          },
+          "onMinusOff": {
+            "recallAt5": 0.030027777777777653,
+            "recallAt10": -0.011650691699604754,
+            "mrrAt10": 0.0001904761904764074,
+            "ndcgAt10": -0.003369370754364165
+          },
+          "thresholds": [
+            {
+              "metrics": {
+                "recallAt5": 0.44331019825585044,
+                "recallAt10": 0.6828684123847168,
+                "mrrAt10": 0.5665238095238095,
+                "ndcgAt10": 0.5460803259915415
+              },
+              "latencyMs": {
+                "p50": 32.41304199997103,
+                "p95": 35.76900000002934
+              },
+              "threshold": 0,
+              "triggerCount": 0,
+              "triggerRate": 0.0,
+              "triggerSetSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "qualityRetention": {
+                "mrrAt10": 0.0,
+                "ndcgAt10": null
+              },
+              "triggeredLatencyMs": null,
+              "untriggeredLatencyMs": {
+                "p50": 32.41304199997103,
+                "p95": 35.76900000002934
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.45064353158918374,
+                "recallAt10": 0.6795350790513833,
+                "mrrAt10": 0.5747619047619048,
+                "ndcgAt10": 0.5488721688822742
+              },
+              "latencyMs": {
+                "p50": 32.5489579999703,
+                "p95": 4190.1697919999715
+              },
+              "threshold": 0.005,
+              "triggerCount": 16,
+              "triggerRate": 0.16,
+              "triggerSetSha256": "36fffa0284e20d7754660062b7681379595f917f303e43a813394cb599e29fe4",
+              "qualityRetention": {
+                "mrrAt10": 43.249999999950894,
+                "ndcgAt10": null
+              },
+              "triggeredLatencyMs": {
+                "p50": 4176.446083000046,
+                "p95": 4271.417625000002
+              },
+              "untriggeredLatencyMs": {
+                "p50": 32.40366599999834,
+                "p95": 35.76900000002934
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.44905262249827466,
+                "recallAt10": 0.6824441699604743,
+                "mrrAt10": 0.5783333333333334,
+                "ndcgAt10": 0.5491501172124852
+              },
+              "latencyMs": {
+                "p50": 32.74925000005169,
+                "p95": 4251.021999999997
+              },
+              "threshold": 0.01,
+              "triggerCount": 27,
+              "triggerRate": 0.27,
+              "triggerSetSha256": "1b0c7ac217dc5668128eac3725b7e0f46ac9b96bc117b2d85a9d5139641da421",
+              "qualityRetention": {
+                "mrrAt10": 61.99999999992947,
+                "ndcgAt10": null
+              },
+              "triggeredLatencyMs": {
+                "p50": 4178.634874999989,
+                "p95": 4284.713207999943
+              },
+              "untriggeredLatencyMs": {
+                "p50": 32.41045899997698,
+                "p95": 39.66329200001201
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.4403859558316079,
+                "recallAt10": 0.6718191699604743,
+                "mrrAt10": 0.5635119047619049,
+                "ndcgAt10": 0.5385162495555789
+              },
+              "latencyMs": {
+                "p50": 35.76900000002934,
+                "p95": 4271.417625000002
+              },
+              "threshold": 0.02,
+              "triggerCount": 47,
+              "triggerRate": 0.47,
+              "triggerSetSha256": "094d8f44916091323c47f23f9a1594bbd70ab77a39d625274b61dbc7da7fe817",
+              "qualityRetention": {
+                "mrrAt10": -15.812499999981165,
+                "ndcgAt10": null
+              },
+              "triggeredLatencyMs": {
+                "p50": 4159.530333000002,
+                "p95": 4284.713207999943
+              },
+              "untriggeredLatencyMs": {
+                "p50": 32.33170899999095,
+                "p95": 39.66329200001201
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.46364353158918364,
+                "recallAt10": 0.6801525032938076,
+                "mrrAt10": 0.5552738095238098,
+                "ndcgAt10": 0.5412710168136396
+              },
+              "latencyMs": {
+                "p50": 4094.450625000056,
+                "p95": 4274.025417000055
+              },
+              "threshold": 0.03,
+              "triggerCount": 64,
+              "triggerRate": 0.64,
+              "triggerSetSha256": "897ed65780f0baa9838e6ccd601ff042b36a2693a4848efcb1ff5991a080773b",
+              "qualityRetention": {
+                "mrrAt10": -59.062499999931475,
+                "ndcgAt10": null
+              },
+              "triggeredLatencyMs": {
+                "p50": 4171.306500000064,
+                "p95": 4284.713207999943
+              },
+              "untriggeredLatencyMs": {
+                "p50": 32.32754199998453,
+                "p95": 39.66329200001201
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.47208797603362807,
+                "recallAt10": 0.6761525032938077,
+                "mrrAt10": 0.5574404761904763,
+                "ndcgAt10": 0.5416107085584602
+              },
+              "latencyMs": {
+                "p50": 4151.878499999992,
+                "p95": 4274.025417000055
+              },
+              "threshold": 0.05,
+              "triggerCount": 81,
+              "triggerRate": 0.81,
+              "triggerSetSha256": "68e3d3f7df8cb4ae7a642cc83399979e64f1881615de5291456d28db928a4c06",
+              "qualityRetention": {
+                "mrrAt10": -47.6874999999451,
+                "ndcgAt10": null
+              },
+              "triggeredLatencyMs": {
+                "p50": 4174.470124999993,
+                "p95": 4284.192292000051
+              },
+              "untriggeredLatencyMs": {
+                "p50": 32.744374999951106,
+                "p95": 42.72658399998909
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.48042130936696137,
+                "recallAt10": 0.673717720685112,
+                "mrrAt10": 0.5740238095238097,
+                "ndcgAt10": 0.5455343119861389
+              },
+              "latencyMs": {
+                "p50": 4159.530333000002,
+                "p95": 4274.025417000055
+              },
+              "threshold": 0.1,
+              "triggerCount": 92,
+              "triggerRate": 0.92,
+              "triggerSetSha256": "186466d9eb0a5a3bef11dac4b68c4733f6522535128b722fd9afdcf296a7c69f",
+              "qualityRetention": {
+                "mrrAt10": 39.37499999995607,
+                "ndcgAt10": null
+              },
+              "triggeredLatencyMs": {
+                "p50": 4171.306500000064,
+                "p95": 4284.192292000051
+              },
+              "untriggeredLatencyMs": {
+                "p50": 32.20304200000828,
+                "p95": 39.66329200001201
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.4758379760336281,
+                "recallAt10": 0.6712177206851121,
+                "mrrAt10": 0.5686190476190479,
+                "ndcgAt10": 0.5433615886538309
+              },
+              "latencyMs": {
+                "p50": 4162.641333000036,
+                "p95": 4274.025417000055
+              },
+              "threshold": 0.15,
+              "triggerCount": 98,
+              "triggerRate": 0.98,
+              "triggerSetSha256": "e7c8a9b457fcad6330294ae857eb431566256c66f5311a004b87b06466506be5",
+              "qualityRetention": {
+                "mrrAt10": 10.999999999988926,
+                "ndcgAt10": null
+              },
+              "triggeredLatencyMs": {
+                "p50": 4162.915917000035,
+                "p95": 4284.192292000051
+              },
+              "untriggeredLatencyMs": {
+                "p50": 31.150207999977283,
+                "p95": 35.014083999965806
+              }
+            }
+          ]
+        },
+        "hybrid": {
+          "gapRatio": {
+            "min": 0,
+            "p50": 0.0233310653966222,
+            "p95": 0.06436664431030638,
+            "max": 0.13466533466533465
+          },
+          "off": {
+            "metrics": {
+              "recallAt5": 0.34727213909279114,
+              "recallAt10": 0.5664579804253717,
+              "mrrAt10": 0.5025793650793652,
+              "ndcgAt10": 0.4495463155821856
+            },
+            "latencyMs": {
+              "p50": 171.77341699996032,
+              "p95": 233.03583299997263
+            }
+          },
+          "on": {
+            "metrics": {
+              "recallAt5": 0.43995009097183013,
+              "recallAt10": 0.5933416384340297,
+              "mrrAt10": 0.5564206349206351,
+              "ndcgAt10": 0.5042307578428818
+            },
+            "latencyMs": {
+              "p50": 4279.236125000054,
+              "p95": 4433.171583000105
+            }
+          },
+          "onMinusOff": {
+            "recallAt5": 0.09267795187903899,
+            "recallAt10": 0.026883658008657996,
+            "mrrAt10": 0.05384126984126991,
+            "ndcgAt10": 0.05468444226069624
+          },
+          "thresholds": [
+            {
+              "metrics": {
+                "recallAt5": 0.34727213909279114,
+                "recallAt10": 0.5664579804253717,
+                "mrrAt10": 0.5025793650793652,
+                "ndcgAt10": 0.4495463155821856
+              },
+              "latencyMs": {
+                "p50": 171.77341699996032,
+                "p95": 233.03583299997263
+              },
+              "threshold": 0,
+              "triggerCount": 0,
+              "triggerRate": 0.0,
+              "triggerSetSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "qualityRetention": {
+                "mrrAt10": 0.0,
+                "ndcgAt10": 0.0
+              },
+              "triggeredLatencyMs": null,
+              "untriggeredLatencyMs": {
+                "p50": 171.77341699996032,
+                "p95": 233.03583299997263
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.3589388057594578,
+                "recallAt10": 0.5675115518539431,
+                "mrrAt10": 0.5175793650793651,
+                "ndcgAt10": 0.457126314205502
+              },
+              "latencyMs": {
+                "p50": 178.8269169999985,
+                "p95": 4313.474707999965
+              },
+              "threshold": 0.005,
+              "triggerCount": 14,
+              "triggerRate": 0.14,
+              "triggerSetSha256": "0edf43873e90d30504067b78300eadbe92e8341d2318746802422b6eacd3027a",
+              "qualityRetention": {
+                "mrrAt10": 0.27859669811320537,
+                "ndcgAt10": 0.13861343939799867
+              },
+              "triggeredLatencyMs": {
+                "p50": 4301.367458000081,
+                "p95": 4399.871250000084
+              },
+              "untriggeredLatencyMs": {
+                "p50": 171.77341699996032,
+                "p95": 237.65420900005847
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.3654325945793337,
+                "recallAt10": 0.5687615518539431,
+                "mrrAt10": 0.5164126984126984,
+                "ndcgAt10": 0.45913599835474217
+              },
+              "latencyMs": {
+                "p50": 182.81683400005568,
+                "p95": 4357.262792000081
+              },
+              "threshold": 0.01,
+              "triggerCount": 26,
+              "triggerRate": 0.26,
+              "triggerSetSha256": "4b86da3938ce27c55120dd9a3f2090a62c0820e7831963c4538ea52b1e072b7d",
+              "qualityRetention": {
+                "mrrAt10": 0.25692806603773405,
+                "ndcgAt10": 0.1753640043879359
+              },
+              "triggeredLatencyMs": {
+                "p50": 4302.837457999936,
+                "p95": 4413.327832999872
+              },
+              "untriggeredLatencyMs": {
+                "p50": 171.34758300008252,
+                "p95": 240.64787500002421
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.401890927912667,
+                "recallAt10": 0.5720393296317209,
+                "mrrAt10": 0.54634126984127,
+                "ndcgAt10": 0.4788967161808644
+              },
+              "latencyMs": {
+                "p50": 216.3263750000624,
+                "p95": 4404.437040999997
+              },
+              "threshold": 0.02,
+              "triggerCount": 45,
+              "triggerRate": 0.45,
+              "triggerSetSha256": "518d27dede7ec3c2eb1f562c52872d088257b91f05bf18b7860b8afd151075c2",
+              "qualityRetention": {
+                "mrrAt10": 0.8127948113207539,
+                "ndcgAt10": 0.5367230492862501
+              },
+              "triggeredLatencyMs": {
+                "p50": 4301.3885419999715,
+                "p95": 4428.070874999976
+              },
+              "untriggeredLatencyMs": {
+                "p50": 169.5706249999348,
+                "p95": 231.68062500003725
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.41642628144802063,
+                "recallAt10": 0.5700754046677958,
+                "mrrAt10": 0.5456865079365081,
+                "ndcgAt10": 0.48506293016437807
+              },
+              "latencyMs": {
+                "p50": 4237.387125000008,
+                "p95": 4416.443207999924
+              },
+              "threshold": 0.03,
+              "triggerCount": 67,
+              "triggerRate": 0.67,
+              "triggerSetSha256": "d045a6b2855bba3ecd673a390e92d1f20e21e04770e26ae867fca0d61336133a",
+              "qualityRetention": {
+                "mrrAt10": 0.8006338443396224,
+                "ndcgAt10": 0.6494829811534822
+              },
+              "triggeredLatencyMs": {
+                "p50": 4301.367458000081,
+                "p95": 4433.171583000105
+              },
+              "untriggeredLatencyMs": {
+                "p50": 167.33883299992885,
+                "p95": 216.3263750000624
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.4366167576384968,
+                "recallAt10": 0.5854249717673631,
+                "mrrAt10": 0.5481865079365081,
+                "ndcgAt10": 0.49721037005936813
+              },
+              "latencyMs": {
+                "p50": 4274.4998339999,
+                "p95": 4428.070874999976
+              },
+              "threshold": 0.05,
+              "triggerCount": 91,
+              "triggerRate": 0.91,
+              "triggerSetSha256": "791cf9349fd64ffe5e54f9ede6985204a7d01494eec54d02497e8d7ed163b7fa",
+              "qualityRetention": {
+                "mrrAt10": 0.8470666273584914,
+                "ndcgAt10": 0.8716200167125133
+              },
+              "triggeredLatencyMs": {
+                "p50": 4290.4690840000985,
+                "p95": 4433.171583000105
+              },
+              "untriggeredLatencyMs": {
+                "p50": 167.4323340000119,
+                "p95": 229.6957499999553
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.43995009097183013,
+                "recallAt10": 0.5933416384340297,
+                "mrrAt10": 0.5564206349206351,
+                "ndcgAt10": 0.5034279657343637
+              },
+              "latencyMs": {
+                "p50": 4279.236125000054,
+                "p95": 4433.171583000105
+              },
+              "threshold": 0.1,
+              "triggerCount": 99,
+              "triggerRate": 0.99,
+              "triggerSetSha256": "a64ce2d9d464fca6bcd2bb6f6bc097da153d10ad3cb953f101c0437288a19f88",
+              "qualityRetention": {
+                "mrrAt10": 1.0,
+                "ndcgAt10": 0.9853195520456979
+              },
+              "triggeredLatencyMs": {
+                "p50": 4285.29583399999,
+                "p95": 4441.559542000061
+              },
+              "untriggeredLatencyMs": {
+                "p50": 152.6901670000516,
+                "p95": 152.6901670000516
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.43995009097183013,
+                "recallAt10": 0.5933416384340297,
+                "mrrAt10": 0.5564206349206351,
+                "ndcgAt10": 0.5042307578428818
+              },
+              "latencyMs": {
+                "p50": 4279.236125000054,
+                "p95": 4433.171583000105
+              },
+              "threshold": 0.15,
+              "triggerCount": 100,
+              "triggerRate": 1.0,
+              "triggerSetSha256": "48522457534c2c71644ce16682ab4958ad7a5dbc9d32c0d911e5190ff1281f0d",
+              "qualityRetention": {
+                "mrrAt10": 1.0,
+                "ndcgAt10": 1.0
+              },
+              "triggeredLatencyMs": {
+                "p50": 4279.236125000054,
+                "p95": 4433.171583000105
+              },
+              "untriggeredLatencyMs": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "scifact",
+      "queryCount": 30,
+      "corpusSha256": "dec31c8182f3d744c7d2c09423756fd1d17cbef75808db13ba01cc0aab4d1ac6",
+      "indexFingerprint": "ad516cca7492568213383f41d46c5ccdaac47b0f52b0349cf175a4fcd57d9790",
+      "inputs": {
+        "queriesSha256": "8ff84a7c903f722981cd8d595c022660140c51867b27608a6d4910db86080313",
+        "qrelsSha256": "0864bb985e0ca2367ba217977e72004d549054b2b06666ed9d4825ac7c21284c"
+      },
+      "retrieval": {
+        "bm25": {
+          "gapRatio": {
+            "min": 0.006156462262268972,
+            "p50": 0.0886137031658507,
+            "p95": 0.5637409298650484,
+            "max": 0.6250528888655327
+          },
+          "off": {
+            "metrics": {
+              "recallAt5": 0.788888888888889,
+              "recallAt10": 0.8333333333333334,
+              "mrrAt10": 0.6763888888888889,
+              "ndcgAt10": 0.7091315915355064
+            },
+            "latencyMs": {
+              "p50": 38.60595799999993,
+              "p95": 59.988833
+            }
+          },
+          "on": {
+            "metrics": {
+              "recallAt5": 0.8,
+              "recallAt10": 0.85,
+              "mrrAt10": 0.7108333333333333,
+              "ndcgAt10": 0.7441590742564984
+            },
+            "latencyMs": {
+              "p50": 4717.541708000001,
+              "p95": 4948.665417000004
+            }
+          },
+          "onMinusOff": {
+            "recallAt5": 0.011111111111111072,
+            "recallAt10": 0.016666666666666607,
+            "mrrAt10": 0.03444444444444439,
+            "ndcgAt10": 0.03502748272099199
+          },
+          "thresholds": [
+            {
+              "metrics": {
+                "recallAt5": 0.788888888888889,
+                "recallAt10": 0.8333333333333334,
+                "mrrAt10": 0.6763888888888889,
+                "ndcgAt10": 0.7091315915355064
+              },
+              "latencyMs": {
+                "p50": 38.60595799999993,
+                "p95": 59.988833
+              },
+              "threshold": 0,
+              "triggerCount": 0,
+              "triggerRate": 0.0,
+              "triggerSetSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "qualityRetention": {
+                "mrrAt10": 0.0,
+                "ndcgAt10": 0.0
+              },
+              "triggeredLatencyMs": null,
+              "untriggeredLatencyMs": {
+                "p50": 38.60595799999993,
+                "p95": 59.988833
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.788888888888889,
+                "recallAt10": 0.8333333333333334,
+                "mrrAt10": 0.6763888888888889,
+                "ndcgAt10": 0.7091315915355064
+              },
+              "latencyMs": {
+                "p50": 40.206083000000035,
+                "p95": 60.06629200000009
+              },
+              "threshold": 0.01,
+              "triggerCount": 1,
+              "triggerRate": 0.03333333333333333,
+              "triggerSetSha256": "165940940a02a187e4463ff467090930038c5af8fc26107bf301e714f599a1da",
+              "qualityRetention": {
+                "mrrAt10": 0.0,
+                "ndcgAt10": 0.0
+              },
+              "triggeredLatencyMs": {
+                "p50": 4717.541708000001,
+                "p95": 4717.541708000001
+              },
+              "untriggeredLatencyMs": {
+                "p50": 40.206083000000035,
+                "p95": 59.988833
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.788888888888889,
+                "recallAt10": 0.8333333333333334,
+                "mrrAt10": 0.6986111111111112,
+                "ndcgAt10": 0.7257982582021731
+              },
+              "latencyMs": {
+                "p50": 40.43058299999984,
+                "p95": 4727.008207999999
+              },
+              "threshold": 0.02,
+              "triggerCount": 3,
+              "triggerRate": 0.1,
+              "triggerSetSha256": "10475e7026111188e76bd6471599877a94933ce9adc804bdf364cd7a7e6cbe13",
+              "qualityRetention": {
+                "mrrAt10": 0.6451612903225826,
+                "ndcgAt10": 0.47581685499421794
+              },
+              "triggeredLatencyMs": {
+                "p50": 4727.008207999999,
+                "p95": 5099.741542000003
+              },
+              "untriggeredLatencyMs": {
+                "p50": 40.206083000000035,
+                "p95": 59.988833
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.788888888888889,
+                "recallAt10": 0.8333333333333334,
+                "mrrAt10": 0.6986111111111112,
+                "ndcgAt10": 0.7257982582021731
+              },
+              "latencyMs": {
+                "p50": 40.43058299999984,
+                "p95": 4945.817875000001
+              },
+              "threshold": 0.03,
+              "triggerCount": 6,
+              "triggerRate": 0.2,
+              "triggerSetSha256": "842a90333cc330925fd652d5eee1210f9e3b7b89a70d2b9ef6d9de8f198892ef",
+              "qualityRetention": {
+                "mrrAt10": 0.6451612903225826,
+                "ndcgAt10": 0.47581685499421794
+              },
+              "triggeredLatencyMs": {
+                "p50": 4803.010708000002,
+                "p95": 5099.741542000003
+              },
+              "untriggeredLatencyMs": {
+                "p50": 38.21675000000005,
+                "p95": 49.07708400000001
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.788888888888889,
+                "recallAt10": 0.8333333333333334,
+                "mrrAt10": 0.6969444444444444,
+                "ndcgAt10": 0.7249025778753967
+              },
+              "latencyMs": {
+                "p50": 42.2817500000001,
+                "p95": 4945.817875000001
+              },
+              "threshold": 0.05,
+              "triggerCount": 9,
+              "triggerRate": 0.3,
+              "triggerSetSha256": "8e97df24de22f61205b4283684b9c9b99b6b61db34cfbe8b64633fd9f05680d2",
+              "qualityRetention": {
+                "mrrAt10": 0.5967741935483847,
+                "ndcgAt10": 0.4502460672242002
+              },
+              "triggeredLatencyMs": {
+                "p50": 4766.376625000004,
+                "p95": 5099.741542000003
+              },
+              "untriggeredLatencyMs": {
+                "p50": 38.60595799999993,
+                "p95": 49.07708400000001
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.788888888888889,
+                "recallAt10": 0.8333333333333334,
+                "mrrAt10": 0.7108333333333333,
+                "ndcgAt10": 0.7348941380254612
+              },
+              "latencyMs": {
+                "p50": 59.988833,
+                "p95": 4945.817875000001
+              },
+              "threshold": 0.1,
+              "triggerCount": 15,
+              "triggerRate": 0.5,
+              "triggerSetSha256": "0e3e2d143cc1e96ad6936d02aa434a180d0d6623c14862403d656274e9507f25",
+              "qualityRetention": {
+                "mrrAt10": 1.0,
+                "ndcgAt10": 0.7354952308495549
+              },
+              "triggeredLatencyMs": {
+                "p50": 4717.541708000001,
+                "p95": 5099.741542000003
+              },
+              "untriggeredLatencyMs": {
+                "p50": 38.60595799999993,
+                "p95": 59.988833
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.8,
+                "recallAt10": 0.8333333333333334,
+                "mrrAt10": 0.7108333333333333,
+                "ndcgAt10": 0.7380065510305128
+              },
+              "latencyMs": {
+                "p50": 4486.480541999999,
+                "p95": 4948.665417000004
+              },
+              "threshold": 0.15,
+              "triggerCount": 19,
+              "triggerRate": 0.6333333333333333,
+              "triggerSetSha256": "7df4b7123da997df8d193250bd88d765301b7bb183a2602d67af7a1e55eb91bc",
+              "qualityRetention": {
+                "mrrAt10": 1.0,
+                "ndcgAt10": 0.8243515448999601
+              },
+              "triggeredLatencyMs": {
+                "p50": 4751.313666999995,
+                "p95": 5099.741542000003
+              },
+              "untriggeredLatencyMs": {
+                "p50": 35.150041999999985,
+                "p95": 46.18508300000008
+              }
+            }
+          ]
+        },
+        "dense": {
+          "gapRatio": {
+            "min": 0.0018631975398677473,
+            "p50": 0.024630343561323185,
+            "p95": 0.12485055690188036,
+            "max": 0.1965454930503046
+          },
+          "off": {
+            "metrics": {
+              "recallAt5": 0.8222222222222223,
+              "recallAt10": 0.9388888888888889,
+              "mrrAt10": 0.7122619047619047,
+              "ndcgAt10": 0.7531791618429807
+            },
+            "latencyMs": {
+              "p50": 29.535292000015033,
+              "p95": 35.6265419999836
+            }
+          },
+          "on": {
+            "metrics": {
+              "recallAt5": 0.8555555555555556,
+              "recallAt10": 0.9222222222222223,
+              "mrrAt10": 0.773148148148148,
+              "ndcgAt10": 0.8005652851000593
+            },
+            "latencyMs": {
+              "p50": 4537.095916999999,
+              "p95": 4859.594624999998
+            }
+          },
+          "onMinusOff": {
+            "recallAt5": 0.033333333333333326,
+            "recallAt10": -0.016666666666666607,
+            "mrrAt10": 0.06088624338624338,
+            "ndcgAt10": 0.04738612325707858
+          },
+          "thresholds": [
+            {
+              "metrics": {
+                "recallAt5": 0.8222222222222223,
+                "recallAt10": 0.9388888888888889,
+                "mrrAt10": 0.7122619047619047,
+                "ndcgAt10": 0.7531791618429807
+              },
+              "latencyMs": {
+                "p50": 29.535292000015033,
+                "p95": 35.6265419999836
+              },
+              "threshold": 0,
+              "triggerCount": 0,
+              "triggerRate": 0.0,
+              "triggerSetSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "qualityRetention": {
+                "mrrAt10": 0.0,
+                "ndcgAt10": 0.0
+              },
+              "triggeredLatencyMs": null,
+              "untriggeredLatencyMs": {
+                "p50": 29.535292000015033,
+                "p95": 35.6265419999836
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.8222222222222223,
+                "recallAt10": 0.9388888888888889,
+                "mrrAt10": 0.7067063492063492,
+                "ndcgAt10": 0.7552623835111746
+              },
+              "latencyMs": {
+                "p50": 29.651624999998603,
+                "p95": 4511.007500000007
+              },
+              "threshold": 0.005,
+              "triggerCount": 2,
+              "triggerRate": 0.06666666666666667,
+              "triggerSetSha256": "625219845a98086f5aa8005f6891997f0ff242f2ab2be96d012b31c0eba1ca98",
+              "qualityRetention": {
+                "mrrAt10": -0.0912448403215273,
+                "ndcgAt10": 0.043962694666790744
+              },
+              "triggeredLatencyMs": {
+                "p50": 4511.007500000007,
+                "p95": 4634.525665999972
+              },
+              "untriggeredLatencyMs": {
+                "p50": 29.535292000015033,
+                "p95": 35.6265419999836
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.8222222222222223,
+                "recallAt10": 0.9222222222222223,
+                "mrrAt10": 0.7083730158730159,
+                "ndcgAt10": 0.7502500876118161
+              },
+              "latencyMs": {
+                "p50": 29.651624999998603,
+                "p95": 4554.980290999985
+              },
+              "threshold": 0.01,
+              "triggerCount": 3,
+              "triggerRate": 0.1,
+              "triggerSetSha256": "629f7658909b38e6a784748784da5f7489f77515e63ea3e6151b27efe04cdd9e",
+              "qualityRetention": {
+                "mrrAt10": -0.06387138822506784,
+                "ndcgAt10": -0.06181291124563711
+              },
+              "triggeredLatencyMs": {
+                "p50": 4554.980290999985,
+                "p95": 4634.525665999972
+              },
+              "untriggeredLatencyMs": {
+                "p50": 29.535292000015033,
+                "p95": 35.6265419999836
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.8222222222222223,
+                "recallAt10": 0.9222222222222223,
+                "mrrAt10": 0.7350396825396824,
+                "ndcgAt10": 0.7706883273706648
+              },
+              "latencyMs": {
+                "p50": 30.864249999984168,
+                "p95": 4820.058083999989
+              },
+              "threshold": 0.02,
+              "triggerCount": 10,
+              "triggerRate": 0.3333333333333333,
+              "triggerSetSha256": "7dbc47b7de2c8ae3e992a65e38045c37c5734f20847ab633dcc23f345fd409d4",
+              "qualityRetention": {
+                "mrrAt10": 0.3741038453182709,
+                "ndcgAt10": 0.3694998519438616
+              },
+              "triggeredLatencyMs": {
+                "p50": 4554.980290999985,
+                "p95": 4859.594624999998
+              },
+              "untriggeredLatencyMs": {
+                "p50": 29.535292000015033,
+                "p95": 35.6265419999836
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.8555555555555556,
+                "recallAt10": 0.9222222222222223,
+                "mrrAt10": 0.7864285714285713,
+                "ndcgAt10": 0.810172831477807
+              },
+              "latencyMs": {
+                "p50": 35.76679100000183,
+                "p95": 4859.594624999998
+              },
+              "threshold": 0.03,
+              "triggerCount": 15,
+              "triggerRate": 0.5,
+              "triggerSetSha256": "1174a309062d8c35812a2106b8a89244a9090eb58a9c68857c36129bb4776f5a",
+              "qualityRetention": {
+                "mrrAt10": 1.218118618292417,
+                "ndcgAt10": 1.2027502086554962
+              },
+              "triggeredLatencyMs": {
+                "p50": 4570.818582999986,
+                "p95": 4868.122417000006
+              },
+              "untriggeredLatencyMs": {
+                "p50": 29.535292000015033,
+                "p95": 35.76679100000183
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.8555555555555556,
+                "recallAt10": 0.9222222222222223,
+                "mrrAt10": 0.774206349206349,
+                "ndcgAt10": 0.801642063022371
+              },
+              "latencyMs": {
+                "p50": 4500.654333000013,
+                "p95": 4859.594624999998
+              },
+              "threshold": 0.05,
+              "triggerCount": 21,
+              "triggerRate": 0.7,
+              "triggerSetSha256": "ffd2e44c0ad34da7e94a3625f0d37add5acb7673186ec625bc9a62a5361684b2",
+              "qualityRetention": {
+                "mrrAt10": 1.017379969585052,
+                "ndcgAt10": 1.0227234862930212
+              },
+              "triggeredLatencyMs": {
+                "p50": 4554.980290999985,
+                "p95": 4859.594624999998
+              },
+              "untriggeredLatencyMs": {
+                "p50": 29.651624999998603,
+                "p95": 35.76679100000183
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.8555555555555556,
+                "recallAt10": 0.9222222222222223,
+                "mrrAt10": 0.773148148148148,
+                "ndcgAt10": 0.8005652851000593
+              },
+              "latencyMs": {
+                "p50": 4511.007500000007,
+                "p95": 4859.594624999998
+              },
+              "threshold": 0.1,
+              "triggerCount": 28,
+              "triggerRate": 0.9333333333333333,
+              "triggerSetSha256": "63556a7f6dedbb2d22fe5385730a1dc79d24b15e4a1a856a8018df8455ca1344",
+              "qualityRetention": {
+                "mrrAt10": 1.0,
+                "ndcgAt10": 1.0
+              },
+              "triggeredLatencyMs": {
+                "p50": 4533.835791999998,
+                "p95": 4859.594624999998
+              },
+              "untriggeredLatencyMs": {
+                "p50": 29.651624999998603,
+                "p95": 34.709499999997206
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.8555555555555556,
+                "recallAt10": 0.9222222222222223,
+                "mrrAt10": 0.773148148148148,
+                "ndcgAt10": 0.8005652851000593
+              },
+              "latencyMs": {
+                "p50": 4533.835791999998,
+                "p95": 4859.594624999998
+              },
+              "threshold": 0.15,
+              "triggerCount": 29,
+              "triggerRate": 0.9666666666666667,
+              "triggerSetSha256": "0de3ddb0a6866629bb5bf63a3f1dd7502caccd3e9b04c96c076f95e7809751cc",
+              "qualityRetention": {
+                "mrrAt10": 1.0,
+                "ndcgAt10": 1.0
+              },
+              "triggeredLatencyMs": {
+                "p50": 4537.095916999999,
+                "p95": 4859.594624999998
+              },
+              "untriggeredLatencyMs": {
+                "p50": 29.651624999998603,
+                "p95": 29.651624999998603
+              }
+            }
+          ]
+        },
+        "hybrid": {
+          "gapRatio": {
+            "min": 0,
+            "p50": 0.016129032258064595,
+            "p95": 0.08017694389495023,
+            "max": 0.11378508451259202
+          },
+          "off": {
+            "metrics": {
+              "recallAt5": 0.8388888888888889,
+              "recallAt10": 0.9055555555555556,
+              "mrrAt10": 0.7128174603174603,
+              "ndcgAt10": 0.747767662911311
+            },
+            "latencyMs": {
+              "p50": 65.33816699997988,
+              "p95": 92.65662500000326
+            }
+          },
+          "on": {
+            "metrics": {
+              "recallAt5": 0.9,
+              "recallAt10": 0.95,
+              "mrrAt10": 0.7444444444444444,
+              "ndcgAt10": 0.7936272776012531
+            },
+            "latencyMs": {
+              "p50": 4625.2410840000375,
+              "p95": 4925.324082999956
+            }
+          },
+          "onMinusOff": {
+            "recallAt5": 0.061111111111111116,
+            "recallAt10": 0.0444444444444444,
+            "mrrAt10": 0.03162698412698406,
+            "ndcgAt10": 0.04585961468994204
+          },
+          "thresholds": [
+            {
+              "metrics": {
+                "recallAt5": 0.8388888888888889,
+                "recallAt10": 0.9055555555555556,
+                "mrrAt10": 0.7128174603174603,
+                "ndcgAt10": 0.747767662911311
+              },
+              "latencyMs": {
+                "p50": 65.33816699997988,
+                "p95": 92.65662500000326
+              },
+              "threshold": 0,
+              "triggerCount": 0,
+              "triggerRate": 0.0,
+              "triggerSetSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "qualityRetention": {
+                "mrrAt10": 0.0,
+                "ndcgAt10": 0.0
+              },
+              "triggeredLatencyMs": null,
+              "untriggeredLatencyMs": {
+                "p50": 65.33816699997988,
+                "p95": 92.65662500000326
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.9166666666666666,
+                "recallAt10": 0.95,
+                "mrrAt10": 0.7014285714285715,
+                "ndcgAt10": 0.7635643817214071
+              },
+              "latencyMs": {
+                "p50": 71.05300000001444,
+                "p95": 4902.683457999956
+              },
+              "threshold": 0.005,
+              "triggerCount": 9,
+              "triggerRate": 0.3,
+              "triggerSetSha256": "0766237dc0d8f6c399bb368d710a33c4c5843c914a5a02861678ac50e7395c22",
+              "qualityRetention": {
+                "mrrAt10": -0.3601003764115407,
+                "ndcgAt10": 0.3444581668838264
+              },
+              "triggeredLatencyMs": {
+                "p50": 4732.402791999979,
+                "p95": 4925.324082999956
+              },
+              "untriggeredLatencyMs": {
+                "p50": 63.2168749999837,
+                "p95": 77.29604099999415
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.9333333333333333,
+                "recallAt10": 0.95,
+                "mrrAt10": 0.705,
+                "ndcgAt10": 0.7650143353264365
+              },
+              "latencyMs": {
+                "p50": 71.724916999985,
+                "p95": 4925.324082999956
+              },
+              "threshold": 0.01,
+              "triggerCount": 12,
+              "triggerRate": 0.4,
+              "triggerSetSha256": "f38adb7153f17729c684fd9466c4bbf5d80bb2f1e602fae9bf20ca91402d7c7d",
+              "qualityRetention": {
+                "mrrAt10": -0.2471769134253461,
+                "ndcgAt10": 0.37607538859038875
+              },
+              "triggeredLatencyMs": {
+                "p50": 4727.248041999992,
+                "p95": 5142.190750000009
+              },
+              "untriggeredLatencyMs": {
+                "p50": 60.99687500001164,
+                "p95": 75.35787499998696
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.9333333333333333,
+                "recallAt10": 0.95,
+                "mrrAt10": 0.7216666666666666,
+                "ndcgAt10": 0.7773166768740546
+              },
+              "latencyMs": {
+                "p50": 4509.699542000017,
+                "p95": 4925.324082999956
+              },
+              "threshold": 0.02,
+              "triggerCount": 18,
+              "triggerRate": 0.6,
+              "triggerSetSha256": "576d675be7aed69b66dff3403e5c5c76d6bdb41fb7129fd0e563a02fe4eb62d9",
+              "qualityRetention": {
+                "mrrAt10": 0.2797992471769116,
+                "ndcgAt10": 0.6443362894024548
+              },
+              "triggeredLatencyMs": {
+                "p50": 4679.312334000017,
+                "p95": 5142.190750000009
+              },
+              "untriggeredLatencyMs": {
+                "p50": 60.490832999988925,
+                "p95": 75.35787499998696
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.9,
+                "recallAt10": 0.95,
+                "mrrAt10": 0.7166666666666667,
+                "ndcgAt10": 0.7725962858155379
+              },
+              "latencyMs": {
+                "p50": 4521.06124999997,
+                "p95": 4925.324082999956
+              },
+              "threshold": 0.03,
+              "triggerCount": 19,
+              "triggerRate": 0.6333333333333333,
+              "triggerSetSha256": "41cff8b989993975c997d8009df1c04876f4a46cee5cc19b1afccf304ec47d03",
+              "qualityRetention": {
+                "mrrAt10": 0.12170639899623711,
+                "ndcgAt10": 0.5414049610336621
+              },
+              "triggeredLatencyMs": {
+                "p50": 4695.548292000021,
+                "p95": 5142.190750000009
+              },
+              "untriggeredLatencyMs": {
+                "p50": 63.2168749999837,
+                "p95": 75.35787499998696
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.9,
+                "recallAt10": 0.95,
+                "mrrAt10": 0.7444444444444444,
+                "ndcgAt10": 0.7936272776012531
+              },
+              "latencyMs": {
+                "p50": 4611.059207999962,
+                "p95": 4925.324082999956
+              },
+              "threshold": 0.05,
+              "triggerCount": 26,
+              "triggerRate": 0.8666666666666667,
+              "triggerSetSha256": "16bd95b383ff3a9a93a33d3c0021d9c6b3b9a6731a16f888ca7e57206a95297e",
+              "qualityRetention": {
+                "mrrAt10": 1.0,
+                "ndcgAt10": 1.0
+              },
+              "triggeredLatencyMs": {
+                "p50": 4660.12058399996,
+                "p95": 4925.324082999956
+              },
+              "untriggeredLatencyMs": {
+                "p50": 63.2168749999837,
+                "p95": 75.35787499998696
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.9,
+                "recallAt10": 0.95,
+                "mrrAt10": 0.7444444444444444,
+                "ndcgAt10": 0.7936272776012531
+              },
+              "latencyMs": {
+                "p50": 4625.2410840000375,
+                "p95": 4925.324082999956
+              },
+              "threshold": 0.1,
+              "triggerCount": 29,
+              "triggerRate": 0.9666666666666667,
+              "triggerSetSha256": "7468e1e8976f102d18db0196671f0cb5d1b96a0da44456bccc15e483c96f50be",
+              "qualityRetention": {
+                "mrrAt10": 1.0,
+                "ndcgAt10": 1.0
+              },
+              "triggeredLatencyMs": {
+                "p50": 4660.12058399996,
+                "p95": 4925.324082999956
+              },
+              "untriggeredLatencyMs": {
+                "p50": 38.28754200000549,
+                "p95": 38.28754200000549
+              }
+            },
+            {
+              "metrics": {
+                "recallAt5": 0.9,
+                "recallAt10": 0.95,
+                "mrrAt10": 0.7444444444444444,
+                "ndcgAt10": 0.7936272776012531
+              },
+              "latencyMs": {
+                "p50": 4625.2410840000375,
+                "p95": 4925.324082999956
+              },
+              "threshold": 0.15,
+              "triggerCount": 30,
+              "triggerRate": 1.0,
+              "triggerSetSha256": "b1dedff8f4e8da63a9e1772a496ae505fd96a5fa42a5757d896463e021d54211",
+              "qualityRetention": {
+                "mrrAt10": 1.0,
+                "ndcgAt10": 1.0
+              },
+              "triggeredLatencyMs": {
+                "p50": 4625.2410840000375,
+                "p95": 4925.324082999956
+              },
+              "untriggeredLatencyMs": null
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "actualAutoValidation": [
+    {
+      "dataset": "t2ranking",
+      "retrieval": "bm25",
+      "threshold": 0.15,
+      "queryCount": 100,
+      "rerankAppliedRate": 0.84,
+      "metrics": {
+        "recallAt5": 0.347124952945605,
+        "recallAt10": 0.4761265292678336,
+        "mrrAt10": 0.4953849206349206,
+        "ndcgAt10": 0.4091266028911938
+      },
+      "latencyMs": {
+        "p50": 4249.6277080000145,
+        "p95": 4410.294666000002
+      },
+      "inputs": {
+        "queriesSha256": "51a8c7662c031e2d30b7bb28d7373b6bf95021ed9aaf136da9dcd106ef93b9ce",
+        "qrelsSha256": "8e6e2eaeb10e5537ae3c4359d91c9efbbc196c5b75d96b19f72101d7dcf9b09f"
+      },
+      "indexFingerprint": "55b23dd3d7ab47f6f89b81ef900634f9979a3b59bb05222f196932ab57938e6c"
+    },
+    {
+      "dataset": "t2ranking",
+      "retrieval": "hybrid",
+      "threshold": 0.05,
+      "queryCount": 100,
+      "rerankAppliedRate": 0.91,
+      "metrics": {
+        "recallAt5": 0.4366167576384968,
+        "recallAt10": 0.5854249717673631,
+        "mrrAt10": 0.5481865079365081,
+        "ndcgAt10": 0.49721037005936813
+      },
+      "latencyMs": {
+        "p50": 4150.6084170000395,
+        "p95": 4365.257542000036
+      },
+      "inputs": {
+        "queriesSha256": "51a8c7662c031e2d30b7bb28d7373b6bf95021ed9aaf136da9dcd106ef93b9ce",
+        "qrelsSha256": "8e6e2eaeb10e5537ae3c4359d91c9efbbc196c5b75d96b19f72101d7dcf9b09f"
+      },
+      "indexFingerprint": "55b23dd3d7ab47f6f89b81ef900634f9979a3b59bb05222f196932ab57938e6c"
+    },
+    {
+      "dataset": "scifact",
+      "retrieval": "bm25",
+      "threshold": 0.15,
+      "queryCount": 30,
+      "rerankAppliedRate": 0.6333333333333333,
+      "metrics": {
+        "recallAt5": 0.8,
+        "recallAt10": 0.8333333333333334,
+        "mrrAt10": 0.7108333333333333,
+        "ndcgAt10": 0.7380065510305128
+      },
+      "latencyMs": {
+        "p50": 4348.473374999994,
+        "p95": 4907.642458999999
+      },
+      "inputs": {
+        "queriesSha256": "8ff84a7c903f722981cd8d595c022660140c51867b27608a6d4910db86080313",
+        "qrelsSha256": "0864bb985e0ca2367ba217977e72004d549054b2b06666ed9d4825ac7c21284c"
+      },
+      "indexFingerprint": "ad516cca7492568213383f41d46c5ccdaac47b0f52b0349cf175a4fcd57d9790"
+    },
+    {
+      "dataset": "scifact",
+      "retrieval": "hybrid",
+      "threshold": 0.05,
+      "queryCount": 30,
+      "rerankAppliedRate": 0.8666666666666667,
+      "metrics": {
+        "recallAt5": 0.9,
+        "recallAt10": 0.95,
+        "mrrAt10": 0.7444444444444444,
+        "ndcgAt10": 0.7936272776012531
+      },
+      "latencyMs": {
+        "p50": 4431.4649580000005,
+        "p95": 4946.916250000002
+      },
+      "inputs": {
+        "queriesSha256": "8ff84a7c903f722981cd8d595c022660140c51867b27608a6d4910db86080313",
+        "qrelsSha256": "0864bb985e0ca2367ba217977e72004d549054b2b06666ed9d4825ac7c21284c"
+      },
+      "indexFingerprint": "ad516cca7492568213383f41d46c5ccdaac47b0f52b0349cf175a4fcd57d9790"
+    }
+  ]
+}

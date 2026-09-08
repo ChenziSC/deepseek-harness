@@ -48,6 +48,7 @@ import {
   nearestRank,
   renderEvaluationReport,
   type EvaluationReport,
+  type EvaluationQueryDetail,
 } from '@deepseek-ai/dsh-experimental-knowledge-local'
 import { KnowledgeChunkId, KnowledgeDocumentId } from '@deepseek-ai/dsh-experimental-knowledge'
 
@@ -114,10 +115,11 @@ describe('SciFact evaluation', () => {
       return Promise.resolve({
         search(query: string) {
           const documentId = query === 'first query' ? 'a' : 'c'
+          const retrieval = mode === 'auto' ? 'hybrid' : mode
           return Promise.resolve({
             strategy: {
-              retrieval: mode,
-              ...(mode === 'bm25' ? {} : { denseIndex: 'exact' as const }),
+              retrieval,
+              ...(retrieval === 'bm25' ? {} : { denseIndex: 'exact' as const }),
               rerank: rerank === 'on' || (rerank === 'auto' && query === 'first query'),
             },
             hits: [{
@@ -151,9 +153,10 @@ describe('SciFact evaluation', () => {
     expect(runs.filter(run => run.status === 'success')).toHaveLength(8)
     expect(runs.find(run => run.mode === 'bm25' && run.rerank === 'auto')).toMatchObject({
       rerankAppliedRate: 0.5,
+      resolvedRetrievalCounts: { bm25: 2, dense: 0, hybrid: 0 },
     })
 
-    // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- verifies normalization of external non-Error rejections.
+    // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- covers normalization of external rejections.
     const nonErrorRuns = await evaluateMatrix([], 20, 1, () => Promise.reject('string failure'))
     expect(nonErrorRuns.every(run => run.error === 'string failure')).toBe(true)
 
@@ -163,6 +166,7 @@ describe('SciFact evaluation', () => {
     }))
     expect(emptyRuns.every(run => run.error?.includes('at least one query'))).toBe(true)
 
+    const foldedDetails: EvaluationQueryDetail[] = []
     const foldedRuns = await evaluateMatrix([queries[0]], 2, 0, () => Promise.resolve({
       search: () => Promise.resolve({
         strategy: { retrieval: 'bm25', rerank: false },
@@ -173,8 +177,52 @@ describe('SciFact evaluation', () => {
         ],
       }),
       dispose: () => Promise.resolve(),
-    }))
+    }), ['exact'], ['bm25'], ['off'], (detail) => {
+      foldedDetails.push(detail)
+    })
     expect(foldedRuns[0]?.metrics?.recallAt5).toBe(1)
+    expect(foldedDetails).toHaveLength(1)
+    expect(foldedDetails[0]).toMatchObject({
+      schemaVersion: 1,
+      queryId: 'q1',
+      queryText: 'first query',
+      requestedStrategy: { retrieval: 'bm25', rerank: 'off' },
+      relevantDocuments: [
+        { documentId: 'a', relevance: 2 },
+        { documentId: 'b', relevance: 1 },
+      ],
+      status: 'success',
+      resolvedStrategy: { retrieval: 'bm25', rerank: false },
+      recallTopScoreGapRatio: 1 / 3,
+      rankedDocuments: [
+        { documentId: 'a', score: 3 },
+        { documentId: 'b', score: 1 },
+      ],
+      metrics: { recallAt1: 0.5, recallAt5: 1 },
+    })
+
+    const failedDetails: EvaluationQueryDetail[] = []
+    const queryFailure = await evaluateMatrix([queries[0]], 20, 0, () => Promise.resolve({
+      // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- covers normalization of provider rejections.
+      search: () => Promise.reject('query failure'),
+      dispose: () => Promise.resolve(),
+    }), ['exact'], ['bm25'], ['off'], (detail) => {
+      failedDetails.push(detail)
+    })
+    expect(queryFailure[0]).toMatchObject({ status: 'failed', error: 'query failure' })
+    expect(failedDetails[0]).toMatchObject({
+      schemaVersion: 1,
+      queryId: 'q1',
+      queryText: 'first query',
+      status: 'failed',
+      error: 'query failure',
+    })
+
+    const errorFailure = await evaluateMatrix([queries[0]], 20, 0, () => Promise.resolve({
+      search: () => Promise.reject(new Error('query error')),
+      dispose: () => Promise.resolve(),
+    }), ['exact'], ['bm25'], ['off'], () => undefined)
+    expect(errorFailure[0]).toMatchObject({ status: 'failed', error: 'query error' })
 
     const approximateRuns = await evaluateMatrix([queries[0]], 20, 0, (_mode, _rerank, denseIndex) => Promise.resolve({
       search: () => Promise.resolve({
@@ -246,9 +294,17 @@ describe('SciFact evaluation', () => {
     await writeFile(join(nested, 'bytes.bin'), 'extra')
     const queriesPath = join(root, 'queries.jsonl')
     const qrelsPath = join(root, 'qrels.tsv')
-    await writeFile(queriesPath, '{"_id":"q-1","text":"alpha"}\n')
-    await writeFile(qrelsPath, 'query-id\tcorpus-id\tscore\nq-1\tdoc-a\t1\n')
+    await writeFile(queriesPath, [
+      '{"_id":"q-1","text":"alpha"}',
+      '{"_id":"q-2","text":"ABC_DEF"}',
+    ].join('\n'))
+    await writeFile(qrelsPath, [
+      'query-id\tcorpus-id\tscore',
+      'q-1\tdoc-a\t1',
+      'q-2\tdoc-a\t1',
+    ].join('\n'))
 
+    const details: EvaluationQueryDetail[] = []
     const report = await evaluateDataset({
       indexDir,
       queriesPath,
@@ -256,9 +312,22 @@ describe('SciFact evaluation', () => {
       modelCacheDir: '/cache',
       maxResults: 20,
       warmupQueries: 1,
+      modes: ['auto', 'bm25', 'dense', 'hybrid'],
+      onQueryDetail: (detail) => {
+        details.push(detail)
+      },
     })
-    expect(report.runs).toHaveLength(9)
+    expect(report.runs).toHaveLength(12)
     expect(report.runs.every(run => run.status === 'success')).toBe(true)
+    expect(report.inputs.queriesSha256).toHaveLength(64)
+    expect(report.inputs.qrelsSha256).toHaveLength(64)
+    expect(report.runs.find(run => run.mode === 'auto' && run.rerank === 'off')).toMatchObject({
+      resolvedRetrievalCounts: { bm25: 1, dense: 1, hybrid: 0 },
+    })
+    expect(details).toHaveLength(24)
+    expect(details.find(detail => detail.requestedStrategy.retrieval === 'auto')).toMatchObject({
+      resolvedStrategy: { retrieval: 'dense' },
+    })
     expect(report.build.indexBytes).toBeGreaterThan(5)
 
     await writeFile(qrelsPath, 'query-id\tcorpus-id\tscore\n')
@@ -270,7 +339,11 @@ describe('SciFact evaluation', () => {
       maxResults: 20,
       warmupQueries: 0,
     })).rejects.toThrow('qrels contain no evaluation queries')
-    await writeFile(qrelsPath, 'query-id\tcorpus-id\tscore\nq-1\tdoc-a\t1\n')
+    await writeFile(qrelsPath, [
+      'query-id\tcorpus-id\tscore',
+      'q-1\tdoc-a\t1',
+      'q-2\tdoc-a\t1',
+    ].join('\n'))
 
   })
 
@@ -524,6 +597,7 @@ describe('SciFact evaluation', () => {
       platform: { os: 'test', release: 'test', arch: 'test', node: 'test' },
       corpusSha256: 'a'.repeat(64),
       indexFingerprint: 'b'.repeat(64),
+      inputs: { queriesSha256: 'e'.repeat(64), qrelsSha256: 'f'.repeat(64) },
       models: {
         dense: { modelId: 'dense', revision: 'c'.repeat(40), dtype: 'q8' },
         reranker: { modelId: 'reranker', revision: 'd'.repeat(40), dtype: 'q8' },

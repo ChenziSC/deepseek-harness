@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-07",
+  "sampleSha256": "939603825ef5726ba07113e300f36b8e1b09a6774963b49a34d0459937770482",
+  "indexFingerprint": "55b23dd3d7ab47f6f89b81ef900634f9979a3b59bb05222f196932ab57938e6c",
+  "configuration": {
+    "retrieval": "auto",
+    "rerank": "off",
+    "denseIndex": "exact",
+    "warmupQueries": 2
+  },
+  "tracks": {
+    "fullQuestionSingle": {
+      "searchCallsPerSample": 1,
+      "candidateBudgetPerSample": 50,
+      "maxReturnedDocumentsPerSample": 20,
+      "completeEvidenceByTopK": {
+        "5": {
+          "count": 4,
+          "rate": 0.04
+        },
+        "10": {
+          "count": 19,
+          "rate": 0.19
+        },
+        "20": {
+          "count": 42,
+          "rate": 0.42
+        }
+      },
+      "latencyMs": {
+        "p50": 39.92743749999977,
+        "p95": 41.31349440000015,
+        "mean": 44.07110463999997
+      }
+    },
+    "costAlignedSingle": {
+      "searchCallsPerSample": 1,
+      "candidateBudgetPerSample": 100,
+      "maxReturnedDocumentsPerSample": 40,
+      "completeEvidenceByTopK": {
+        "5": {
+          "count": 4,
+          "rate": 0.04
+        },
+        "10": {
+          "count": 20,
+          "rate": 0.2
+        },
+        "20": {
+          "count": 52,
+          "rate": 0.52
+        },
+        "40": {
+          "count": 70,
+          "rate": 0.7
+        }
+      },
+      "latencyMs": {
+        "p50": 41.91383300000052,
+        "p95": 52.662319049999994,
+        "mean": 47.347650900000005
+      }
+    },
+    "predefinedTwoQueryOracle": {
+      "searchCallsPerSample": 2,
+      "candidateBudgetPerSample": 100,
+      "maxReturnedDocumentsPerSample": 40,
+      "completeEvidenceByTopK": {
+        "5": {
+          "count": 47,
+          "rate": 0.47
+        },
+        "10": {
+          "count": 80,
+          "rate": 0.8
+        },
+        "20": {
+          "count": 89,
+          "rate": 0.89
+        }
+      },
+      "latencyMs": {
+        "p50": 59.41285349999953,
+        "p95": 61.15110174999968,
+        "mean": 60.5569199
+      }
+    }
+  },
+  "interpretation": "The predefined two-query track is an Oracle upper bound. Product effect requires comparison of autonomous Agent behavior with competitive single-search baselines."
+}

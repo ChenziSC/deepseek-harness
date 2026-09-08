@@ -26,7 +26,15 @@ export interface ChunkRecord {
 export interface ChunkingOptions {
   readonly maxTokens: number
   readonly overlapTokens: number
+  /** Boundary selection used after the tokenizer establishes the hard limit. */
+  readonly strategy?: ChunkingStrategy
 }
+
+/** Supported deterministic chunk-boundary strategies. */
+export type ChunkingStrategy = 'token-window-v1' | 'markdown-structure-v1'
+
+/** Default structure-aware chunking strategy. */
+export const DEFAULT_CHUNKING_STRATEGY: ChunkingStrategy = 'markdown-structure-v1'
 
 function codePointBoundaries(text: string, start: number, end: number): number[] {
   const boundaries = [start]
@@ -221,12 +229,19 @@ function skipWhitespaceBackward(text: string, start: number, end: number): numbe
 
 function chunkDocument(document: CorpusDocument, tokenizer: ChunkTokenizer, options: ChunkingOptions): Omit<ChunkRecord, 'ordinal'>[] {
   const boundaries = codePointBoundaries(document.text, 0, document.text.length)
-  const structure = markdownStructure(document.text)
-  const paragraphEnds = boundaryEnds(document.text, /\n[\t ]*\n+/gu)
-    .map(end => skipWhitespaceBackward(document.text, 0, end))
-    .filter(end => !inFence(end, structure.fenceRanges))
-  const sentenceEnds = boundaryEnds(document.text, /[.!?。！？](?=\s|$)/gu)
-    .filter(end => !inFence(end, structure.fenceRanges))
+  const strategy = options.strategy ?? DEFAULT_CHUNKING_STRATEGY
+  const structure = strategy === 'markdown-structure-v1'
+    ? markdownStructure(document.text)
+    : { sectionEnds: [], fenceRanges: [], headingPaths: [] }
+  const paragraphEnds = strategy === 'markdown-structure-v1'
+    ? boundaryEnds(document.text, /\n[\t ]*\n+/gu)
+      .map(end => skipWhitespaceBackward(document.text, 0, end))
+      .filter(end => !inFence(end, structure.fenceRanges))
+    : []
+  const sentenceEnds = strategy === 'markdown-structure-v1'
+    ? boundaryEnds(document.text, /[.!?。！？](?=\s|$)/gu)
+      .filter(end => !inFence(end, structure.fenceRanges))
+    : []
   const records: Omit<ChunkRecord, 'ordinal'>[] = []
   let start = skipWhitespaceForward(document.text, 0)
   let startBoundary = boundaryIndex(boundaries, start)
@@ -237,13 +252,15 @@ function chunkDocument(document: CorpusDocument, tokenizer: ChunkTokenizer, opti
     const minimumBoundary = Math.max(previousEnd, start)
     const enclosingFence = structure.fenceRanges.find(range => start >= range.start && start < range.end)
     const enteringFence = structure.fenceRanges.find(range => range.start > start && range.start < hardEnd && range.end > hardEnd)
-    const chosen = enclosingFence !== undefined && enclosingFence.end <= hardEnd
-      ? enclosingFence.end
-      : preferredEnd(structure.sectionEnds, minimumBoundary, hardEnd)
-        ?? enteringFence?.start
-        ?? preferredEnd(paragraphEnds, minimumBoundary, hardEnd)
-      ?? preferredEnd(sentenceEnds, minimumBoundary, hardEnd)
-      ?? hardEnd
+    const chosen = strategy === 'token-window-v1'
+      ? hardEnd
+      : enclosingFence !== undefined && enclosingFence.end <= hardEnd
+        ? enclosingFence.end
+        : preferredEnd(structure.sectionEnds, minimumBoundary, hardEnd)
+          ?? enteringFence?.start
+          ?? preferredEnd(paragraphEnds, minimumBoundary, hardEnd)
+        ?? preferredEnd(sentenceEnds, minimumBoundary, hardEnd)
+        ?? hardEnd
     const end = skipWhitespaceBackward(document.text, start, chosen)
     /* v8 ignore next -- validated non-whitespace starts and code-point boundaries make this an internal invariant. */
     if (end <= start) throw new TypeError('knowledge-local: tokenizer could not produce a non-empty chunk')

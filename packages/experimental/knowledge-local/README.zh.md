@@ -70,12 +70,16 @@ pnpm exec tsx packages/experimental/knowledge-local/src/bin.ts index \
   --model-cache-dir ./model-cache \
   --components bm25,dense \
   --analyzer mixed-zh-en-v1 \
+  --chunking-strategy markdown-structure-v1 \
   --dense-index auto \
   --sqlite-batch-size 500 \
-  --embedding-batch-size 32
+  --embedding-batch-size 32 \
+  --vector-cache-dir ./vector-cache
 ```
 
-显式缓存目录中必须已经存在 tokenizer 文件及所请求的 q8 ONNX 权重。使用 `--components bm25` 可构建不加载 ONNX 权重的基线索引。`--corpus-format` 可为 `generic`、`scifact`、`mldr` 或 `t2ranking`。索引格式 3 把分片元数据、Markdown 章节路径和 BM25 数据保存在 `knowledge.sqlite`，清单记录语料的粗粒度 Latin/CJK 脚本画像。`auto` 在 `vectorCount × dimensions` 不超过 `50,000,000` 时生成 Exact-only，否则生成 HNSW-only；`exact` 和 `hnsw` 分别只保留一种载荷，`both` 同时保留 `dense.f32le` 和 `dense.usearch`。交互终端会在 embedding 前显示准确规模、预计体积和推荐模式并请求确认；非交互命令确定性采用推荐值。运行时以只读方式打开 SQLite，启动时校验载荷类型与大小，通过 `dsh-knowledge verify` 重算摘要，并仅在请求需要时加载 Exact 向量或 HNSW 图。
+显式模型缓存目录中必须已经存在 tokenizer 文件及所请求的 q8 ONNX 权重。使用 `--components bm25` 可构建不加载 ONNX 权重的基线索引。`--corpus-format` 可为 `generic`、`scifact`、`mldr` 或 `t2ranking`。`--chunking-strategy` 可为默认的 `markdown-structure-v1` 或固定边界的 `token-window-v1`；后者不生成章节路径，主要用于受控对照。索引格式 3 把分片元数据、可选 Markdown 章节路径和 BM25 数据保存在 `knowledge.sqlite`，清单记录所选分片策略和语料的粗粒度 Latin/CJK 脚本画像。`auto` 在 `vectorCount × dimensions` 不超过 `50,000,000` 时生成 Exact-only，否则生成 HNSW-only；`exact` 和 `hnsw` 分别只保留一种载荷，`both` 同时保留 `dense.f32le` 和 `dense.usearch`。交互终端会在 embedding 前显示准确规模、预计体积和推荐模式并请求确认；非交互命令确定性采用推荐值。运行时以只读方式打开 SQLite，启动时校验载荷类型与大小，通过 `dsh-knowledge verify` 重算摘要，并仅在请求需要时加载 Exact 向量或 HNSW 图。
+
+`--vector-cache-dir` 启用构建期 SQLite 向量缓存，缓存键由完整 Dense 配置以及准确的标题、章节路径和分片正文输入共同生成。新增、删除文档或 ordinal 变化后，未改变的输入会复用逐字节一致的 float32 向量；重复输入只编码一次。`--import-vectors-from` 会先验证格式 3 索引及全部载荷摘要，要求源索引保留 Dense 配置一致的 Exact `dense.f32le`，并在不修改源索引的情况下导入向量。每个成功的 embedding 批次会先提交到缓存，再组装目标载荷，因此中断后的新构建可以复用已完成批次。最终 JSON 输出包含缓存命中数、编码输入数、复用率、导入向量数和各阶段耗时。每个目标仍会重新构建 SQLite、按新 ordinal 排列 Exact 向量并完整重建可选 HNSW 图，最后才发布清单。
 
 通用语料格式为每行一个对象：
 
@@ -114,9 +118,9 @@ pnpm exec tsx packages/experimental/knowledge-local/src/bin.ts derive \
 
 ## 检索行为
 
-每次请求可以在提供方允许集合内选择自动路由或 BM25、Dense、Hybrid 召回、Exact 或 HNSW Dense 检索以及是否重排序。省略召回选项时默认使用 `auto`：URL、路径、代码式标识符、长数字和十六进制标识符走 BM25；Latin 查询面对 CJK 语料或 CJK 查询面对 Latin 语料时走 Dense；其他查询走 Hybrid。首选路径不在允许集合内时，提供方按固定顺序选择最接近的允许路径；显式高层选择会覆盖自动路由。搜索结果包含实际执行的具体策略。面向模型的工具不公开候选数、融合权重、阈值、模型路径或 HNSW 参数。
+每次请求可以在提供方允许集合内选择自动路由或 BM25、Dense、Hybrid 召回、Exact 或 HNSW Dense 检索以及是否重排序。省略召回选项时默认使用 `auto`：URL、路径、代码式标识符、长数字和十六进制标识符走 BM25，其他查询走 Dense。Hybrid 保留为显式选择。首选路径不在允许集合内时，提供方按固定顺序选择最接近的允许路径；显式高层选择会覆盖自动路由。搜索结果包含实际执行的具体策略。面向模型的工具不公开候选数、融合权重、阈值、模型路径或 HNSW 参数。
 
-分片器优先使用 Markdown ATX 标题边界，其次使用段落与句子边界；围栏代码块会保持完整，除非单个代码块超过 token 上限。每个分片的有效标题路径会同时进入 BM25 与 Dense 索引。完成排序后，`adjacentChunkCount: 1` 最多附加命中块前后各一个同文档分片，删除由 overlap 产生的重复文本，并且不改变结果数量与排序指标；设为 `0` 可关闭扩展。
+默认分片器优先使用 Markdown ATX 标题边界，其次使用段落与句子边界；围栏代码块会保持完整，除非单个代码块超过 token 上限。每个分片的有效标题路径会同时进入 BM25 与 Dense 索引。Token 窗口策略只使用 tokenizer 的硬上限和配置的 overlap。完成排序后，`adjacentChunkCount: 1` 最多附加命中块前后各一个同文档分片，删除由 overlap 产生的重复文本，并且不改变结果数量与排序指标；设为 `0` 可关闭扩展并减少返回上下文。
 
 `mixed-zh-en-v1` 执行 Unicode NFKC 规范化，将 ASCII 单词转为小写，保留数字和下划线，并生成中文 unigram 与 bigram 词项。查询词项会去重。运行时 BM25 使用 SQLite FTS5 的固定评分参数；分数相同时按分片标识的 Unicode code point 顺序排序。`english-v1` 继续用于复现第一阶段英文实验。
 
@@ -128,7 +132,7 @@ BM25、Dense 和 Hybrid 都可独立选择重排序模式。`off` 不加载交�
 
 ## 评测数据集
 
-评测命令按需运行 BM25、Dense 和 Hybrid 组合，把分片命中折叠为唯一文档，并写入 Recall、MRR、nDCG、Success、延迟、载荷体积和 HNSW 相对 Exact 的召回率：
+评测命令按需运行自动、BM25、Dense 和 Hybrid 组合，把分片命中折叠为唯一文档，并写入 Recall、MRR、nDCG、Success、延迟、载荷体积和 HNSW 相对 Exact 的召回率：
 
 ```sh
 pnpm exec tsx packages/experimental/knowledge-local/src/bin.ts evaluate \
@@ -139,13 +143,14 @@ pnpm exec tsx packages/experimental/knowledge-local/src/bin.ts evaluate \
   --max-results 20 \
   --candidate-count 50 \
   --reranker-candidate-count 20 \
-  --modes bm25,dense,hybrid \
+  --modes auto,bm25,dense,hybrid \
   --dense-indexes exact,hnsw \
   --rerank off,auto,on \
+  --adaptive-rerank-min-score-gap-ratio 0.02 \
   --output ./report
 ```
 
-`--dataset` 可为 `scifact`、`mldr`、`t2ranking` 或 `mlqa`；`--query-limit` 用于明确标注的样本评测。`--candidate-count` 控制召回深度，`--reranker-candidate-count` 控制其中进入交叉编码器的前部候选。报告会记录请求的重排序模式和实际触发比例。BM25-only 索引可以运行只含 BM25 的矩阵。预热查询不计入延迟统计；某个组合失败时会记录错误，不计算该组合的部分平均值。
+`--dataset` 可为 `scifact`、`mldr`、`t2ranking` 或 `mlqa`；`--query-limit` 用于明确标注的样本评测。`--modes auto` 允许 BM25、Dense 和 Hybrid，并记录每条查询实际采用的路径；固定模式会把提供方限制为对应路径。`--candidate-count` 控制召回深度，`--reranker-candidate-count` 控制其中进入交叉编码器的前部候选，`--adaptive-rerank-min-score-gap-ratio` 为一次运行选择阈值。`report.json` 保留聚合指标和实际路由数量；`queries.jsonl` 记录每条计量查询的请求与实际策略、相关和排序文档、单查询指标、延迟，以及返回分数未被重排序替换时的召回前两名分差。BM25-only 索引可以运行只含 BM25 的矩阵。预热查询不进入两种输出；某个组合失败时会记录错误，不计算该组合的部分平均值，查询失败也会在该组合停止前写入一条 JSONL 失败记录。
 
 ## 模型体验
 
@@ -161,6 +166,6 @@ pnpm exec tsx packages/experimental/knowledge-local/src/bin.ts evaluate \
 - BGE-M3 与 Reranker 模型都超过 500 MiB。CPU 推理，尤其是重排序和大规模语料的离线编码，比 BM25 更慢且占用更多内存；本包不增加推理队列或资源调度器。
 - Transformers.js 不提供 token offset，因此分片回退通过每个分片附近的有限范围 tokenizer 计数定位原文边界，并记录累积的局部 token 位置。对固定 tokenizer 而言结果确定，但它不是适用于任意 tokenizer 的通用 offset API。
 - 索引构建允许目标目录不存在或为空；失败后会留下未发布的不完整目录，不提供目录级原子替换与恢复。存储空间有限时，完整基准索引应按顺序构建、评测和删除，而不是全部长期保留。
-- 向量复用只支持确定性的 ordinal 前缀；任意文档子集仍需重新生成嵌入，或使用单独的按身份映射派生工具。
+- 向量缓存可以加速未改变的 Dense 输入，但不会增量更新 HNSW 图；任何保留 HNSW 的目标都要基于重新排序后的完整向量序列重建图。
 - 中英文混合分析器保持确定且不依赖词典；它不提供词典分词、词干化、停用词、同义词或学习型稀疏检索。
 - 自动路由和自适应重排序使用确定性启发式规则，而不是学习型分类器；部署可以覆盖高层请求或提供方阈值。

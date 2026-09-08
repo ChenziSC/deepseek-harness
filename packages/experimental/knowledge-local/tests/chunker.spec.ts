@@ -66,6 +66,21 @@ describe('deterministic chunking', () => {
     ])
   })
 
+  it('supports a token-window baseline without Markdown boundary preference or section paths', () => {
+    const text = ['# Guide', 'intro words', '', '## Install', 'one two three four'].join('\n')
+    const chunks = chunkDocuments(
+      parseCorpusJsonl(`${JSON.stringify({ id: 'markdown', text })}\n`),
+      whitespaceTokenizer,
+      { maxTokens: 4, overlapTokens: 0, strategy: 'token-window-v1' },
+    )
+
+    expect(chunks.map(chunk => ({ sectionPath: chunk.sectionPath, text: chunk.text }))).toEqual([
+      { sectionPath: undefined, text: '# Guide\nintro words' },
+      { sectionPath: undefined, text: '## Install\none two' },
+      { sectionPath: undefined, text: 'three four' },
+    ])
+  })
+
   it('falls back to token limits for oversized or unclosed code fences', () => {
     const fence = '```'
     const text = ['# Code', fence, 'one two three four five six'].join('\n')

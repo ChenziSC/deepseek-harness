@@ -1,0 +1,419 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-07",
+  "configuration": {
+    "denseIndex": "exact",
+    "rerank": "off",
+    "candidateCount": 50,
+    "maxResults": 20,
+    "warmupQueries": 2
+  },
+  "decision": {
+    "exactIdentifiers": "bm25",
+    "otherQueries": "dense",
+    "hybrid": "explicit-only"
+  },
+  "groups": [
+    {
+      "id": "t2ranking-same-script",
+      "dataset": "t2ranking",
+      "queryCount": 99,
+      "inputs": {
+        "queries": "packages/experimental/knowledge-local/.cache/rag-threshold-calibration/t2ranking-slices/chunks-10000/queries.tsv",
+        "qrels": "packages/experimental/knowledge-local/.cache/rag-threshold-calibration/t2ranking-slices/chunks-10000/qrels.tsv",
+        "queriesSha256": "51a8c7662c031e2d30b7bb28d7373b6bf95021ed9aaf136da9dcd106ef93b9ce",
+        "qrelsSha256": "8e6e2eaeb10e5537ae3c4359d91c9efbbc196c5b75d96b19f72101d7dcf9b09f"
+      },
+      "indexFingerprint": "55b23dd3d7ab47f6f89b81ef900634f9979a3b59bb05222f196932ab57938e6c",
+      "expectedRetrieval": "dense",
+      "classificationAccuracy": 1,
+      "resolvedRetrievalCounts": {
+        "bm25": 0,
+        "dense": 99,
+        "hybrid": 0
+      },
+      "auto": {
+        "metrics": {
+          "recallAt5": 0.44778807904631357,
+          "recallAt10": 0.6897660731158756,
+          "mrrAt10": 0.5722462722462723,
+          "ndcgAt10": 0.5515962888803451
+        },
+        "latencyMs": {
+          "p50": 31.14041700000007,
+          "p95": 35.764124999999694
+        }
+      },
+      "fixed": {
+        "bm25": {
+          "metrics": {
+            "recallAt5": 0.27160827327164616,
+            "recallAt10": 0.43905732619500726,
+            "mrrAt10": 0.4246632996632997,
+            "ndcgAt10": 0.3429430215519115
+          },
+          "latencyMs": {
+            "p50": 125.84420800000225,
+            "p95": 183.92679100000169
+          }
+        },
+        "dense": {
+          "metrics": {
+            "recallAt5": 0.44778807904631357,
+            "recallAt10": 0.6897660731158756,
+            "mrrAt10": 0.5722462722462723,
+            "ndcgAt10": 0.5515962888803451
+          },
+          "latencyMs": {
+            "p50": 29.760542000003625,
+            "p95": 31.207792000001064
+          }
+        },
+        "hybrid": {
+          "metrics": {
+            "recallAt5": 0.35077993847756683,
+            "recallAt10": 0.5721797782074461,
+            "mrrAt10": 0.507655924322591,
+            "ndcgAt10": 0.45408718745675314
+          },
+          "latencyMs": {
+            "p50": 156.36804100000154,
+            "p95": 220.48849999999948
+          }
+        }
+      },
+      "bestFixedByNdcgAt10": "dense",
+      "autoMinusBestFixed": {
+        "mrrAt10": 0,
+        "ndcgAt10": 0,
+        "recallAt5": 0
+      },
+      "perQueryOracle": {
+        "mrrAt10": 0.6643217893217894,
+        "ndcgAt10": 0.5853948748921171,
+        "autoRegretMrrAt10": 0.09207551707551709,
+        "autoRegretNdcgAt10": 0.03379858601177199
+      }
+    },
+    {
+      "id": "t2ranking-cross-script",
+      "dataset": "t2ranking",
+      "queryCount": 20,
+      "inputs": {
+        "queries": "specs/rag/phase-four/data/automatic-routing-cross-script-queries.tsv",
+        "qrels": "specs/rag/phase-four/data/automatic-routing-cross-script-qrels.tsv",
+        "queriesSha256": "366b26166e6b91f458185d91db340d19edfca62b3aa26f95faf96e90b970e946",
+        "qrelsSha256": "504f2baefb4eb6c11eb06154e9ea905dd9293fecf7a7aa7b4ad0c83e9837073c"
+      },
+      "indexFingerprint": "55b23dd3d7ab47f6f89b81ef900634f9979a3b59bb05222f196932ab57938e6c",
+      "expectedRetrieval": "dense",
+      "classificationAccuracy": 1,
+      "resolvedRetrievalCounts": {
+        "bm25": 0,
+        "dense": 20,
+        "hybrid": 0
+      },
+      "auto": {
+        "metrics": {
+          "recallAt5": 0.34948773448773446,
+          "recallAt10": 0.5453860028860028,
+          "mrrAt10": 0.5738095238095238,
+          "ndcgAt10": 0.48368187411038466
+        },
+        "latencyMs": {
+          "p50": 31.722834000000148,
+          "p95": 35.636999999999716
+        }
+      },
+      "fixed": {
+        "bm25": {
+          "metrics": {
+            "recallAt5": 0.0027777777777777775,
+            "recallAt10": 0.0027777777777777775,
+            "mrrAt10": 0.01,
+            "ndcgAt10": 0.004257155882081049
+          },
+          "latencyMs": {
+            "p50": 2.39587500000016,
+            "p95": 8.37124999999969
+          }
+        },
+        "dense": {
+          "metrics": {
+            "recallAt5": 0.34948773448773446,
+            "recallAt10": 0.5453860028860028,
+            "mrrAt10": 0.5738095238095238,
+            "ndcgAt10": 0.48368187411038466
+          },
+          "latencyMs": {
+            "p50": 31.13958300000013,
+            "p95": 34.92958400000043
+          }
+        },
+        "hybrid": {
+          "metrics": {
+            "recallAt5": 0.24089466089466088,
+            "recallAt10": 0.3885750360750361,
+            "mrrAt10": 0.47353174603174597,
+            "ndcgAt10": 0.3397162749954926
+          },
+          "latencyMs": {
+            "p50": 34.36316700000043,
+            "p95": 42.39745799999946
+          }
+        }
+      },
+      "bestFixedByNdcgAt10": "dense",
+      "autoMinusBestFixed": {
+        "mrrAt10": 0,
+        "ndcgAt10": 0,
+        "recallAt5": 0
+      },
+      "perQueryOracle": {
+        "mrrAt10": 0.5738095238095238,
+        "ndcgAt10": 0.48368187411038466,
+        "autoRegretMrrAt10": 0,
+        "autoRegretNdcgAt10": 0
+      }
+    },
+    {
+      "id": "t2ranking-identifiers",
+      "dataset": "t2ranking",
+      "queryCount": 20,
+      "inputs": {
+        "queries": "specs/rag/phase-four/data/automatic-routing-identifiers-queries.tsv",
+        "qrels": "specs/rag/phase-four/data/automatic-routing-identifiers-qrels.tsv",
+        "queriesSha256": "4b17a9e990b19ff4915c5400a6633e97fd140b80dd3a11a4211225d50dda27dc",
+        "qrelsSha256": "7e3c30743072d969012c219432a9519766834ff159fcf8c661ca579501500b3c"
+      },
+      "indexFingerprint": "55b23dd3d7ab47f6f89b81ef900634f9979a3b59bb05222f196932ab57938e6c",
+      "expectedRetrieval": "bm25",
+      "classificationAccuracy": 1,
+      "resolvedRetrievalCounts": {
+        "bm25": 20,
+        "dense": 0,
+        "hybrid": 0
+      },
+      "auto": {
+        "metrics": {
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "mrrAt10": 1,
+          "ndcgAt10": 1
+        },
+        "latencyMs": {
+          "p50": 0.3207079999999962,
+          "p95": 0.6993329999999958
+        }
+      },
+      "fixed": {
+        "bm25": {
+          "metrics": {
+            "recallAt5": 1,
+            "recallAt10": 1,
+            "mrrAt10": 1,
+            "ndcgAt10": 1
+          },
+          "latencyMs": {
+            "p50": 0.24787500000002183,
+            "p95": 0.601709000000028
+          }
+        },
+        "dense": {
+          "metrics": {
+            "recallAt5": 0.15,
+            "recallAt10": 0.15,
+            "mrrAt10": 0.09166666666666666,
+            "ndcgAt10": 0.10654648767857289
+          },
+          "latencyMs": {
+            "p50": 31.77579199999991,
+            "p95": 32.312875000000076
+          }
+        },
+        "hybrid": {
+          "metrics": {
+            "recallAt5": 0.9,
+            "recallAt10": 1,
+            "mrrAt10": 0.6142857142857143,
+            "ndcgAt10": 0.7107052347619164
+          },
+          "latencyMs": {
+            "p50": 29.200458999999682,
+            "p95": 31.165750000000116
+          }
+        }
+      },
+      "bestFixedByNdcgAt10": "bm25",
+      "autoMinusBestFixed": {
+        "mrrAt10": 0,
+        "ndcgAt10": 0,
+        "recallAt5": 0
+      },
+      "perQueryOracle": {
+        "mrrAt10": 1,
+        "ndcgAt10": 1,
+        "autoRegretMrrAt10": 0,
+        "autoRegretNdcgAt10": 0
+      }
+    },
+    {
+      "id": "scifact-same-script",
+      "dataset": "scifact",
+      "queryCount": 30,
+      "inputs": {
+        "queries": "packages/experimental/knowledge-local/.cache/rag-reranker-benefit-data/scifact/queries.jsonl",
+        "qrels": "packages/experimental/knowledge-local/.cache/rag-reranker-benefit-data/scifact/qrels/test.tsv",
+        "queriesSha256": "8ff84a7c903f722981cd8d595c022660140c51867b27608a6d4910db86080313",
+        "qrelsSha256": "0864bb985e0ca2367ba217977e72004d549054b2b06666ed9d4825ac7c21284c"
+      },
+      "indexFingerprint": "ad516cca7492568213383f41d46c5ccdaac47b0f52b0349cf175a4fcd57d9790",
+      "resolvedRetrievalCounts": {
+        "bm25": 8,
+        "dense": 22,
+        "hybrid": 0
+      },
+      "auto": {
+        "metrics": {
+          "recallAt5": 0.8555555555555556,
+          "recallAt10": 0.9222222222222223,
+          "mrrAt10": 0.7167063492063491,
+          "ndcgAt10": 0.7579906573669261
+        },
+        "latencyMs": {
+          "p50": 29.167374999999993,
+          "p95": 43.172333000000435
+        }
+      },
+      "fixed": {
+        "bm25": {
+          "metrics": {
+            "recallAt5": 0.788888888888889,
+            "recallAt10": 0.8333333333333334,
+            "mrrAt10": 0.6763888888888889,
+            "ndcgAt10": 0.7091315915355064
+          },
+          "latencyMs": {
+            "p50": 33.73270799999955,
+            "p95": 54.64970900000026
+          }
+        },
+        "dense": {
+          "metrics": {
+            "recallAt5": 0.8222222222222223,
+            "recallAt10": 0.9388888888888889,
+            "mrrAt10": 0.7122619047619047,
+            "ndcgAt10": 0.7531791618429807
+          },
+          "latencyMs": {
+            "p50": 28.009415999999874,
+            "p95": 34.087540999999874
+          }
+        },
+        "hybrid": {
+          "metrics": {
+            "recallAt5": 0.8388888888888889,
+            "recallAt10": 0.9055555555555556,
+            "mrrAt10": 0.7128174603174603,
+            "ndcgAt10": 0.747767662911311
+          },
+          "latencyMs": {
+            "p50": 61.06458300000031,
+            "p95": 85.94116600000052
+          }
+        }
+      },
+      "bestFixedByNdcgAt10": "dense",
+      "autoMinusBestFixed": {
+        "mrrAt10": 0.004444444444444473,
+        "ndcgAt10": 0.0048114955239453305,
+        "recallAt5": 0.033333333333333326
+      },
+      "perQueryOracle": {
+        "mrrAt10": 0.7747222222222222,
+        "ndcgAt10": 0.8053416166824453,
+        "autoRegretMrrAt10": 0.058015873015873076,
+        "autoRegretNdcgAt10": 0.04735095931551925
+      }
+    },
+    {
+      "id": "mldr-en-same-script",
+      "dataset": "mldr",
+      "queryCount": 20,
+      "inputs": {
+        "queries": ".cache/rag-phase-two/slices/mldr-en-q20/queries.jsonl",
+        "qrels": ".cache/rag-phase-two/slices/mldr-en-q20/qrels.tsv",
+        "queriesSha256": "700500b42613985663a614025e6558a91c979b729e18bc1faba1e49c1b896e37",
+        "qrelsSha256": "c73a432189470dc20d2d28f1fcb39ccced4c9f93d6c3f0daf1bc03200daa4711"
+      },
+      "indexFingerprint": "e46a6155628cf78e514225d79b4185cbdc2d54ad1a31a32cdeda381015b0fbfd",
+      "resolvedRetrievalCounts": {
+        "bm25": 2,
+        "dense": 18,
+        "hybrid": 0
+      },
+      "auto": {
+        "metrics": {
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "mrrAt10": 1,
+          "ndcgAt10": 1
+        },
+        "latencyMs": {
+          "p50": 30.302166999999827,
+          "p95": 45.48170900000014
+        }
+      },
+      "fixed": {
+        "bm25": {
+          "metrics": {
+            "recallAt5": 1,
+            "recallAt10": 1,
+            "mrrAt10": 1,
+            "ndcgAt10": 1
+          },
+          "latencyMs": {
+            "p50": 39.62416699999994,
+            "p95": 50.8534580000005
+          }
+        },
+        "dense": {
+          "metrics": {
+            "recallAt5": 1,
+            "recallAt10": 1,
+            "mrrAt10": 1,
+            "ndcgAt10": 1
+          },
+          "latencyMs": {
+            "p50": 27.948583999999755,
+            "p95": 29.735375000000204
+          }
+        },
+        "hybrid": {
+          "metrics": {
+            "recallAt5": 1,
+            "recallAt10": 1,
+            "mrrAt10": 1,
+            "ndcgAt10": 1
+          },
+          "latencyMs": {
+            "p50": 67.05954100000054,
+            "p95": 79.20779200000015
+          }
+        }
+      },
+      "bestFixedByNdcgAt10": "bm25",
+      "autoMinusBestFixed": {
+        "mrrAt10": 0,
+        "ndcgAt10": 0,
+        "recallAt5": 0
+      },
+      "perQueryOracle": {
+        "mrrAt10": 1,
+        "ndcgAt10": 1,
+        "autoRegretMrrAt10": 0,
+        "autoRegretNdcgAt10": 0
+      }
+    }
+  ]
+}

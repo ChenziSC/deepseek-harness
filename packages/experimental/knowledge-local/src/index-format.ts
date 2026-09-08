@@ -19,6 +19,7 @@ import {
   openKnowledgeSqlite,
   type KnowledgeSqliteIndex,
 } from './sqlite-index.ts'
+import type { ChunkingStrategy } from './chunker.ts'
 import type { DenseIndexMode, DenseIndexRequest } from './index-builder.ts'
 import type { TextScriptProfile } from './script-profile.ts'
 
@@ -81,7 +82,7 @@ export interface KnowledgeIndexManifest {
     readonly tokenizerRevision: string
     readonly maxTokens: number
     readonly overlapTokens: number
-    readonly strategy: 'markdown-structure-v1'
+    readonly strategy: ChunkingStrategy
   }
   readonly bm25: {
     readonly analyzer: KnowledgeBm25Analyzer
@@ -268,7 +269,7 @@ function parseManifest(value: unknown): KnowledgeIndexManifest {
     maxTokens < 1
     || overlapTokens >= maxTokens
     || !['latin', 'cjk', 'mixed', 'neutral'].includes(corpus['scriptProfile'] as string)
-    || chunking['strategy'] !== 'markdown-structure-v1'
+    || (chunking['strategy'] !== 'token-window-v1' && chunking['strategy'] !== 'markdown-structure-v1')
   ) fail('manifest chunking or script profile is invalid')
   if (
     (bm25['analyzer'] !== ENGLISH_ANALYZER && bm25['analyzer'] !== MIXED_ZH_EN_ANALYZER)
@@ -337,7 +338,7 @@ function parseManifest(value: unknown): KnowledgeIndexManifest {
       tokenizerRevision: nonEmptyString(chunking['tokenizerRevision'], 'manifest chunking.tokenizerRevision'),
       maxTokens,
       overlapTokens,
-      strategy: 'markdown-structure-v1',
+      strategy: chunking['strategy'],
     },
     bm25: { analyzer: bm25['analyzer'], implementation: 'sqlite-fts5' },
     ...(dense === undefined ? {} : { dense }),

@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-07",
+  "status": "passed-independent-agent-review",
+  "construction": {
+    "sourceSample": "multi-hop-samples.jsonl",
+    "sourceSemanticReview": "multi-hop-semantic-review.jsonl",
+    "eligibleSourceQueryCount": 71,
+    "sampleCount": 100,
+    "replacementCountAfterFirstReview": 22,
+    "duplicateDirectedPairCount": 0,
+    "evidencePolicy": "only document IDs directly verified by independent Agents"
+  },
+  "reviewProtocol": {
+    "reviewerType": "independent-agent",
+    "partitioning": [
+      "001..034",
+      "035..067",
+      "068..100"
+    ],
+    "requirements": [
+      "review only assigned IDs",
+      "verify both subquestions are complete and separable",
+      "verify at least one cited document directly supports each subquestion",
+      "do not treat official qrels or prior review as automatic proof",
+      "record verified document IDs and concrete issues",
+      "do not modify tracked files"
+    ]
+  },
+  "metrics": {
+    "sampleCount": 100,
+    "passCount": 100,
+    "failCount": 0,
+    "passRate": 1.0
+  },
+  "files": {
+    "multi-hop-validated-samples.jsonl": {
+      "sha256": "939603825ef5726ba07113e300f36b8e1b09a6774963b49a34d0459937770482",
+      "lines": 100
+    },
+    "multi-hop-validated-queries.tsv": {
+      "sha256": "ae5c5de7f4a52de80a87b54fb7f83456a888955c89bfcd3eccb0cb1b29f0fc8a",
+      "lines": 201
+    },
+    "multi-hop-validated-qrels.tsv": {
+      "sha256": "15f7a0923d8411f8300fabd08222a63b7d7aff74d5ef9bd5537a78d3fae2cc1f",
+      "lines": 294
+    },
+    "multi-hop-validated-combined-queries.tsv": {
+      "sha256": "1094d670588d7475260eba7ddd8c0158a1d1c88b9fdd1ccefcd6218a8c5adb65",
+      "lines": 101
+    },
+    "multi-hop-validated-combined-qrels.tsv": {
+      "sha256": "b3758c0361138ca6b3c70728dad8445943ae888df534f8bcd9efce6e13273e96",
+      "lines": 294
+    },
+    "multi-hop-validated-semantic-review.jsonl": {
+      "sha256": "84b229cf5c7fc7577e00c10c67c5f6b12176284bc762afd20235a23fec11a625",
+      "lines": 100
+    }
+  }
+}

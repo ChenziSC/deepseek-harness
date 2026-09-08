@@ -10,7 +10,12 @@ import { StringDecoder } from 'node:string_decoder'
 import { createGunzip } from 'node:zlib'
 import { DatabaseSync } from 'node:sqlite'
 import { CorpusFormatError, parseCorpusDocumentLine, type CorpusDocument } from './corpus.ts'
-import { chunkDocuments, type ChunkRecord, type ChunkingOptions } from './chunker.ts'
+import {
+  chunkDocuments,
+  DEFAULT_CHUNKING_STRATEGY,
+  type ChunkRecord,
+  type ChunkingOptions,
+} from './chunker.ts'
 import { DENSE_DIMENSIONS, validateDenseVectors } from './dense.ts'
 import { BGE_DENSE_MODEL_FILE, BGE_QUERY_PREFIX, DEFAULT_DENSE_MAX_TOKENS } from './model-runtime.ts'
 import {
@@ -42,6 +47,12 @@ import {
   type ChunkTokenizer,
 } from './tokenizer.ts'
 import { countTextScripts, resolveTextScriptProfile, type TextScriptCounts } from './script-profile.ts'
+import {
+  DENSE_ENCODING_IMPLEMENTATION_VERSION,
+  DenseVectorCache,
+  denseVectorCacheKey,
+  type DenseVectorCacheConfig,
+} from './vector-cache.ts'
 
 const DENSE_FILE = 'dense.f32le'
 const MANIFEST_FILE = 'manifest.json'
@@ -71,6 +82,28 @@ export interface DenseIndexBuildPlan {
   readonly estimatedBothBytes: number
 }
 
+/** Content-addressed reuse and phase timings for one Dense build. */
+export interface DenseVectorBuildStats {
+  readonly totalInputCount: number
+  readonly cacheHitCount: number
+  readonly encodedInputCount: number
+  readonly reuseRatio: number
+  readonly importedVectorCount: number
+  readonly embeddingBatchCount: number
+  readonly timingsMs: {
+    readonly corpusStaging: number
+    readonly chunking: number
+    readonly sqliteFinalize: number
+    readonly import: number
+    readonly cacheLookup: number
+    readonly embedding: number
+    readonly cacheWrite: number
+    readonly exactWrite: number
+    readonly hnswAdd: number
+    readonly hnswSave: number
+  }
+}
+
 /** Inputs shared by BM25-only and BM25-plus-Dense index builds. */
 export interface BuildBm25IndexOptions {
   /** Complete in-memory corpus used by small fixtures. Mutually exclusive with `corpusPath`. */
@@ -93,6 +126,7 @@ export interface BuildBm25IndexOptions {
 /** Dense component configuration for one index build. */
 export interface BuildDenseIndexOptions {
   readonly encoder: Pick<DenseEncoder, 'embedDocuments'>
+  /** Maximum texts passed to one embedding call. */
   readonly batchSize: number
   readonly modelId: string
   readonly revision: string
@@ -105,6 +139,12 @@ export interface BuildDenseIndexOptions {
   readonly exactScanMaxElements?: number
   readonly connectivity?: number
   readonly expansionAdd?: number
+  /** Directory containing the reusable build-time SQLite vector cache. */
+  readonly vectorCacheDir?: string
+  /** Verified format-three Exact index used to prefill the vector cache. */
+  readonly importVectorsFrom?: string
+  /** Observe successful cache reuse and vector construction timings. */
+  readonly onVectorBuildStats?: (stats: DenseVectorBuildStats) => void
   /** Let an interactive workflow confirm or override an automatic recommendation. */
   readonly selectIndex?: (plan: DenseIndexBuildPlan) => DenseIndexMode | Promise<DenseIndexMode>
 }
@@ -342,6 +382,15 @@ function validateDenseOptions(options: BuildDenseIndexOptions): void {
   ] as const) {
     if (!Number.isSafeInteger(value) || value < 1) throw new TypeError(`knowledge-local: Dense ${label} must be positive`)
   }
+  if (options.vectorCacheDir !== undefined && options.vectorCacheDir.trim().length === 0) {
+    throw new TypeError('knowledge-local: Dense vectorCacheDir must be non-empty')
+  }
+  if (options.importVectorsFrom !== undefined && options.importVectorsFrom.trim().length === 0) {
+    throw new TypeError('knowledge-local: Dense importVectorsFrom must be non-empty')
+  }
+  if (options.importVectorsFrom !== undefined && options.vectorCacheDir === undefined) {
+    throw new TypeError('knowledge-local: Dense importVectorsFrom requires vectorCacheDir')
+  }
 }
 
 function validateDeriveOptions(options: DeriveKnowledgeIndexOptions): void {
@@ -417,22 +466,109 @@ async function resolveDenseIndexMode(
   return selected
 }
 
+function vectorCacheConfig(options: BuildDenseIndexOptions): DenseVectorCacheConfig {
+  return {
+    modelId: options.modelId,
+    revision: options.revision,
+    dtype: options.dtype,
+    modelFile: options.modelFile ?? BGE_DENSE_MODEL_FILE,
+    pooling: 'cls',
+    normalized: true,
+    dimensions: options.dimensions ?? DENSE_DIMENSIONS,
+    maxTokens: options.maxTokens ?? DEFAULT_DENSE_MAX_TOKENS,
+    queryPrefix: options.queryPrefix ?? BGE_QUERY_PREFIX,
+    implementationVersion: DENSE_ENCODING_IMPLEMENTATION_VERSION,
+  }
+}
+
+interface MutableDenseVectorBuildStats {
+  totalInputCount: number
+  cacheHitCount: number
+  encodedInputCount: number
+  embeddingBatchCount: number
+  timingsMs: {
+    cacheLookup: number
+    embedding: number
+    cacheWrite: number
+    exactWrite: number
+    hnswAdd: number
+  }
+}
+
 async function writeDenseVectors(
   exactFile: FileHandle | undefined,
   writer: KnowledgeSqliteWriter,
   chunkCount: number,
   options: BuildDenseIndexOptions,
   hnsw: HnswBuilder | undefined,
-): Promise<void> {
+  cache: DenseVectorCache | undefined,
+  cacheConfig: DenseVectorCacheConfig,
+): Promise<MutableDenseVectorBuildStats> {
+  const stats: MutableDenseVectorBuildStats = {
+    totalInputCount: 0,
+    cacheHitCount: 0,
+    encodedInputCount: 0,
+    embeddingBatchCount: 0,
+    timingsMs: { cacheLookup: 0, embedding: 0, cacheWrite: 0, exactWrite: 0, hnswAdd: 0 },
+  }
   let writtenRows = 0
   try {
     for (;;) {
       const rows = writer.denseInputs(writtenRows - 1, options.batchSize)
       if (rows.length === 0) break
-      const vectors = await options.encoder.embedDocuments(rows.map(row => row.text))
-      validateDenseVectors(vectors, rows.length, options.dimensions ?? DENSE_DIMENSIONS, 'knowledge-local: Dense build output')
-      if (exactFile !== undefined) await exactFile.write(denseBytes(vectors))
-      hnsw?.add(writtenRows, vectors)
+      stats.totalInputCount += rows.length
+      let vectors: Float32Array
+      if (cache === undefined) {
+        const embeddingStartedAt = performance.now()
+        vectors = await options.encoder.embedDocuments(rows.map(row => row.text))
+        stats.timingsMs.embedding += performance.now() - embeddingStartedAt
+        stats.encodedInputCount += rows.length
+        stats.embeddingBatchCount += 1
+        validateDenseVectors(vectors, rows.length, cacheConfig.dimensions, 'knowledge-local: Dense build output')
+      } else {
+        const keys = rows.map(row => denseVectorCacheKey(cacheConfig, row.text))
+        const lookupStartedAt = performance.now()
+        const available = cache.getMany(keys)
+        stats.timingsMs.cacheLookup += performance.now() - lookupStartedAt
+        const missing = new Map<string, string>()
+        for (const [index, key] of keys.entries()) {
+          if (!available.has(key)) missing.set(key, rows[index]?.text as string)
+        }
+        stats.encodedInputCount += missing.size
+        stats.cacheHitCount += rows.length - missing.size
+        if (missing.size > 0) {
+          const missingEntries = [...missing.entries()]
+          const embeddingStartedAt = performance.now()
+          const encoded = await options.encoder.embedDocuments(missingEntries.map(([, text]) => text))
+          stats.timingsMs.embedding += performance.now() - embeddingStartedAt
+          stats.embeddingBatchCount += 1
+          validateDenseVectors(encoded, missingEntries.length, cacheConfig.dimensions, 'knowledge-local: Dense build output')
+          const cacheEntries = missingEntries.map(([key], index) => ({
+            key,
+            vector: encoded.slice(index * cacheConfig.dimensions, (index + 1) * cacheConfig.dimensions),
+          }))
+          const cacheWriteStartedAt = performance.now()
+          cache.putMany(cacheEntries)
+          stats.timingsMs.cacheWrite += performance.now() - cacheWriteStartedAt
+          for (const entry of cacheEntries) available.set(entry.key, entry.vector)
+        }
+        vectors = new Float32Array(rows.length * cacheConfig.dimensions)
+        for (const [index, key] of keys.entries()) {
+          /* v8 ignore next -- every key is either a validated hit or a just-encoded cache entry. */
+          const vector = available.get(key) as Float32Array
+          vectors.set(vector, index * cacheConfig.dimensions)
+        }
+      }
+      if (exactFile !== undefined) {
+        const exactStartedAt = performance.now()
+        await exactFile.write(denseBytes(vectors))
+        stats.timingsMs.exactWrite += performance.now() - exactStartedAt
+      }
+      if (hnsw !== undefined) {
+        const hnswStartedAt = performance.now()
+        hnsw.add(writtenRows, vectors)
+        stats.timingsMs.hnswAdd += performance.now() - hnswStartedAt
+      }
       writtenRows += rows.length
     }
   } finally {
@@ -440,6 +576,7 @@ async function writeDenseVectors(
   }
   /* v8 ignore next -- denseInputs reads every consecutive ordinal from the just-built owned SQLite table. */
   if (writtenRows !== chunkCount) throw new TypeError('knowledge-local: Dense row count does not match SQLite chunks')
+  return stats
 }
 
 async function readExactVectorBatch(
@@ -462,6 +599,66 @@ async function readExactVectorBatch(
   const vectors = new Float32Array(bytes.buffer, bytes.byteOffset, rowCount * dimensions)
   validateDenseVectors(vectors, rowCount, dimensions, 'knowledge-local: source Dense prefix')
   return { bytes, vectors }
+}
+
+function assertImportConfiguration(source: DenseIndexManifest, config: DenseVectorCacheConfig): void {
+  if (
+    source.modelId !== config.modelId
+    || source.revision !== config.revision
+    || source.modelFile !== config.modelFile
+    || source.dimensions !== config.dimensions
+    || source.maxTokens !== config.maxTokens
+    || source.queryPrefix !== config.queryPrefix
+  ) {
+    throw new TypeError('knowledge-local: imported Exact index Dense configuration does not match the current build')
+  }
+}
+
+async function importExactVectors(
+  cache: DenseVectorCache,
+  config: DenseVectorCacheConfig,
+  sourceIndexDir: string,
+  batchSize: number,
+): Promise<number> {
+  const source = await loadKnowledgeIndex(sourceIndexDir, { verifyPayloadHashes: true })
+  let sourceFile: FileHandle | undefined
+  try {
+    if (source.manifest.dense === undefined || source.dense === undefined) {
+      throw new TypeError('knowledge-local: imported index must retain dense.f32le')
+    }
+    assertImportConfiguration(source.manifest.dense, config)
+    sourceFile = await open(source.dense.path, 'r')
+    let importedVectorCount = 0
+    let nextOrdinal = 0
+    for (;;) {
+      const rows = source.sqlite.denseInputs(nextOrdinal - 1, batchSize)
+      if (rows.length === 0) break
+      for (const [index, row] of rows.entries()) {
+        /* v8 ignore next 2 -- the validated format-three SQLite schema requires consecutive ordinals. */
+        if (row.ordinal !== nextOrdinal + index) {
+          throw new TypeError('knowledge-local: imported Exact index Dense ordinals are not consecutive')
+        }
+      }
+      const batch = await readExactVectorBatch(sourceFile, nextOrdinal, rows.length, config.dimensions)
+      const entries = new Map<string, Float32Array>()
+      for (const [index, row] of rows.entries()) {
+        const key = denseVectorCacheKey(config, row.text)
+        if (!entries.has(key)) {
+          entries.set(key, batch.vectors.slice(index * config.dimensions, (index + 1) * config.dimensions))
+        }
+      }
+      importedVectorCount += cache.putMany([...entries].map(([key, vector]) => ({ key, vector })))
+      nextOrdinal += rows.length
+    }
+    /* v8 ignore next 2 -- index loading validates SQLite and manifest vector counts before import. */
+    if (nextOrdinal !== source.manifest.dense.vectorCount) {
+      throw new TypeError('knowledge-local: imported Exact index Dense row count is inconsistent')
+    }
+    return importedVectorCount
+  } finally {
+    await sourceFile?.close()
+    source.sqlite.close()
+  }
 }
 
 async function writeDerivedDenseVectors(
@@ -518,6 +715,7 @@ export async function buildKnowledgeIndex(options: BuildKnowledgeIndexOptions): 
   await prepareOutputDirectory(options.outputDir)
   const startedAt = performance.now()
   const staged = await stageCorpus(options, sqliteBatchSize)
+  const corpusStagingMs = performance.now() - startedAt
   let writer: KnowledgeSqliteWriter
   try {
     writer = new KnowledgeSqliteWriter(join(options.outputDir, KNOWLEDGE_SQLITE_FILE), analyzer)
@@ -532,10 +730,33 @@ export async function buildKnowledgeIndex(options: BuildKnowledgeIndexOptions): 
   let densePlan: DenseIndexBuildPlan | undefined
   let resolvedDenseIndex: DenseIndexMode | undefined
   let autoDenseIndex: 'exact' | 'hnsw' | undefined
+  let vectorCache: DenseVectorCache | undefined
+  let denseBuildStats: DenseVectorBuildStats | undefined
   try {
+    let importedVectorCount = 0
+    let importMs = 0
+    if (options.dense?.vectorCacheDir !== undefined) {
+      const config = vectorCacheConfig(options.dense)
+      vectorCache = await DenseVectorCache.open(options.dense.vectorCacheDir, config)
+      if (options.dense.importVectorsFrom !== undefined) {
+        const importStartedAt = performance.now()
+        importedVectorCount = await importExactVectors(
+          vectorCache,
+          config,
+          options.dense.importVectorsFrom,
+          options.dense.batchSize,
+        )
+        importMs = performance.now() - importStartedAt
+      }
+    }
+    const chunkingStartedAt = performance.now()
     chunkCount = writeChunks(staged.database, writer, options.tokenizer, options.chunking, sqliteBatchSize)
+    const chunkingMs = performance.now() - chunkingStartedAt
+    const finalizeStartedAt = performance.now()
     writer.finalize(staged.documentCount, chunkCount)
+    const sqliteFinalizeMs = performance.now() - finalizeStartedAt
     if (options.dense !== undefined) {
+      const cacheConfig = vectorCacheConfig(options.dense)
       densePlan = createDenseIndexBuildPlan(staged.documentCount, chunkCount, options.dense)
       resolvedDenseIndex = await resolveDenseIndexMode(densePlan, options.dense.selectIndex)
       autoDenseIndex = resolvedDenseIndex === 'both' ? densePlan.recommendedIndex : resolvedDenseIndex
@@ -549,10 +770,37 @@ export async function buildKnowledgeIndex(options: BuildKnowledgeIndexOptions): 
       const exactFile = resolvedDenseIndex === 'exact' || resolvedDenseIndex === 'both'
         ? await open(join(options.outputDir, DENSE_FILE), 'wx')
         : undefined
-      await writeDenseVectors(exactFile, writer, chunkCount, options.dense, hnsw)
+      const vectorStats = await writeDenseVectors(
+        exactFile,
+        writer,
+        chunkCount,
+        options.dense,
+        hnsw,
+        vectorCache,
+        cacheConfig,
+      )
+      const hnswSaveStartedAt = performance.now()
       hnsw?.save(join(options.outputDir, HNSW_FILE))
+      const hnswSaveMs = hnsw === undefined ? 0 : performance.now() - hnswSaveStartedAt
+      denseBuildStats = {
+        totalInputCount: vectorStats.totalInputCount,
+        cacheHitCount: vectorStats.cacheHitCount,
+        encodedInputCount: vectorStats.encodedInputCount,
+        reuseRatio: vectorStats.totalInputCount === 0 ? 0 : vectorStats.cacheHitCount / vectorStats.totalInputCount,
+        importedVectorCount,
+        embeddingBatchCount: vectorStats.embeddingBatchCount,
+        timingsMs: {
+          corpusStaging: corpusStagingMs,
+          chunking: chunkingMs,
+          sqliteFinalize: sqliteFinalizeMs,
+          import: importMs,
+          ...vectorStats.timingsMs,
+          hnswSave: hnswSaveMs,
+        },
+      }
     }
   } finally {
+    vectorCache?.close()
     staged.database.close()
     writer.close()
   }
@@ -600,7 +848,7 @@ export async function buildKnowledgeIndex(options: BuildKnowledgeIndexOptions): 
       tokenizerRevision: options.tokenizerRevision ?? BGE_SMALL_EN_REVISION,
       maxTokens: options.chunking.maxTokens,
       overlapTokens: options.chunking.overlapTokens,
-      strategy: 'markdown-structure-v1',
+      strategy: options.chunking.strategy ?? DEFAULT_CHUNKING_STRATEGY,
     },
     bm25: { analyzer, implementation: 'sqlite-fts5' },
     ...(dense === undefined ? {} : { dense }),
@@ -620,6 +868,7 @@ export async function buildKnowledgeIndex(options: BuildKnowledgeIndexOptions): 
     encoding: 'utf8',
     flag: 'wx',
   })
+  if (denseBuildStats !== undefined) options.dense?.onVectorBuildStats?.(denseBuildStats)
   return manifest
 }
 
@@ -656,6 +905,7 @@ export async function deriveKnowledgeIndexFromExact(
     if (
       options.chunking.maxTokens !== source.manifest.chunking.maxTokens
       || options.chunking.overlapTokens !== source.manifest.chunking.overlapTokens
+      || (options.chunking.strategy ?? DEFAULT_CHUNKING_STRATEGY) !== source.manifest.chunking.strategy
     ) {
       throw new TypeError('knowledge-local: derived chunking must match the source index')
     }
@@ -762,7 +1012,7 @@ export async function deriveKnowledgeIndexFromExact(
         tokenizerRevision,
         maxTokens: options.chunking.maxTokens,
         overlapTokens: options.chunking.overlapTokens,
-        strategy: 'markdown-structure-v1',
+        strategy: options.chunking.strategy ?? DEFAULT_CHUNKING_STRATEGY,
       },
       bm25: { analyzer, implementation: 'sqlite-fts5' },
       dense,

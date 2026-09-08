@@ -1,0 +1,592 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-07",
+  "sampleSha256": "0b9203b9c55d6bd1f428f4fe47e308494597ece666d1d068e2fce1308fca128f",
+  "controlledCorpusSha256": "2d8a9caaf22af7e5a151123ec66113a2239ee0c84db0e0cf7061c84c5ec2f4f1",
+  "rawResultsSha256": "dabf63a982588cfc67e4c89797e4b6f5353539e6f9a8390ec3f87f77b55d8eb8",
+  "configuration": {
+    "provider": "aiden",
+    "model": "ark-deepseek-v4-flash",
+    "reasoningEffort": null,
+    "tracks": {
+      "t2ranking-dense": {
+        "retrieval": "dense",
+        "denseIndex": "exact",
+        "candidateCountPerSearch": 50,
+        "maxResultsPerSearch": 10,
+        "indexManifestSha256": "55b23dd3d7ab47f6f89b81ef900634f9979a3b59bb05222f196932ab57938e6c"
+      },
+      "controlled-bm25": {
+        "retrieval": "bm25",
+        "candidateCountPerSearch": 50,
+        "maxResultsPerSearch": 10,
+        "indexIsolation": "one deterministic 1-3 document index per sample"
+      }
+    },
+    "rerank": "off",
+    "maxSearchesPerTurn": 2,
+    "persona": "Answer only from the configured knowledge base; cite evidence; no additional search-decision instruction."
+  },
+  "decisionDefinition": "A second search is needed when the first successful result does not contain direct evidence for every independently specified evidence group; conflict resolution documents and bridge targets are required final evidence.",
+  "metrics": {
+    "sampleCount": 100,
+    "completedRuns": 100,
+    "nonemptyFinalAnswers": 100,
+    "successfulSearchCountDistribution": {
+      "1": 40,
+      "2": 60
+    },
+    "decision": {
+      "firstSearchInsufficientCount": 65,
+      "firstSearchSufficientCount": 35,
+      "truePositiveNeededAndSearchedAgain": 60,
+      "falseNegativeNeededButStopped": 5,
+      "falsePositiveSufficientButSearchedAgain": 0,
+      "trueNegativeSufficientAndStopped": 35,
+      "accuracy": 0.95,
+      "triggerPrecision": 1.0,
+      "triggerRecall": 0.9230769230769231,
+      "sufficientEvidenceStopRate": 1.0
+    },
+    "firstSearchCompleteEvidenceCount": 35,
+    "firstSearchCompleteEvidenceRate": 0.35,
+    "allSearchesCompleteEvidenceCount": 87,
+    "allSearchesCompleteEvidenceRate": 0.87,
+    "twoSearchSampleCount": 60,
+    "secondSearchAddsRelevantEvidenceCount": 55,
+    "secondSearchAddsRelevantEvidenceRate": 0.9166666666666666,
+    "secondSearchHitsPreviouslyMissingGroupCount": 55,
+    "secondSearchHitsPreviouslyMissingGroupRate": 0.9166666666666666,
+    "secondSearchCompletesEvidenceCount": 52,
+    "secondSearchCompletesEvidenceRate": 0.8666666666666667,
+    "meanSecondSearchDuplicateRatio": 0.3333333333333333,
+    "exactRepeatedSecondQueryCount": 0,
+    "invalidToolCallCount": 2,
+    "thirdSearchAttemptCount": 1,
+    "thirdSearchRejectedCount": 1,
+    "thirdSearchRejectionRate": 1.0,
+    "citationAssessment": {
+      "referencedCitationCount": 568,
+      "resolvedCitationCount": 568,
+      "resolvableReferenceRate": 1.0,
+      "outputsWithInvalidReferences": 0,
+      "crossCallCitationConflicts": 0
+    },
+    "controlledAnswerAssessment": {
+      "sampleCount": 50,
+      "allExpectedValuesPresentCount": 50,
+      "allExpectedValuesPresentRate": 1.0
+    },
+    "bridgeAssessment": {
+      "sampleCount": 20,
+      "firstSearchFindsBridgeSourceCount": 20,
+      "secondSearchCount": 20,
+      "secondQueryContainsBridgeEntityCount": 20,
+      "secondQueryContainsBridgeEntityRate": 1.0,
+      "successCount": 20,
+      "successRate": 1.0
+    },
+    "conflictAssessment": {
+      "sampleCount": 15,
+      "firstSearchFindsBothConflictingDocumentsCount": 15,
+      "secondSearchCount": 15,
+      "resolutionDocumentFoundCount": 15,
+      "successCount": 15,
+      "successRate": 1.0
+    },
+    "turnWallMs": {
+      "p50": 10155.632499999996,
+      "p95": 22076.644952399998,
+      "mean": 12072.833221269997
+    },
+    "usage": {
+      "inputTokens": {
+        "total": 512561,
+        "p50": 3296.0,
+        "p95": 10664.699999999999
+      },
+      "outputTokens": {
+        "total": 67706,
+        "p50": 443.0,
+        "p95": 1683.5999999999997
+      },
+      "cacheReadTokens": {
+        "total": 17152,
+        "p50": 0.0,
+        "p95": 0.0
+      },
+      "reasoningTokens": {
+        "total": 0,
+        "p50": 0.0,
+        "p95": 0.0
+      }
+    }
+  },
+  "byKind": {
+    "single": {
+      "sampleCount": 25,
+      "completedRuns": 25,
+      "nonemptyFinalAnswers": 25,
+      "successfulSearchCountDistribution": {
+        "1": 25
+      },
+      "decision": {
+        "firstSearchInsufficientCount": 5,
+        "firstSearchSufficientCount": 20,
+        "truePositiveNeededAndSearchedAgain": 0,
+        "falseNegativeNeededButStopped": 5,
+        "falsePositiveSufficientButSearchedAgain": 0,
+        "trueNegativeSufficientAndStopped": 20,
+        "accuracy": 0.8,
+        "triggerPrecision": null,
+        "triggerRecall": 0.0,
+        "sufficientEvidenceStopRate": 1.0
+      },
+      "firstSearchCompleteEvidenceCount": 20,
+      "firstSearchCompleteEvidenceRate": 0.8,
+      "allSearchesCompleteEvidenceCount": 20,
+      "allSearchesCompleteEvidenceRate": 0.8,
+      "twoSearchSampleCount": 0,
+      "secondSearchAddsRelevantEvidenceCount": 0,
+      "secondSearchAddsRelevantEvidenceRate": null,
+      "secondSearchHitsPreviouslyMissingGroupCount": 0,
+      "secondSearchHitsPreviouslyMissingGroupRate": null,
+      "secondSearchCompletesEvidenceCount": 0,
+      "secondSearchCompletesEvidenceRate": null,
+      "meanSecondSearchDuplicateRatio": null,
+      "exactRepeatedSecondQueryCount": 0,
+      "invalidToolCallCount": 1,
+      "thirdSearchAttemptCount": 0,
+      "thirdSearchRejectedCount": 0,
+      "thirdSearchRejectionRate": null,
+      "citationAssessment": {
+        "referencedCitationCount": 159,
+        "resolvedCitationCount": 159,
+        "resolvableReferenceRate": 1.0,
+        "outputsWithInvalidReferences": 0,
+        "crossCallCitationConflicts": 0
+      },
+      "controlledAnswerAssessment": {
+        "sampleCount": 0,
+        "allExpectedValuesPresentCount": 0,
+        "allExpectedValuesPresentRate": null
+      },
+      "bridgeAssessment": {
+        "sampleCount": 0,
+        "firstSearchFindsBridgeSourceCount": 0,
+        "secondSearchCount": 0,
+        "secondQueryContainsBridgeEntityCount": 0,
+        "secondQueryContainsBridgeEntityRate": null,
+        "successCount": 0,
+        "successRate": null
+      },
+      "conflictAssessment": {
+        "sampleCount": 0,
+        "firstSearchFindsBothConflictingDocumentsCount": 0,
+        "secondSearchCount": 0,
+        "resolutionDocumentFoundCount": 0,
+        "successCount": 0,
+        "successRate": null
+      },
+      "turnWallMs": {
+        "p50": 13662.517084,
+        "p95": 20134.2878332,
+        "mean": 14523.896681839999
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 134916,
+          "p50": 5573,
+          "p95": 7740.599999999997
+        },
+        "outputTokens": {
+          "total": 20549,
+          "p50": 709,
+          "p95": 1596.799999999999
+        },
+        "cacheReadTokens": {
+          "total": 8192,
+          "p50": 0,
+          "p95": 3276.7999999999884
+        },
+        "reasoningTokens": {
+          "total": 0,
+          "p50": 0,
+          "p95": 0.0
+        }
+      }
+    },
+    "dual": {
+      "sampleCount": 25,
+      "completedRuns": 25,
+      "nonemptyFinalAnswers": 25,
+      "successfulSearchCountDistribution": {
+        "2": 25
+      },
+      "decision": {
+        "firstSearchInsufficientCount": 25,
+        "firstSearchSufficientCount": 0,
+        "truePositiveNeededAndSearchedAgain": 25,
+        "falseNegativeNeededButStopped": 0,
+        "falsePositiveSufficientButSearchedAgain": 0,
+        "trueNegativeSufficientAndStopped": 0,
+        "accuracy": 1.0,
+        "triggerPrecision": 1.0,
+        "triggerRecall": 1.0,
+        "sufficientEvidenceStopRate": null
+      },
+      "firstSearchCompleteEvidenceCount": 0,
+      "firstSearchCompleteEvidenceRate": 0.0,
+      "allSearchesCompleteEvidenceCount": 17,
+      "allSearchesCompleteEvidenceRate": 0.68,
+      "twoSearchSampleCount": 25,
+      "secondSearchAddsRelevantEvidenceCount": 20,
+      "secondSearchAddsRelevantEvidenceRate": 0.8,
+      "secondSearchHitsPreviouslyMissingGroupCount": 20,
+      "secondSearchHitsPreviouslyMissingGroupRate": 0.8,
+      "secondSearchCompletesEvidenceCount": 17,
+      "secondSearchCompletesEvidenceRate": 0.68,
+      "meanSecondSearchDuplicateRatio": 0.0,
+      "exactRepeatedSecondQueryCount": 0,
+      "invalidToolCallCount": 1,
+      "thirdSearchAttemptCount": 1,
+      "thirdSearchRejectedCount": 1,
+      "thirdSearchRejectionRate": 1.0,
+      "citationAssessment": {
+        "referencedCitationCount": 292,
+        "resolvedCitationCount": 292,
+        "resolvableReferenceRate": 1.0,
+        "outputsWithInvalidReferences": 0,
+        "crossCallCitationConflicts": 0
+      },
+      "controlledAnswerAssessment": {
+        "sampleCount": 0,
+        "allExpectedValuesPresentCount": 0,
+        "allExpectedValuesPresentRate": null
+      },
+      "bridgeAssessment": {
+        "sampleCount": 0,
+        "firstSearchFindsBridgeSourceCount": 0,
+        "secondSearchCount": 0,
+        "secondQueryContainsBridgeEntityCount": 0,
+        "secondQueryContainsBridgeEntityRate": null,
+        "successCount": 0,
+        "successRate": null
+      },
+      "conflictAssessment": {
+        "sampleCount": 0,
+        "firstSearchFindsBothConflictingDocumentsCount": 0,
+        "secondSearchCount": 0,
+        "resolutionDocumentFoundCount": 0,
+        "successCount": 0,
+        "successRate": null
+      },
+      "turnWallMs": {
+        "p50": 16779.794208,
+        "p95": 24618.747716600006,
+        "mean": 18434.378203319997
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 239382,
+          "p50": 9743,
+          "p95": 11960.599999999999
+        },
+        "outputTokens": {
+          "total": 32329,
+          "p50": 1216,
+          "p95": 1987.5999999999995
+        },
+        "cacheReadTokens": {
+          "total": 8960,
+          "p50": 0,
+          "p95": 0.0
+        },
+        "reasoningTokens": {
+          "total": 0,
+          "p50": 0,
+          "p95": 0.0
+        }
+      }
+    },
+    "bridge": {
+      "sampleCount": 20,
+      "completedRuns": 20,
+      "nonemptyFinalAnswers": 20,
+      "successfulSearchCountDistribution": {
+        "2": 20
+      },
+      "decision": {
+        "firstSearchInsufficientCount": 20,
+        "firstSearchSufficientCount": 0,
+        "truePositiveNeededAndSearchedAgain": 20,
+        "falseNegativeNeededButStopped": 0,
+        "falsePositiveSufficientButSearchedAgain": 0,
+        "trueNegativeSufficientAndStopped": 0,
+        "accuracy": 1.0,
+        "triggerPrecision": 1.0,
+        "triggerRecall": 1.0,
+        "sufficientEvidenceStopRate": null
+      },
+      "firstSearchCompleteEvidenceCount": 0,
+      "firstSearchCompleteEvidenceRate": 0.0,
+      "allSearchesCompleteEvidenceCount": 20,
+      "allSearchesCompleteEvidenceRate": 1.0,
+      "twoSearchSampleCount": 20,
+      "secondSearchAddsRelevantEvidenceCount": 20,
+      "secondSearchAddsRelevantEvidenceRate": 1.0,
+      "secondSearchHitsPreviouslyMissingGroupCount": 20,
+      "secondSearchHitsPreviouslyMissingGroupRate": 1.0,
+      "secondSearchCompletesEvidenceCount": 20,
+      "secondSearchCompletesEvidenceRate": 1.0,
+      "meanSecondSearchDuplicateRatio": 0.5,
+      "exactRepeatedSecondQueryCount": 0,
+      "invalidToolCallCount": 0,
+      "thirdSearchAttemptCount": 0,
+      "thirdSearchRejectedCount": 0,
+      "thirdSearchRejectionRate": null,
+      "citationAssessment": {
+        "referencedCitationCount": 45,
+        "resolvedCitationCount": 45,
+        "resolvableReferenceRate": 1.0,
+        "outputsWithInvalidReferences": 0,
+        "crossCallCitationConflicts": 0
+      },
+      "controlledAnswerAssessment": {
+        "sampleCount": 20,
+        "allExpectedValuesPresentCount": 20,
+        "allExpectedValuesPresentRate": 1.0
+      },
+      "bridgeAssessment": {
+        "sampleCount": 20,
+        "firstSearchFindsBridgeSourceCount": 20,
+        "secondSearchCount": 20,
+        "secondQueryContainsBridgeEntityCount": 20,
+        "secondQueryContainsBridgeEntityRate": 1.0,
+        "successCount": 20,
+        "successRate": 1.0
+      },
+      "conflictAssessment": {
+        "sampleCount": 0,
+        "firstSearchFindsBothConflictingDocumentsCount": 0,
+        "secondSearchCount": 0,
+        "resolutionDocumentFoundCount": 0,
+        "successCount": 0,
+        "successRate": null
+      },
+      "turnWallMs": {
+        "p50": 8226.870958500002,
+        "p95": 9030.100588149997,
+        "mean": 8252.952612399999
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 61786,
+          "p50": 3094.0,
+          "p95": 3102.0
+        },
+        "outputTokens": {
+          "total": 6266,
+          "p50": 302.0,
+          "p95": 395.20000000000005
+        },
+        "cacheReadTokens": {
+          "total": 0,
+          "p50": 0.0,
+          "p95": 0.0
+        },
+        "reasoningTokens": {
+          "total": 0,
+          "p50": 0.0,
+          "p95": 0.0
+        }
+      }
+    },
+    "sufficient": {
+      "sampleCount": 15,
+      "completedRuns": 15,
+      "nonemptyFinalAnswers": 15,
+      "successfulSearchCountDistribution": {
+        "1": 15
+      },
+      "decision": {
+        "firstSearchInsufficientCount": 0,
+        "firstSearchSufficientCount": 15,
+        "truePositiveNeededAndSearchedAgain": 0,
+        "falseNegativeNeededButStopped": 0,
+        "falsePositiveSufficientButSearchedAgain": 0,
+        "trueNegativeSufficientAndStopped": 15,
+        "accuracy": 1.0,
+        "triggerPrecision": null,
+        "triggerRecall": null,
+        "sufficientEvidenceStopRate": 1.0
+      },
+      "firstSearchCompleteEvidenceCount": 15,
+      "firstSearchCompleteEvidenceRate": 1.0,
+      "allSearchesCompleteEvidenceCount": 15,
+      "allSearchesCompleteEvidenceRate": 1.0,
+      "twoSearchSampleCount": 0,
+      "secondSearchAddsRelevantEvidenceCount": 0,
+      "secondSearchAddsRelevantEvidenceRate": null,
+      "secondSearchHitsPreviouslyMissingGroupCount": 0,
+      "secondSearchHitsPreviouslyMissingGroupRate": null,
+      "secondSearchCompletesEvidenceCount": 0,
+      "secondSearchCompletesEvidenceRate": null,
+      "meanSecondSearchDuplicateRatio": null,
+      "exactRepeatedSecondQueryCount": 0,
+      "invalidToolCallCount": 0,
+      "thirdSearchAttemptCount": 0,
+      "thirdSearchRejectedCount": 0,
+      "thirdSearchRejectionRate": null,
+      "citationAssessment": {
+        "referencedCitationCount": 15,
+        "resolvedCitationCount": 15,
+        "resolvableReferenceRate": 1.0,
+        "outputsWithInvalidReferences": 0,
+        "crossCallCitationConflicts": 0
+      },
+      "controlledAnswerAssessment": {
+        "sampleCount": 15,
+        "allExpectedValuesPresentCount": 15,
+        "allExpectedValuesPresentRate": 1.0
+      },
+      "bridgeAssessment": {
+        "sampleCount": 0,
+        "firstSearchFindsBridgeSourceCount": 0,
+        "secondSearchCount": 0,
+        "secondQueryContainsBridgeEntityCount": 0,
+        "secondQueryContainsBridgeEntityRate": null,
+        "successCount": 0,
+        "successRate": null
+      },
+      "conflictAssessment": {
+        "sampleCount": 0,
+        "firstSearchFindsBothConflictingDocumentsCount": 0,
+        "secondSearchCount": 0,
+        "resolutionDocumentFoundCount": 0,
+        "successCount": 0,
+        "successRate": null
+      },
+      "turnWallMs": {
+        "p50": 6141.3305419999915,
+        "p95": 9667.553657999988,
+        "mean": 6627.2011777999915
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 27044,
+          "p50": 1803,
+          "p95": 1804.0
+        },
+        "outputTokens": {
+          "total": 2593,
+          "p50": 172,
+          "p95": 195.0
+        },
+        "cacheReadTokens": {
+          "total": 0,
+          "p50": 0,
+          "p95": 0.0
+        },
+        "reasoningTokens": {
+          "total": 0,
+          "p50": 0,
+          "p95": 0.0
+        }
+      }
+    },
+    "conflict": {
+      "sampleCount": 15,
+      "completedRuns": 15,
+      "nonemptyFinalAnswers": 15,
+      "successfulSearchCountDistribution": {
+        "2": 15
+      },
+      "decision": {
+        "firstSearchInsufficientCount": 15,
+        "firstSearchSufficientCount": 0,
+        "truePositiveNeededAndSearchedAgain": 15,
+        "falseNegativeNeededButStopped": 0,
+        "falsePositiveSufficientButSearchedAgain": 0,
+        "trueNegativeSufficientAndStopped": 0,
+        "accuracy": 1.0,
+        "triggerPrecision": 1.0,
+        "triggerRecall": 1.0,
+        "sufficientEvidenceStopRate": null
+      },
+      "firstSearchCompleteEvidenceCount": 0,
+      "firstSearchCompleteEvidenceRate": 0.0,
+      "allSearchesCompleteEvidenceCount": 15,
+      "allSearchesCompleteEvidenceRate": 1.0,
+      "twoSearchSampleCount": 15,
+      "secondSearchAddsRelevantEvidenceCount": 15,
+      "secondSearchAddsRelevantEvidenceRate": 1.0,
+      "secondSearchHitsPreviouslyMissingGroupCount": 15,
+      "secondSearchHitsPreviouslyMissingGroupRate": 1.0,
+      "secondSearchCompletesEvidenceCount": 15,
+      "secondSearchCompletesEvidenceRate": 1.0,
+      "meanSecondSearchDuplicateRatio": 0.6666666666666666,
+      "exactRepeatedSecondQueryCount": 0,
+      "invalidToolCallCount": 0,
+      "thirdSearchAttemptCount": 0,
+      "thirdSearchRejectedCount": 0,
+      "thirdSearchRejectionRate": null,
+      "citationAssessment": {
+        "referencedCitationCount": 57,
+        "resolvedCitationCount": 57,
+        "resolvableReferenceRate": 1.0,
+        "outputsWithInvalidReferences": 0,
+        "crossCallCitationConflicts": 0
+      },
+      "controlledAnswerAssessment": {
+        "sampleCount": 15,
+        "allExpectedValuesPresentCount": 15,
+        "allExpectedValuesPresentRate": 1.0
+      },
+      "bridgeAssessment": {
+        "sampleCount": 0,
+        "firstSearchFindsBridgeSourceCount": 0,
+        "secondSearchCount": 0,
+        "secondQueryContainsBridgeEntityCount": 0,
+        "secondQueryContainsBridgeEntityRate": null,
+        "successCount": 0,
+        "successRate": null
+      },
+      "conflictAssessment": {
+        "sampleCount": 15,
+        "firstSearchFindsBothConflictingDocumentsCount": 15,
+        "secondSearchCount": 15,
+        "resolutionDocumentFoundCount": 15,
+        "successCount": 15,
+        "successRate": 1.0
+      },
+      "turnWallMs": {
+        "p50": 8010.344292000013,
+        "p95": 8570.688795400001,
+        "mean": 7923.958672199998
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 49433,
+          "p50": 3296,
+          "p95": 3303.2
+        },
+        "outputTokens": {
+          "total": 5969,
+          "p50": 400,
+          "p95": 451.09999999999997
+        },
+        "cacheReadTokens": {
+          "total": 0,
+          "p50": 0,
+          "p95": 0.0
+        },
+        "reasoningTokens": {
+          "total": 0,
+          "p50": 0,
+          "p95": 0.0
+        }
+      }
+    }
+  }
+}

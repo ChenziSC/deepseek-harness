@@ -1,0 +1,100 @@
+{"id":"controlled-bridge-source-001","title":"青岚项目索引说明","source":"controlled-bridge","text":"青岚项目的运行细节不在本页。查询青岚值班时段和青岚备份模式时，必须使用运维档案代码 BRG701XZQ；档案字段 W 表示青岚值班时段，字段 B 表示青岚备份模式。"}
+{"id":"controlled-bridge-target-001","title":"档案 BRG701XZQ","source":"controlled-bridge","text":"BRG701XZQ BRG701XZQ BRG701XZQ BRG701XZQ。W=周二 02:30–02:55; B=SNAPSHOT。"}
+{"id":"controlled-bridge-source-002","title":"赤霄项目索引说明","source":"controlled-bridge","text":"赤霄项目的运行细节不在本页。查询赤霄值班时段和赤霄备份模式时，必须使用运维档案代码 BRG702XZQ；档案字段 W 表示赤霄值班时段，字段 B 表示赤霄备份模式。"}
+{"id":"controlled-bridge-target-002","title":"档案 BRG702XZQ","source":"controlled-bridge","text":"BRG702XZQ BRG702XZQ BRG702XZQ BRG702XZQ。W=周三 03:30–03:55; B=LOG-ARCHIVE。"}
+{"id":"controlled-bridge-source-003","title":"白泽项目索引说明","source":"controlled-bridge","text":"白泽项目的运行细节不在本页。查询白泽值班时段和白泽备份模式时，必须使用运维档案代码 BRG703XZQ；档案字段 W 表示白泽值班时段，字段 B 表示白泽备份模式。"}
+{"id":"controlled-bridge-target-003","title":"档案 BRG703XZQ","source":"controlled-bridge","text":"BRG703XZQ BRG703XZQ BRG703XZQ BRG703XZQ。W=周四 04:30–04:55; B=BLOCK-COPY。"}
+{"id":"controlled-bridge-source-004","title":"玄鹤项目索引说明","source":"controlled-bridge","text":"玄鹤项目的运行细节不在本页。查询玄鹤值班时段和玄鹤备份模式时，必须使用运维档案代码 BRG704XZQ；档案字段 W 表示玄鹤值班时段，字段 B 表示玄鹤备份模式。"}
+{"id":"controlled-bridge-target-004","title":"档案 BRG704XZQ","source":"controlled-bridge","text":"BRG704XZQ BRG704XZQ BRG704XZQ BRG704XZQ。W=周五 05:30–05:55; B=DB-FULL。"}
+{"id":"controlled-bridge-source-005","title":"云舟项目索引说明","source":"controlled-bridge","text":"云舟项目的运行细节不在本页。查询云舟值班时段和云舟备份模式时，必须使用运维档案代码 BRG705XZQ；档案字段 W 表示云舟值班时段，字段 B 表示云舟备份模式。"}
+{"id":"controlled-bridge-target-005","title":"档案 BRG705XZQ","source":"controlled-bridge","text":"BRG705XZQ BRG705XZQ BRG705XZQ BRG705XZQ。W=周一 01:30–01:55; B=SNAPSHOT。"}
+{"id":"controlled-bridge-source-006","title":"星河项目索引说明","source":"controlled-bridge","text":"星河项目的运行细节不在本页。查询星河值班时段和星河备份模式时，必须使用运维档案代码 BRG706XZQ；档案字段 W 表示星河值班时段，字段 B 表示星河备份模式。"}
+{"id":"controlled-bridge-target-006","title":"档案 BRG706XZQ","source":"controlled-bridge","text":"BRG706XZQ BRG706XZQ BRG706XZQ BRG706XZQ。W=周二 02:30–02:55; B=LOG-ARCHIVE。"}
+{"id":"controlled-bridge-source-007","title":"松涛项目索引说明","source":"controlled-bridge","text":"松涛项目的运行细节不在本页。查询松涛值班时段和松涛备份模式时，必须使用运维档案代码 BRG707XZQ；档案字段 W 表示松涛值班时段，字段 B 表示松涛备份模式。"}
+{"id":"controlled-bridge-target-007","title":"档案 BRG707XZQ","source":"controlled-bridge","text":"BRG707XZQ BRG707XZQ BRG707XZQ BRG707XZQ。W=周三 03:30–03:55; B=BLOCK-COPY。"}
+{"id":"controlled-bridge-source-008","title":"澄海项目索引说明","source":"controlled-bridge","text":"澄海项目的运行细节不在本页。查询澄海值班时段和澄海备份模式时，必须使用运维档案代码 BRG708XZQ；档案字段 W 表示澄海值班时段，字段 B 表示澄海备份模式。"}
+{"id":"controlled-bridge-target-008","title":"档案 BRG708XZQ","source":"controlled-bridge","text":"BRG708XZQ BRG708XZQ BRG708XZQ BRG708XZQ。W=周四 04:30–04:55; B=DB-FULL。"}
+{"id":"controlled-bridge-source-009","title":"远山项目索引说明","source":"controlled-bridge","text":"远山项目的运行细节不在本页。查询远山值班时段和远山备份模式时，必须使用运维档案代码 BRG709XZQ；档案字段 W 表示远山值班时段，字段 B 表示远山备份模式。"}
+{"id":"controlled-bridge-target-009","title":"档案 BRG709XZQ","source":"controlled-bridge","text":"BRG709XZQ BRG709XZQ BRG709XZQ BRG709XZQ。W=周五 05:30–05:55; B=SNAPSHOT。"}
+{"id":"controlled-bridge-source-010","title":"流光项目索引说明","source":"controlled-bridge","text":"流光项目的运行细节不在本页。查询流光值班时段和流光备份模式时，必须使用运维档案代码 BRG710XZQ；档案字段 W 表示流光值班时段，字段 B 表示流光备份模式。"}
+{"id":"controlled-bridge-target-010","title":"档案 BRG710XZQ","source":"controlled-bridge","text":"BRG710XZQ BRG710XZQ BRG710XZQ BRG710XZQ。W=周一 01:30–01:55; B=LOG-ARCHIVE。"}
+{"id":"controlled-bridge-source-011","title":"北斗项目索引说明","source":"controlled-bridge","text":"北斗项目的运行细节不在本页。查询北斗值班时段和北斗备份模式时，必须使用运维档案代码 BRG711XZQ；档案字段 W 表示北斗值班时段，字段 B 表示北斗备份模式。"}
+{"id":"controlled-bridge-target-011","title":"档案 BRG711XZQ","source":"controlled-bridge","text":"BRG711XZQ BRG711XZQ BRG711XZQ BRG711XZQ。W=周二 02:30–02:55; B=BLOCK-COPY。"}
+{"id":"controlled-bridge-source-012","title":"南风项目索引说明","source":"controlled-bridge","text":"南风项目的运行细节不在本页。查询南风值班时段和南风备份模式时，必须使用运维档案代码 BRG712XZQ；档案字段 W 表示南风值班时段，字段 B 表示南风备份模式。"}
+{"id":"controlled-bridge-target-012","title":"档案 BRG712XZQ","source":"controlled-bridge","text":"BRG712XZQ BRG712XZQ BRG712XZQ BRG712XZQ。W=周三 03:30–03:55; B=DB-FULL。"}
+{"id":"controlled-bridge-source-013","title":"秋水项目索引说明","source":"controlled-bridge","text":"秋水项目的运行细节不在本页。查询秋水值班时段和秋水备份模式时，必须使用运维档案代码 BRG713XZQ；档案字段 W 表示秋水值班时段，字段 B 表示秋水备份模式。"}
+{"id":"controlled-bridge-target-013","title":"档案 BRG713XZQ","source":"controlled-bridge","text":"BRG713XZQ BRG713XZQ BRG713XZQ BRG713XZQ。W=周四 04:30–04:55; B=SNAPSHOT。"}
+{"id":"controlled-bridge-source-014","title":"春晖项目索引说明","source":"controlled-bridge","text":"春晖项目的运行细节不在本页。查询春晖值班时段和春晖备份模式时，必须使用运维档案代码 BRG714XZQ；档案字段 W 表示春晖值班时段，字段 B 表示春晖备份模式。"}
+{"id":"controlled-bridge-target-014","title":"档案 BRG714XZQ","source":"controlled-bridge","text":"BRG714XZQ BRG714XZQ BRG714XZQ BRG714XZQ。W=周五 05:30–05:55; B=LOG-ARCHIVE。"}
+{"id":"controlled-bridge-source-015","title":"墨竹项目索引说明","source":"controlled-bridge","text":"墨竹项目的运行细节不在本页。查询墨竹值班时段和墨竹备份模式时，必须使用运维档案代码 BRG715XZQ；档案字段 W 表示墨竹值班时段，字段 B 表示墨竹备份模式。"}
+{"id":"controlled-bridge-target-015","title":"档案 BRG715XZQ","source":"controlled-bridge","text":"BRG715XZQ BRG715XZQ BRG715XZQ BRG715XZQ。W=周一 01:30–01:55; B=BLOCK-COPY。"}
+{"id":"controlled-bridge-source-016","title":"银杉项目索引说明","source":"controlled-bridge","text":"银杉项目的运行细节不在本页。查询银杉值班时段和银杉备份模式时，必须使用运维档案代码 BRG716XZQ；档案字段 W 表示银杉值班时段，字段 B 表示银杉备份模式。"}
+{"id":"controlled-bridge-target-016","title":"档案 BRG716XZQ","source":"controlled-bridge","text":"BRG716XZQ BRG716XZQ BRG716XZQ BRG716XZQ。W=周二 02:30–02:55; B=DB-FULL。"}
+{"id":"controlled-bridge-source-017","title":"金穗项目索引说明","source":"controlled-bridge","text":"金穗项目的运行细节不在本页。查询金穗值班时段和金穗备份模式时，必须使用运维档案代码 BRG717XZQ；档案字段 W 表示金穗值班时段，字段 B 表示金穗备份模式。"}
+{"id":"controlled-bridge-target-017","title":"档案 BRG717XZQ","source":"controlled-bridge","text":"BRG717XZQ BRG717XZQ BRG717XZQ BRG717XZQ。W=周三 03:30–03:55; B=SNAPSHOT。"}
+{"id":"controlled-bridge-source-018","title":"苍梧项目索引说明","source":"controlled-bridge","text":"苍梧项目的运行细节不在本页。查询苍梧值班时段和苍梧备份模式时，必须使用运维档案代码 BRG718XZQ；档案字段 W 表示苍梧值班时段，字段 B 表示苍梧备份模式。"}
+{"id":"controlled-bridge-target-018","title":"档案 BRG718XZQ","source":"controlled-bridge","text":"BRG718XZQ BRG718XZQ BRG718XZQ BRG718XZQ。W=周四 04:30–04:55; B=LOG-ARCHIVE。"}
+{"id":"controlled-bridge-source-019","title":"霁月项目索引说明","source":"controlled-bridge","text":"霁月项目的运行细节不在本页。查询霁月值班时段和霁月备份模式时，必须使用运维档案代码 BRG719XZQ；档案字段 W 表示霁月值班时段，字段 B 表示霁月备份模式。"}
+{"id":"controlled-bridge-target-019","title":"档案 BRG719XZQ","source":"controlled-bridge","text":"BRG719XZQ BRG719XZQ BRG719XZQ BRG719XZQ。W=周五 05:30–05:55; B=BLOCK-COPY。"}
+{"id":"controlled-bridge-source-020","title":"长川项目索引说明","source":"controlled-bridge","text":"长川项目的运行细节不在本页。查询长川值班时段和长川备份模式时，必须使用运维档案代码 BRG720XZQ；档案字段 W 表示长川值班时段，字段 B 表示长川备份模式。"}
+{"id":"controlled-bridge-target-020","title":"档案 BRG720XZQ","source":"controlled-bridge","text":"BRG720XZQ BRG720XZQ BRG720XZQ BRG720XZQ。W=周一 01:30–01:55; B=DB-FULL。"}
+{"id":"controlled-sufficient-001","title":"皓月站设备卡","source":"controlled-sufficient","text":"皓月站设备卡：主电源型号为 RX-72；备用电池容量为 96 Ah。两项数据均以本设备卡为准。"}
+{"id":"controlled-sufficient-002","title":"临江站设备卡","source":"controlled-sufficient","text":"临江站设备卡：主电源型号为 LM-18；备用电池容量为 120 Ah。两项数据均以本设备卡为准。"}
+{"id":"controlled-sufficient-003","title":"紫藤站设备卡","source":"controlled-sufficient","text":"紫藤站设备卡：主电源型号为 QZ-63；备用电池容量为 144 Ah。两项数据均以本设备卡为准。"}
+{"id":"controlled-sufficient-004","title":"云岭站设备卡","source":"controlled-sufficient","text":"云岭站设备卡：主电源型号为 NV-25；备用电池容量为 160 Ah。两项数据均以本设备卡为准。"}
+{"id":"controlled-sufficient-005","title":"海棠站设备卡","source":"controlled-sufficient","text":"海棠站设备卡：主电源型号为 PX-41；备用电池容量为 80 Ah。两项数据均以本设备卡为准。"}
+{"id":"controlled-sufficient-006","title":"丹霞站设备卡","source":"controlled-sufficient","text":"丹霞站设备卡：主电源型号为 RX-72；备用电池容量为 96 Ah。两项数据均以本设备卡为准。"}
+{"id":"controlled-sufficient-007","title":"青松站设备卡","source":"controlled-sufficient","text":"青松站设备卡：主电源型号为 LM-18；备用电池容量为 120 Ah。两项数据均以本设备卡为准。"}
+{"id":"controlled-sufficient-008","title":"雪原站设备卡","source":"controlled-sufficient","text":"雪原站设备卡：主电源型号为 QZ-63；备用电池容量为 144 Ah。两项数据均以本设备卡为准。"}
+{"id":"controlled-sufficient-009","title":"新港站设备卡","source":"controlled-sufficient","text":"新港站设备卡：主电源型号为 NV-25；备用电池容量为 160 Ah。两项数据均以本设备卡为准。"}
+{"id":"controlled-sufficient-010","title":"天穹站设备卡","source":"controlled-sufficient","text":"天穹站设备卡：主电源型号为 PX-41；备用电池容量为 80 Ah。两项数据均以本设备卡为准。"}
+{"id":"controlled-sufficient-011","title":"晨星站设备卡","source":"controlled-sufficient","text":"晨星站设备卡：主电源型号为 RX-72；备用电池容量为 96 Ah。两项数据均以本设备卡为准。"}
+{"id":"controlled-sufficient-012","title":"碧湖站设备卡","source":"controlled-sufficient","text":"碧湖站设备卡：主电源型号为 LM-18；备用电池容量为 120 Ah。两项数据均以本设备卡为准。"}
+{"id":"controlled-sufficient-013","title":"锦川站设备卡","source":"controlled-sufficient","text":"锦川站设备卡：主电源型号为 QZ-63；备用电池容量为 144 Ah。两项数据均以本设备卡为准。"}
+{"id":"controlled-sufficient-014","title":"安澜站设备卡","source":"controlled-sufficient","text":"安澜站设备卡：主电源型号为 NV-25；备用电池容量为 160 Ah。两项数据均以本设备卡为准。"}
+{"id":"controlled-sufficient-015","title":"玉衡站设备卡","source":"controlled-sufficient","text":"玉衡站设备卡：主电源型号为 PX-41；备用电池容量为 80 Ah。两项数据均以本设备卡为准。"}
+{"id":"controlled-conflict-a-001","title":"北辰切换通知甲","source":"controlled-conflict","text":"北辰系统切换通知：计划生效日为 2026-10-04。如与其他通知冲突，请使用裁定代码 AUTH-8201 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-b-001","title":"北辰切换通知乙","source":"controlled-conflict","text":"北辰系统切换通知：计划生效日为 2026-10-06。如与其他通知冲突，请使用裁定代码 AUTH-8201 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-resolution-001","title":"裁定记录 AUTH-8201","source":"controlled-conflict","text":"AUTH-8201 R=2026-10-06。"}
+{"id":"controlled-conflict-a-002","title":"南岳切换通知甲","source":"controlled-conflict","text":"南岳系统切换通知：计划生效日为 2026-10-05。如与其他通知冲突，请使用裁定代码 AUTH-8202 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-b-002","title":"南岳切换通知乙","source":"controlled-conflict","text":"南岳系统切换通知：计划生效日为 2026-10-07。如与其他通知冲突，请使用裁定代码 AUTH-8202 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-resolution-002","title":"裁定记录 AUTH-8202","source":"controlled-conflict","text":"AUTH-8202 R=2026-10-07。"}
+{"id":"controlled-conflict-a-003","title":"东篱切换通知甲","source":"controlled-conflict","text":"东篱系统切换通知：计划生效日为 2026-10-06。如与其他通知冲突，请使用裁定代码 AUTH-8203 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-b-003","title":"东篱切换通知乙","source":"controlled-conflict","text":"东篱系统切换通知：计划生效日为 2026-10-08。如与其他通知冲突，请使用裁定代码 AUTH-8203 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-resolution-003","title":"裁定记录 AUTH-8203","source":"controlled-conflict","text":"AUTH-8203 R=2026-10-08。"}
+{"id":"controlled-conflict-a-004","title":"西岭切换通知甲","source":"controlled-conflict","text":"西岭系统切换通知：计划生效日为 2026-10-07。如与其他通知冲突，请使用裁定代码 AUTH-8204 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-b-004","title":"西岭切换通知乙","source":"controlled-conflict","text":"西岭系统切换通知：计划生效日为 2026-10-09。如与其他通知冲突，请使用裁定代码 AUTH-8204 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-resolution-004","title":"裁定记录 AUTH-8204","source":"controlled-conflict","text":"AUTH-8204 R=2026-10-09。"}
+{"id":"controlled-conflict-a-005","title":"云门切换通知甲","source":"controlled-conflict","text":"云门系统切换通知：计划生效日为 2026-10-08。如与其他通知冲突，请使用裁定代码 AUTH-8205 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-b-005","title":"云门切换通知乙","source":"controlled-conflict","text":"云门系统切换通知：计划生效日为 2026-10-10。如与其他通知冲突，请使用裁定代码 AUTH-8205 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-resolution-005","title":"裁定记录 AUTH-8205","source":"controlled-conflict","text":"AUTH-8205 R=2026-10-10。"}
+{"id":"controlled-conflict-a-006","title":"海角切换通知甲","source":"controlled-conflict","text":"海角系统切换通知：计划生效日为 2026-10-09。如与其他通知冲突，请使用裁定代码 AUTH-8206 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-b-006","title":"海角切换通知乙","source":"controlled-conflict","text":"海角系统切换通知：计划生效日为 2026-10-11。如与其他通知冲突，请使用裁定代码 AUTH-8206 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-resolution-006","title":"裁定记录 AUTH-8206","source":"controlled-conflict","text":"AUTH-8206 R=2026-10-11。"}
+{"id":"controlled-conflict-a-007","title":"星港切换通知甲","source":"controlled-conflict","text":"星港系统切换通知：计划生效日为 2026-10-10。如与其他通知冲突，请使用裁定代码 AUTH-8207 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-b-007","title":"星港切换通知乙","source":"controlled-conflict","text":"星港系统切换通知：计划生效日为 2026-10-12。如与其他通知冲突，请使用裁定代码 AUTH-8207 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-resolution-007","title":"裁定记录 AUTH-8207","source":"controlled-conflict","text":"AUTH-8207 R=2026-10-12。"}
+{"id":"controlled-conflict-a-008","title":"林泉切换通知甲","source":"controlled-conflict","text":"林泉系统切换通知：计划生效日为 2026-10-11。如与其他通知冲突，请使用裁定代码 AUTH-8208 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-b-008","title":"林泉切换通知乙","source":"controlled-conflict","text":"林泉系统切换通知：计划生效日为 2026-10-13。如与其他通知冲突，请使用裁定代码 AUTH-8208 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-resolution-008","title":"裁定记录 AUTH-8208","source":"controlled-conflict","text":"AUTH-8208 R=2026-10-13。"}
+{"id":"controlled-conflict-a-009","title":"沙洲切换通知甲","source":"controlled-conflict","text":"沙洲系统切换通知：计划生效日为 2026-10-03。如与其他通知冲突，请使用裁定代码 AUTH-8209 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-b-009","title":"沙洲切换通知乙","source":"controlled-conflict","text":"沙洲系统切换通知：计划生效日为 2026-10-05。如与其他通知冲突，请使用裁定代码 AUTH-8209 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-resolution-009","title":"裁定记录 AUTH-8209","source":"controlled-conflict","text":"AUTH-8209 R=2026-10-05。"}
+{"id":"controlled-conflict-a-010","title":"石桥切换通知甲","source":"controlled-conflict","text":"石桥系统切换通知：计划生效日为 2026-10-04。如与其他通知冲突，请使用裁定代码 AUTH-8210 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-b-010","title":"石桥切换通知乙","source":"controlled-conflict","text":"石桥系统切换通知：计划生效日为 2026-10-06。如与其他通知冲突，请使用裁定代码 AUTH-8210 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-resolution-010","title":"裁定记录 AUTH-8210","source":"controlled-conflict","text":"AUTH-8210 R=2026-10-06。"}
+{"id":"controlled-conflict-a-011","title":"柳岸切换通知甲","source":"controlled-conflict","text":"柳岸系统切换通知：计划生效日为 2026-10-05。如与其他通知冲突，请使用裁定代码 AUTH-8211 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-b-011","title":"柳岸切换通知乙","source":"controlled-conflict","text":"柳岸系统切换通知：计划生效日为 2026-10-07。如与其他通知冲突，请使用裁定代码 AUTH-8211 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-resolution-011","title":"裁定记录 AUTH-8211","source":"controlled-conflict","text":"AUTH-8211 R=2026-10-07。"}
+{"id":"controlled-conflict-a-012","title":"枫林切换通知甲","source":"controlled-conflict","text":"枫林系统切换通知：计划生效日为 2026-10-06。如与其他通知冲突，请使用裁定代码 AUTH-8212 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-b-012","title":"枫林切换通知乙","source":"controlled-conflict","text":"枫林系统切换通知：计划生效日为 2026-10-08。如与其他通知冲突，请使用裁定代码 AUTH-8212 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-resolution-012","title":"裁定记录 AUTH-8212","source":"controlled-conflict","text":"AUTH-8212 R=2026-10-08。"}
+{"id":"controlled-conflict-a-013","title":"竹溪切换通知甲","source":"controlled-conflict","text":"竹溪系统切换通知：计划生效日为 2026-10-07。如与其他通知冲突，请使用裁定代码 AUTH-8213 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-b-013","title":"竹溪切换通知乙","source":"controlled-conflict","text":"竹溪系统切换通知：计划生效日为 2026-10-09。如与其他通知冲突，请使用裁定代码 AUTH-8213 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-resolution-013","title":"裁定记录 AUTH-8213","source":"controlled-conflict","text":"AUTH-8213 R=2026-10-09。"}
+{"id":"controlled-conflict-a-014","title":"兰台切换通知甲","source":"controlled-conflict","text":"兰台系统切换通知：计划生效日为 2026-10-08。如与其他通知冲突，请使用裁定代码 AUTH-8214 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-b-014","title":"兰台切换通知乙","source":"controlled-conflict","text":"兰台系统切换通知：计划生效日为 2026-10-10。如与其他通知冲突，请使用裁定代码 AUTH-8214 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-resolution-014","title":"裁定记录 AUTH-8214","source":"controlled-conflict","text":"AUTH-8214 R=2026-10-10。"}
+{"id":"controlled-conflict-a-015","title":"鹤鸣切换通知甲","source":"controlled-conflict","text":"鹤鸣系统切换通知：计划生效日为 2026-10-09。如与其他通知冲突，请使用裁定代码 AUTH-8215 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-b-015","title":"鹤鸣切换通知乙","source":"controlled-conflict","text":"鹤鸣系统切换通知：计划生效日为 2026-10-11。如与其他通知冲突，请使用裁定代码 AUTH-8215 核验；裁定字段 R 表示最终有效日期。"}
+{"id":"controlled-conflict-resolution-015","title":"裁定记录 AUTH-8215","source":"controlled-conflict","text":"AUTH-8215 R=2026-10-11。"}

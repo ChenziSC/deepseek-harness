@@ -717,7 +717,7 @@ describe('LocalKnowledge model-backed modes', () => {
     })
 
     await expect(context.knowledge.search({ query: 'alpha', maxResults: 1 })).resolves.toMatchObject({
-      strategy: { retrieval: 'hybrid', denseIndex: 'exact', rerank: false },
+      strategy: { retrieval: 'dense', denseIndex: 'exact', rerank: false },
     })
   })
 

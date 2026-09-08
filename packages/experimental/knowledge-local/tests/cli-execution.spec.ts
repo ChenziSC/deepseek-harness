@@ -92,6 +92,7 @@ function report(failed = false) {
     platform: { os: 'test', release: 'test', arch: 'test', node: 'test' },
     corpusSha256: 'a'.repeat(64),
     indexFingerprint: 'b'.repeat(64),
+    inputs: { queriesSha256: 'e'.repeat(64), qrelsSha256: 'f'.repeat(64) },
     models: {
       dense: { modelId: 'dense', revision: 'c'.repeat(40), dtype: 'q8' as const },
       reranker: { modelId: 'reranker', revision: 'd'.repeat(40), dtype: 'q8' as const },
@@ -126,7 +127,22 @@ beforeEach(() => {
   mocks.buildKnowledgeIndex.mockResolvedValue(manifest())
   mocks.deriveKnowledgeIndexFromExact.mockResolvedValue(manifest())
   mocks.buildT2RankingBenchmarkSlices.mockResolvedValue({ queryCount: 100, slices: [] })
-  mocks.evaluateDataset.mockResolvedValue(report())
+  mocks.evaluateDataset.mockImplementation(async (options: {
+    onQueryDetail?: (detail: unknown) => void | Promise<void>
+  }) => {
+    await options.onQueryDetail?.({
+      schemaVersion: 1,
+      queryId: 'q',
+      queryText: 'query',
+      requestedStrategy: { retrieval: 'bm25', rerank: 'off' },
+      relevantDocuments: [{ documentId: 'doc', relevance: 1 }],
+      status: 'success',
+      latencyMs: 1,
+      resolvedStrategy: { retrieval: 'bm25', rerank: false },
+      rankedDocuments: [{ documentId: 'doc', score: 1 }],
+    })
+    return report()
+  })
   mocks.prepareSciFact.mockResolvedValue({ datasetDir: '/data/scifact', archiveMd5: 'md5', archiveSha256: 'sha', models: [] })
   mocks.prepareMldr.mockResolvedValue({ dataset: 'mldr-en', datasetDir: '/data/mldr-en', files: [] })
   mocks.prepareMlqaEngZho.mockResolvedValue({ dataset: 'mlqa-eng-zho', datasetDir: '/data/mlqa-eng-zho', files: [] })
@@ -170,19 +186,58 @@ describe('dsh-knowledge command execution', () => {
     expect(mocks.buildKnowledgeIndex.mock.calls[0]?.[0]).not.toHaveProperty('dense')
     expect(JSON.parse(stdout.output)).toMatchObject({ documentCount: 1, chunkCount: 1, payloadBytes: 10 })
 
+    mocks.buildKnowledgeIndex.mockImplementationOnce(async (options: {
+      dense?: { onVectorBuildStats?: (stats: unknown) => void }
+    }) => {
+      options.dense?.onVectorBuildStats?.({
+        totalInputCount: 1,
+        cacheHitCount: 1,
+        encodedInputCount: 0,
+        reuseRatio: 1,
+        importedVectorCount: 1,
+        timingsMs: {
+          import: 1,
+          cacheLookup: 1,
+          embedding: 0,
+          cacheWrite: 0,
+          exactWrite: 1,
+          hnswAdd: 0,
+          hnswSave: 0,
+        },
+      })
+      return manifest()
+    })
+    const denseStdout = sink()
     expect(await runCli([
       'index', '--corpus', corpus, '--corpus-format', 'scifact', '--output', join(root, 'dense'),
       '--model-cache-dir', '/models', '--components', 'bm25,dense', '--max-tokens', '8',
-      '--overlap-tokens', '0', '--sqlite-batch-size', '2',
+      '--overlap-tokens', '0', '--chunking-strategy', 'token-window-v1', '--sqlite-batch-size', '2',
       '--dense-model-id', 'dense-model', '--dense-model-revision', 'b'.repeat(40),
       '--dense-max-tokens', '64', '--embedding-batch-size', '4',
-    ], sink(), sink())).toBe(0)
+      '--vector-cache-dir', '/vectors', '--import-vectors-from', '/source-index',
+    ], denseStdout, sink())).toBe(0)
     expect(mocks.buildKnowledgeIndex.mock.calls[1]?.[0]).toMatchObject({
       corpusFormat: 'scifact',
       corpusPath: corpus,
-      chunking: { maxTokens: 8, overlapTokens: 0 },
+      chunking: { maxTokens: 8, overlapTokens: 0, strategy: 'token-window-v1' },
       sqliteBatchSize: 2,
-      dense: { batchSize: 4, modelId: 'dense-model', revision: 'b'.repeat(40), dtype: 'q8' },
+      dense: {
+        batchSize: 4,
+        modelId: 'dense-model',
+        revision: 'b'.repeat(40),
+        dtype: 'q8',
+        vectorCacheDir: '/vectors',
+        importVectorsFrom: '/source-index',
+      },
+    })
+    expect(JSON.parse(denseStdout.output)).toMatchObject({
+      denseBuild: {
+        cacheHitCount: 1,
+        encodedInputCount: 0,
+        reuseRatio: 1,
+        importedVectorCount: 1,
+        timingsMs: { modelLoad: 0 },
+      },
     })
     expect(mocks.loadDenseEncoder).not.toHaveBeenCalled()
 
@@ -344,10 +399,13 @@ describe('dsh-knowledge command execution', () => {
     [['index', '--components', 'other'], '--components must be bm25 or bm25,dense'],
     [['index', '--corpus-format', 'other'], '--corpus-format must be generic, scifact, mldr, or t2ranking'],
     [['index', '--analyzer', 'other'], '--analyzer must be english-v1 or mixed-zh-en-v1'],
+    [['index', '--chunking-strategy', 'other'], '--chunking-strategy must be token-window-v1 or markdown-structure-v1'],
     [['index', '--dense-index', 'other'], '--dense-index must be auto, exact, hnsw, or both'],
     [['index', '--corpus', 'x', '--output', 'y'], '--model-cache-dir is required'],
     [['index', '--corpus', 'x', '--output', 'y', '--model-cache-dir', 'm', '--components', 'bm25,dense', '--dense-model-id='], '--dense-model-id is required'],
     [['index', '--corpus', 'x', '--output', 'y', '--model-cache-dir', 'm', '--components', 'bm25,dense', '--dense-model-revision='], '--dense-model-revision is required'],
+    [['index', '--corpus', 'x', '--output', 'y', '--model-cache-dir', 'm', '--vector-cache-dir', 'v'], '--vector-cache-dir and --import-vectors-from require --components bm25,dense'],
+    [['index', '--corpus', 'x', '--output', 'y', '--model-cache-dir', 'm', '--components', 'bm25,dense', '--import-vectors-from', 'i'], '--import-vectors-from requires --vector-cache-dir'],
   ])('rejects invalid index arguments %j', async (argv, message) => {
     const stderr = sink()
     expect(await runCli(argv, sink(), stderr)).toBe(2)
@@ -435,7 +493,7 @@ describe('dsh-knowledge command execution', () => {
       corpusPath: '/slices/chunks-10000/corpus.tsv',
       corpusFormat: 't2ranking',
       outputDir: '/index-10k',
-      chunking: { maxTokens: 384, overlapTokens: 64 },
+      chunking: { maxTokens: 384, overlapTokens: 64, strategy: 'markdown-structure-v1' },
       denseIndex: 'both',
     }))
     expect(mocks.loadDenseEncoder).not.toHaveBeenCalled()
@@ -508,26 +566,38 @@ describe('dsh-knowledge command execution', () => {
     ]
     expect(await runCli(args, stdout, sink())).toBe(0)
     expect(await readFile(join(root, 'report', 'report.md'), 'utf8')).toBe('# report\n')
-    expect(JSON.parse(stdout.output)).toMatchObject({ failedRuns: 0 })
+    expect(JSON.parse(await readFile(join(root, 'report', 'queries.jsonl'), 'utf8'))).toMatchObject({
+      queryId: 'q',
+      status: 'success',
+    })
+    expect(JSON.parse(stdout.output)).toMatchObject({
+      queries: join(root, 'report', 'queries.jsonl'),
+      failedRuns: 0,
+    })
     expect(mocks.evaluateDataset).toHaveBeenCalledWith(expect.objectContaining({
       candidateCount: 50,
       rerankerCandidateCount: 20,
+      adaptiveRerankMinScoreGapRatio: 0.15,
       modes: ['bm25', 'dense', 'hybrid'],
       rerankValues: ['off', 'auto', 'on'],
       hnswExpansionSearch: 1024,
     }))
+    const evaluationOptions = mocks.evaluateDataset.mock.calls[0]?.[0] as { readonly onQueryDetail?: unknown }
+    expect(typeof evaluationOptions.onQueryDetail).toBe('function')
 
     const selectedOutput = join(root, 'selected-report')
     expect(await runCli([
       ...args.slice(0, -6), '--output', selectedOutput, '--dataset', 'mlqa', '--query-limit', '3',
-      '--modes', 'dense', '--dense-indexes', 'exact,hnsw', '--rerank', 'off',
+      '--modes', 'auto,dense', '--dense-indexes', 'exact,hnsw', '--rerank', 'off',
+      '--adaptive-rerank-min-score-gap-ratio', '0.02',
     ], sink(), sink())).toBe(0)
     expect(mocks.evaluateDataset).toHaveBeenLastCalledWith(expect.objectContaining({
       dataset: 'mlqa',
       queryLimit: 3,
-      modes: ['dense'],
+      modes: ['auto', 'dense'],
       denseIndexes: ['exact', 'hnsw'],
       rerankValues: ['off'],
+      adaptiveRerankMinScoreGapRatio: 0.02,
     }))
 
     mocks.evaluateDataset.mockResolvedValueOnce(report(true))
@@ -578,5 +648,9 @@ describe('dsh-knowledge command execution', () => {
     const stderr = sink()
     expect(await runCli(['prepare', 'scifact', '--data-dir', '/data', '--model-cache-dir', '/models'], sink(), stderr)).toBe(2)
     expect(stderr.output).toContain('plain failure')
+
+    const missingDataset = sink()
+    expect(await runCli(['prepare', '--data-dir', '/data'], sink(), missingDataset)).toBe(2)
+    expect(missingDataset.output).toContain('prepare requires one dataset name')
   })
 })

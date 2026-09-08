@@ -280,7 +280,6 @@ export class LocalKnowledgeProvider extends Knowledge {
           ...(index.dense === undefined ? [] : ['exact' as const]),
           ...(index.hnsw === undefined ? [] : ['hnsw' as const]),
         ],
-        corpusScript: index.manifest.corpus.scriptProfile,
       })
       const searchBm25Candidates = () => index.sqlite.searchBm25(query, this.config.candidateCount)
       const matches = plan.retrieval === 'bm25'

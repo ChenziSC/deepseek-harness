@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-08",
+  "inputs": {
+    "documentCount": 800,
+    "chunkCount": 1096,
+    "corpusSha256": "ff1e3fbc2cc7268220b335e8b513b6dfea77eb11814064635d678e2ebe4a1ba0",
+    "rawResultsSha256": "2481004f0f79213f9368f9987967e5c69dc4abab1dae5248b4890b0044b06ccd",
+    "sourceExactSha256": "849b933cfaeee75dfd91d67824f6c136b5255809da1747420e64b09a5eaad9bb"
+  },
+  "configuration": {
+    "modelId": "onnx-community/bge-m3-ONNX",
+    "revision": "25b9af8e87a38eb120cfe87125383677b9cd309e",
+    "dtype": "q8",
+    "chunkMaxTokens": 384,
+    "chunkOverlapTokens": 64,
+    "denseMaxTokens": 512,
+    "embeddingBatchSize": 32,
+    "denseIndex": "exact",
+    "repeatCount": 3
+  },
+  "tokenStatistics": {
+    "inputCount": 1096,
+    "tokenCount": 321122,
+    "paddedTokenCount": 456720,
+    "paddingRatio": 0.2968952531091259
+  },
+  "groups": {
+    "cold": {
+      "runCount": 3,
+      "meanDurationMs": 273240.20941666665,
+      "minDurationMs": 271787.678667,
+      "maxDurationMs": 275622.29220799997,
+      "standardDeviationMs": 2079.450769032572,
+      "meanPeakRssBytes": 5133768021.333333,
+      "meanEmbeddingMs": 205850.72698633332,
+      "cacheHitCount": 0,
+      "encodedInputCount": 1096,
+      "reuseRatio": 0,
+      "meanChunksPerSecond": 4.011122676050578,
+      "meanInputTokensPerSecond": 1175.2369853820378,
+      "meanEmbeddingChunksPerSecond": 5.324246438404684,
+      "meanEmbeddingInputTokensPerSecond": 1559.9750591180555
+    },
+    "reuse-0": {
+      "runCount": 3,
+      "meanDurationMs": 65679.891861,
+      "minDurationMs": 65008.087916,
+      "maxDurationMs": 66124.902583,
+      "standardDeviationMs": 591.9418253558612,
+      "meanPeakRssBytes": 1129725952,
+      "meanEmbeddingMs": 0,
+      "cacheHitCount": 1096,
+      "encodedInputCount": 0,
+      "reuseRatio": 1,
+      "relativeToCold": {
+        "speedup": 4.160180561730092,
+        "durationReductionRatio": 0.7596258178793733
+      }
+    },
+    "reuse-1": {
+      "runCount": 3,
+      "meanDurationMs": 68035.59658333333,
+      "minDurationMs": 67456.288292,
+      "maxDurationMs": 68628.586458,
+      "standardDeviationMs": 586.2688263873712,
+      "meanPeakRssBytes": 2871001088,
+      "meanEmbeddingMs": 1955.4768470000126,
+      "cacheHitCount": 1082,
+      "encodedInputCount": 14,
+      "reuseRatio": 0.9872262773722628,
+      "relativeToCold": {
+        "speedup": 4.016136010242648,
+        "durationReductionRatio": 0.7510044486915717
+      }
+    },
+    "reuse-10": {
+      "runCount": 3,
+      "meanDurationMs": 83444.451875,
+      "minDurationMs": 82836.45999999999,
+      "maxDurationMs": 83945.85391600001,
+      "standardDeviationMs": 562.3253148743819,
+      "meanPeakRssBytes": 2960195584,
+      "meanEmbeddingMs": 17259.223000333368,
+      "cacheHitCount": 982,
+      "encodedInputCount": 114,
+      "reuseRatio": 0.8959854014598541,
+      "relativeToCold": {
+        "speedup": 3.2745161994230747,
+        "durationReductionRatio": 0.6946113749028981
+      }
+    },
+    "reuse-100": {
+      "runCount": 3,
+      "meanDurationMs": 277684.25752833334,
+      "minDurationMs": 277339.004167,
+      "maxDurationMs": 277895.05920899997,
+      "standardDeviationMs": 301.4253527143403,
+      "meanPeakRssBytes": 5214005930.666667,
+      "meanEmbeddingMs": 210295.26458366663,
+      "cacheHitCount": 0,
+      "encodedInputCount": 1096,
+      "reuseRatio": 0,
+      "relativeToCold": {
+        "speedup": 0.9839960386979689,
+        "durationReductionRatio": -0.0162642537902975
+      }
+    }
+  },
+  "determinism": {
+    "unchangedExactPayloadsByteIdentical": true,
+    "retrievalMetricsIdenticalAcrossColdAndUnchangedReuseRuns": true,
+    "qualityMetrics": {
+      "recallAt1": 0.6190476190476191,
+      "recallAt5": 0.8095238095238095,
+      "recallAt10": 0.8571428571428571,
+      "recallAt20": 0.8571428571428571,
+      "recallAt100": 0.8571428571428571,
+      "mrrAt10": 0.7142857142857143,
+      "ndcgAt10": 0.7499522118010665,
+      "successAt1": 0.6190476190476191,
+      "successAt5": 0.8095238095238095,
+      "successAt10": 0.8571428571428571,
+      "successAt20": 0.8571428571428571,
+      "successAt100": 0.8571428571428571
+    }
+  },
+  "interruptionRecovery": {
+    "committedChangedVectorsBeforeInterrupt": 160,
+    "interruptedTargetPublishedManifest": false,
+    "resumeCacheHitCount": 160,
+    "resumeEncodedInputCount": 936,
+    "sourcePayloadsUnchanged": true,
+    "resumedExactPayloadMatchesUninterruptedBuild": true,
+    "resumedIndexVerified": true
+  },
+  "conclusion": {
+    "contentAddressedReusePassed": true,
+    "coldStartOptimizationAccepted": false,
+    "reason": "The retained fixed-batch cold path is stable; tested alternative batch and length-bucketing candidates did not pass quality or memory requirements."
+  },
+  "disk": {
+    "peakWorkingBytes": 14380872,
+    "finalOutputAndCacheBytes": 14341629,
+    "scope": "target index plus vector cache during one unchanged reuse build"
+  },
+  "hnswValidation": {
+    "runCount": 3,
+    "meanDurationMs": 64970.055486,
+    "meanPeakRssBytes": 1119901013.3333333,
+    "meanHnswAddMs": 62.29016566666056,
+    "meanHnswSaveMs": 7.464083333339659,
+    "qualityMetricsIdenticalToExact": true,
+    "approximationRecallAt10": [
+      1,
+      1,
+      0.9952380952380951
+    ],
+    "approximationRecallAt100": [
+      1,
+      1,
+      0.9965986394557822
+    ]
+  }
+}

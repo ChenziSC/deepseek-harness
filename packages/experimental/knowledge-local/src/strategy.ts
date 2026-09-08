@@ -8,7 +8,6 @@ import {
   type ResolvedKnowledgeRetrieval,
   type KnowledgeSearchStrategy,
 } from '@deepseek-ai/dsh-experimental-knowledge'
-import { profileTextScript, type TextScriptProfile } from './script-profile.ts'
 
 /** Provider policy used to resolve one search strategy. */
 export interface KnowledgeSearchPolicy {
@@ -24,7 +23,6 @@ export interface KnowledgeSearchPolicy {
 export interface KnowledgeSearchCapabilities {
   readonly autoDenseIndex: Exclude<KnowledgeDenseIndex, 'auto'>
   readonly availableDenseIndexes: readonly Exclude<KnowledgeDenseIndex, 'auto'>[]
-  readonly corpusScript: TextScriptProfile
 }
 
 /** Concrete retrieval plan resolved before recall candidates exist. */
@@ -46,14 +44,9 @@ function hasExactTermSignal(query: string): boolean {
     || /\b\d{6,}\b/u.test(query)
 }
 
-function routedRetrieval(query: string, corpusScript: TextScriptProfile): ResolvedKnowledgeRetrieval {
+function routedRetrieval(query: string): ResolvedKnowledgeRetrieval {
   if (hasExactTermSignal(query)) return 'bm25'
-  const queryScript = profileTextScript(query)
-  if (
-    (queryScript === 'latin' && corpusScript === 'cjk')
-    || (queryScript === 'cjk' && corpusScript === 'latin')
-  ) return 'dense'
-  return 'hybrid'
+  return 'dense'
 }
 
 function allowedRetrieval(
@@ -87,7 +80,7 @@ export function resolveKnowledgeSearchStrategy(
 ): KnowledgeSearchExecutionPlan {
   const requestedRetrieval = request?.retrieval ?? policy.defaultRetrieval
   const retrieval = requestedRetrieval === 'auto'
-    ? allowedRetrieval(routedRetrieval(query, capabilities.corpusScript), policy.allowedRetrieval)
+    ? allowedRetrieval(routedRetrieval(query), policy.allowedRetrieval)
     : requestedRetrieval
   if (!policy.allowedRetrieval.includes(retrieval)) {
     notAllowed(`Knowledge retrieval strategy ${JSON.stringify(requestedRetrieval)} is not allowed.`)

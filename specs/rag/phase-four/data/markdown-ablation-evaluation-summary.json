@@ -1,0 +1,1061 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-08",
+  "corpus": {
+    "revision": "955a9acb56acfbc9b0c7ff3760550d6819fb2f75",
+    "documentCount": 20,
+    "corpusSha256": "bc51cd297ee888b417a20965ca6c2d32d3d76a93c97066c6cdc1b3d5a2f8251e",
+    "fileManifestSha256": "0efab011ba1689e38edc82a38f516ea1442abe2daed2fe2194848ba5ca7561cc",
+    "sampleSha256": "01888585c2d2c67b182519be7d9fc329913d634362c7374d79648ba6e3d94e50",
+    "sampleCount": 25,
+    "sampleKinds": {
+      "heading": 5,
+      "section-body": 5,
+      "code-block": 5,
+      "cross-chunk": 5,
+      "duplicate-heading": 5
+    }
+  },
+  "config": {
+    "maxTokens": 128,
+    "overlapTokens": 24,
+    "analyzer": "mixed-zh-en-v1",
+    "denseIndex": "exact",
+    "embeddingBatchSize": 32,
+    "maxRankedHits": 20,
+    "contextHitLimit": 5,
+    "retrievalModes": [
+      "bm25",
+      "dense",
+      "hybrid"
+    ],
+    "rerank": "off",
+    "adjacentChunkCount": [
+      0,
+      1
+    ],
+    "denseModel": {
+      "modelId": "onnx-community/bge-m3-ONNX",
+      "revision": "25b9af8e87a38eb120cfe87125383677b9cd309e",
+      "dtype": "q8",
+      "dimensions": 1024,
+      "maxTokens": 512
+    }
+  },
+  "builds": [
+    {
+      "strategy": "token-window-v1",
+      "manifestSha256": "7335cf624f97587b7b703efd9740e31d02277f436c8800a821477333a10faf18",
+      "chunkCount": 1177,
+      "durationMs": 92898.930667,
+      "payloadBytes": 6742016,
+      "maximumResidentSetBytes": 2575400960,
+      "denseBuild": {
+        "totalInputCount": 1177,
+        "cacheHitCount": 0,
+        "encodedInputCount": 1177,
+        "reuseRatio": 0,
+        "importedVectorCount": 0,
+        "embeddingBatchCount": 37,
+        "timingsMs": {
+          "corpusStaging": 15.166167000000087,
+          "chunking": 17569.990209,
+          "sqliteFinalize": 4.106374999999389,
+          "import": 0,
+          "cacheLookup": 1.6603759999816248,
+          "embedding": 74158.336455,
+          "cacheWrite": 55.926542000051995,
+          "exactWrite": 14.902247999969404,
+          "hnswAdd": 0,
+          "hnswSave": 0,
+          "modelLoad": 928.4249999999993
+        }
+      }
+    },
+    {
+      "strategy": "markdown-structure-v1",
+      "manifestSha256": "2e1d41993665908b9bc0fd406f036d3b1ab875467ab9c4a3cf3769ae6962f151",
+      "chunkCount": 1883,
+      "durationMs": 158045.95970900002,
+      "payloadBytes": 10170368,
+      "maximumResidentSetBytes": 2803515392,
+      "denseBuild": {
+        "totalInputCount": 1883,
+        "cacheHitCount": 4,
+        "encodedInputCount": 1879,
+        "reuseRatio": 0.002124269782262347,
+        "importedVectorCount": 0,
+        "embeddingBatchCount": 59,
+        "timingsMs": {
+          "corpusStaging": 15.229084000000057,
+          "chunking": 26956.579708,
+          "sqliteFinalize": 0.7422919999989972,
+          "import": 0,
+          "cacheLookup": 4.8619979999893985,
+          "embedding": 130062.79004000004,
+          "cacheWrite": 112.6404169999987,
+          "exactWrite": 35.92862399990918,
+          "hnswAdd": 0,
+          "hnswSave": 0,
+          "modelLoad": 681.700417
+        }
+      }
+    }
+  ],
+  "evaluation": {
+    "token-window:bm25": {
+      "overall": {
+        "sampleCount": 25,
+        "mrrAt10": 0.93,
+        "ndcgAt10": 0.9477014426086524,
+        "recallAt5": 1,
+        "recallAt10": 1,
+        "recallAt20": 1,
+        "unionEvidenceCompleteRate": 0.76,
+        "singleHitContextCompleteRate": 0.68,
+        "meanReturnedTokens": 628.32,
+        "meanExactSegmentDuplicateRatio": 0,
+        "relevantSectionPathRate": 0,
+        "latencyMs": {
+          "p50": 2.227624999999989,
+          "p95": 2.7270410000000993
+        }
+      },
+      "byKind": {
+        "heading": {
+          "sampleCount": 5,
+          "mrrAt10": 0.9,
+          "ndcgAt10": 0.9261859507142916,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 602.4,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 0,
+          "latencyMs": {
+            "p50": 2.039541999999983,
+            "p95": 2.332874999999831
+          }
+        },
+        "section-body": {
+          "sampleCount": 5,
+          "mrrAt10": 0.75,
+          "ndcgAt10": 0.8123212623289702,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.6,
+          "singleHitContextCompleteRate": 0.6,
+          "meanReturnedTokens": 619.2,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 0,
+          "latencyMs": {
+            "p50": 1.7058749999998781,
+            "p95": 2.355291999999963
+          }
+        },
+        "code-block": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.8,
+          "singleHitContextCompleteRate": 0.8,
+          "meanReturnedTokens": 640,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 0,
+          "latencyMs": {
+            "p50": 1.8107500000000982,
+            "p95": 2.2740420000000086
+          }
+        },
+        "cross-chunk": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.4,
+          "singleHitContextCompleteRate": 0,
+          "meanReturnedTokens": 640,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 0,
+          "latencyMs": {
+            "p50": 2.4001670000000104,
+            "p95": 2.5639169999999467
+          }
+        },
+        "duplicate-heading": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 640,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 0,
+          "latencyMs": {
+            "p50": 2.7183329999998023,
+            "p95": 2.807125000000269
+          }
+        }
+      }
+    },
+    "token-window:dense": {
+      "overall": {
+        "sampleCount": 25,
+        "mrrAt10": 0.98,
+        "ndcgAt10": 0.9852371901428583,
+        "recallAt5": 1,
+        "recallAt10": 1,
+        "recallAt20": 1,
+        "unionEvidenceCompleteRate": 0.88,
+        "singleHitContextCompleteRate": 0.72,
+        "meanReturnedTokens": 620.8,
+        "meanExactSegmentDuplicateRatio": 0,
+        "relevantSectionPathRate": 0,
+        "latencyMs": {
+          "p50": 13.283542000000125,
+          "p95": 14.490917000000081
+        }
+      },
+      "byKind": {
+        "heading": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 619.2,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 0,
+          "latencyMs": {
+            "p50": 13.768624999999702,
+            "p95": 15.20462499999985
+          }
+        },
+        "section-body": {
+          "sampleCount": 5,
+          "mrrAt10": 0.9,
+          "ndcgAt10": 0.9261859507142916,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 619.2,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 0,
+          "latencyMs": {
+            "p50": 12.854624999999942,
+            "p95": 14.490917000000081
+          }
+        },
+        "code-block": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.6,
+          "singleHitContextCompleteRate": 0.6,
+          "meanReturnedTokens": 640,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 0,
+          "latencyMs": {
+            "p50": 12.511625000000095,
+            "p95": 14.108834000000115
+          }
+        },
+        "cross-chunk": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.8,
+          "singleHitContextCompleteRate": 0,
+          "meanReturnedTokens": 640,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 0,
+          "latencyMs": {
+            "p50": 13.652208999999857,
+            "p95": 14.200791000000208
+          }
+        },
+        "duplicate-heading": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 585.6,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 0,
+          "latencyMs": {
+            "p50": 13.283542000000125,
+            "p95": 13.750499999999647
+          }
+        }
+      }
+    },
+    "token-window:hybrid": {
+      "overall": {
+        "sampleCount": 25,
+        "mrrAt10": 1,
+        "ndcgAt10": 1,
+        "recallAt5": 1,
+        "recallAt10": 1,
+        "recallAt20": 1,
+        "unionEvidenceCompleteRate": 0.92,
+        "singleHitContextCompleteRate": 0.76,
+        "meanReturnedTokens": 631.28,
+        "meanExactSegmentDuplicateRatio": 0,
+        "relevantSectionPathRate": 0,
+        "latencyMs": {
+          "p50": 15.134167000000161,
+          "p95": 18.4175409999998
+        }
+      },
+      "byKind": {
+        "heading": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 617.2,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 0,
+          "latencyMs": {
+            "p50": 14.833749999999782,
+            "p95": 15.608791999999994
+          }
+        },
+        "section-body": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 619.2,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 0,
+          "latencyMs": {
+            "p50": 14.655375000000276,
+            "p95": 15.09649999999965
+          }
+        },
+        "code-block": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.8,
+          "singleHitContextCompleteRate": 0.8,
+          "meanReturnedTokens": 640,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 0,
+          "latencyMs": {
+            "p50": 14.049459000000752,
+            "p95": 16.132915999999568
+          }
+        },
+        "cross-chunk": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.8,
+          "singleHitContextCompleteRate": 0,
+          "meanReturnedTokens": 640,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 0,
+          "latencyMs": {
+            "p50": 16.536542000000736,
+            "p95": 32.094333000000006
+          }
+        },
+        "duplicate-heading": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 640,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 0,
+          "latencyMs": {
+            "p50": 16.880084000000352,
+            "p95": 17.96179200000006
+          }
+        }
+      }
+    },
+    "markdown:bm25": {
+      "overall": {
+        "sampleCount": 25,
+        "mrrAt10": 0.96,
+        "ndcgAt10": 0.9704743802857166,
+        "recallAt5": 1,
+        "recallAt10": 1,
+        "recallAt20": 1,
+        "unionEvidenceCompleteRate": 0.84,
+        "singleHitContextCompleteRate": 0.72,
+        "meanReturnedTokens": 393.88,
+        "meanExactSegmentDuplicateRatio": 0,
+        "relevantSectionPathRate": 1,
+        "latencyMs": {
+          "p50": 2.675333000000137,
+          "p95": 3.322457999999642
+        }
+      },
+      "byKind": {
+        "heading": {
+          "sampleCount": 5,
+          "mrrAt10": 0.9,
+          "ndcgAt10": 0.9261859507142916,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 393.6,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 2.3707079999994676,
+            "p95": 3.2755000000006476
+          }
+        },
+        "section-body": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 412.6,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 1.9735839999993914,
+            "p95": 3.0518749999991996
+          }
+        },
+        "code-block": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.8,
+          "singleHitContextCompleteRate": 0.8,
+          "meanReturnedTokens": 359.4,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 2.57549999999992,
+            "p95": 2.9885000000003856
+          }
+        },
+        "cross-chunk": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.6,
+          "singleHitContextCompleteRate": 0,
+          "meanReturnedTokens": 460.2,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 2.930000000000291,
+            "p95": 3.0670000000000073
+          }
+        },
+        "duplicate-heading": {
+          "sampleCount": 5,
+          "mrrAt10": 0.9,
+          "ndcgAt10": 0.9261859507142916,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.8,
+          "singleHitContextCompleteRate": 0.8,
+          "meanReturnedTokens": 343.6,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 3.136250000000473,
+            "p95": 3.425290999999561
+          }
+        }
+      }
+    },
+    "markdown:dense": {
+      "overall": {
+        "sampleCount": 25,
+        "mrrAt10": 0.96,
+        "ndcgAt10": 0.9704743802857166,
+        "recallAt5": 1,
+        "recallAt10": 1,
+        "recallAt20": 1,
+        "unionEvidenceCompleteRate": 0.88,
+        "singleHitContextCompleteRate": 0.72,
+        "meanReturnedTokens": 442.2,
+        "meanExactSegmentDuplicateRatio": 0,
+        "relevantSectionPathRate": 1,
+        "latencyMs": {
+          "p50": 14.497457999999824,
+          "p95": 16.861457999999402
+        }
+      },
+      "byKind": {
+        "heading": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 369.6,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 14.124708000000282,
+            "p95": 14.497457999999824
+          }
+        },
+        "section-body": {
+          "sampleCount": 5,
+          "mrrAt10": 0.9,
+          "ndcgAt10": 0.9261859507142916,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 501.6,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 14.392124999999396,
+            "p95": 15.693083000000115
+          }
+        },
+        "code-block": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.6,
+          "singleHitContextCompleteRate": 0.6,
+          "meanReturnedTokens": 418.6,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 14.331708000000617,
+            "p95": 34.52266700000018
+          }
+        },
+        "cross-chunk": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.8,
+          "singleHitContextCompleteRate": 0,
+          "meanReturnedTokens": 494.4,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 15.909165999999459,
+            "p95": 16.861457999999402
+          }
+        },
+        "duplicate-heading": {
+          "sampleCount": 5,
+          "mrrAt10": 0.9,
+          "ndcgAt10": 0.9261859507142916,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 426.8,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 15.105332999999519,
+            "p95": 15.624125000000276
+          }
+        }
+      }
+    },
+    "markdown:hybrid": {
+      "overall": {
+        "sampleCount": 25,
+        "mrrAt10": 0.98,
+        "ndcgAt10": 0.9852371901428583,
+        "recallAt5": 1,
+        "recallAt10": 1,
+        "recallAt20": 1,
+        "unionEvidenceCompleteRate": 0.92,
+        "singleHitContextCompleteRate": 0.76,
+        "meanReturnedTokens": 431.32,
+        "meanExactSegmentDuplicateRatio": 0,
+        "relevantSectionPathRate": 1,
+        "latencyMs": {
+          "p50": 17.79345900000044,
+          "p95": 19.755333999999493
+        }
+      },
+      "byKind": {
+        "heading": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 409.6,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 17.589874999999665,
+            "p95": 18.49499999999989
+          }
+        },
+        "section-body": {
+          "sampleCount": 5,
+          "mrrAt10": 0.9,
+          "ndcgAt10": 0.9261859507142916,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 464.4,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 16.906208000000333,
+            "p95": 17.803208000000268
+          }
+        },
+        "code-block": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.8,
+          "singleHitContextCompleteRate": 0.8,
+          "meanReturnedTokens": 421,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 17.709791999999652,
+            "p95": 20.607084000000214
+          }
+        },
+        "cross-chunk": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.8,
+          "singleHitContextCompleteRate": 0,
+          "meanReturnedTokens": 474.8,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 18.89533300000039,
+            "p95": 19.755333999999493
+          }
+        },
+        "duplicate-heading": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 386.8,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 17.79345900000044,
+            "p95": 18.682792000000518
+          }
+        }
+      }
+    },
+    "markdown-adjacent:bm25": {
+      "overall": {
+        "sampleCount": 25,
+        "mrrAt10": 0.96,
+        "ndcgAt10": 0.9704743802857166,
+        "recallAt5": 1,
+        "recallAt10": 1,
+        "recallAt20": 1,
+        "unionEvidenceCompleteRate": 0.92,
+        "singleHitContextCompleteRate": 0.8,
+        "meanReturnedTokens": 753.76,
+        "meanExactSegmentDuplicateRatio": 0.0005136436597110761,
+        "relevantSectionPathRate": 1,
+        "latencyMs": {
+          "p50": 3.0871659999993426,
+          "p95": 3.7209170000005543
+        }
+      },
+      "byKind": {
+        "heading": {
+          "sampleCount": 5,
+          "mrrAt10": 0.9,
+          "ndcgAt10": 0.9261859507142916,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 717,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 2.5257910000000265,
+            "p95": 3.265292000000045
+          }
+        },
+        "section-body": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 859,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 2.1685000000006767,
+            "p95": 3.0977079999993293
+          }
+        },
+        "code-block": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.8,
+          "singleHitContextCompleteRate": 0.8,
+          "meanReturnedTokens": 643.8,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 2.569916999999805,
+            "p95": 3.0892919999996593
+          }
+        },
+        "cross-chunk": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 0.4,
+          "meanReturnedTokens": 872.2,
+          "meanExactSegmentDuplicateRatio": 0.0025682182985553802,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 3.2168749999991633,
+            "p95": 4.06775000000016
+          }
+        },
+        "duplicate-heading": {
+          "sampleCount": 5,
+          "mrrAt10": 0.9,
+          "ndcgAt10": 0.9261859507142916,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.8,
+          "singleHitContextCompleteRate": 0.8,
+          "meanReturnedTokens": 676.8,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 3.2618750000001455,
+            "p95": 3.7209170000005543
+          }
+        }
+      }
+    },
+    "markdown-adjacent:dense": {
+      "overall": {
+        "sampleCount": 25,
+        "mrrAt10": 0.96,
+        "ndcgAt10": 0.9704743802857166,
+        "recallAt5": 1,
+        "recallAt10": 1,
+        "recallAt20": 1,
+        "unionEvidenceCompleteRate": 0.88,
+        "singleHitContextCompleteRate": 0.76,
+        "meanReturnedTokens": 747.76,
+        "meanExactSegmentDuplicateRatio": 0,
+        "relevantSectionPathRate": 1,
+        "latencyMs": {
+          "p50": 14.876541999999972,
+          "p95": 16.84625000000051
+        }
+      },
+      "byKind": {
+        "heading": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 623.4,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 14.557416999999987,
+            "p95": 14.652416999999332
+          }
+        },
+        "section-body": {
+          "sampleCount": 5,
+          "mrrAt10": 0.9,
+          "ndcgAt10": 0.9261859507142916,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 919.4,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 14.377417000001515,
+            "p95": 16.804916000000958
+          }
+        },
+        "code-block": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.6,
+          "singleHitContextCompleteRate": 0.6,
+          "meanReturnedTokens": 694.8,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 15.697333000000071,
+            "p95": 36.67420800000036
+          }
+        },
+        "cross-chunk": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.8,
+          "singleHitContextCompleteRate": 0.2,
+          "meanReturnedTokens": 847.4,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 15.905167000000802,
+            "p95": 16.84625000000051
+          }
+        },
+        "duplicate-heading": {
+          "sampleCount": 5,
+          "mrrAt10": 0.9,
+          "ndcgAt10": 0.9261859507142916,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 653.8,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 15.297207999999955,
+            "p95": 15.699624999999287
+          }
+        }
+      }
+    },
+    "markdown-adjacent:hybrid": {
+      "overall": {
+        "sampleCount": 25,
+        "mrrAt10": 0.98,
+        "ndcgAt10": 0.9852371901428583,
+        "recallAt5": 1,
+        "recallAt10": 1,
+        "recallAt20": 1,
+        "unionEvidenceCompleteRate": 0.96,
+        "singleHitContextCompleteRate": 0.8,
+        "meanReturnedTokens": 741.44,
+        "meanExactSegmentDuplicateRatio": 0.0006430006697923662,
+        "relevantSectionPathRate": 1,
+        "latencyMs": {
+          "p50": 17.309917000000496,
+          "p95": 19.221207999999024
+        }
+      },
+      "byKind": {
+        "heading": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 656,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 17.295208000001367,
+            "p95": 19.456207999999606
+          }
+        },
+        "section-body": {
+          "sampleCount": 5,
+          "mrrAt10": 0.9,
+          "ndcgAt10": 0.9261859507142916,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 855.2,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 17.15504200000032,
+            "p95": 17.40283400000044
+          }
+        },
+        "code-block": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 793.8,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 16.939957999999024,
+            "p95": 18.27074999999968
+          }
+        },
+        "cross-chunk": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 0.8,
+          "singleHitContextCompleteRate": 0,
+          "meanReturnedTokens": 766.8,
+          "meanExactSegmentDuplicateRatio": 0,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 18.681916999999885,
+            "p95": 19.221207999999024
+          }
+        },
+        "duplicate-heading": {
+          "sampleCount": 5,
+          "mrrAt10": 1,
+          "ndcgAt10": 1,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "recallAt20": 1,
+          "unionEvidenceCompleteRate": 1,
+          "singleHitContextCompleteRate": 1,
+          "meanReturnedTokens": 635.4,
+          "meanExactSegmentDuplicateRatio": 0.0032150033489618314,
+          "relevantSectionPathRate": 1,
+          "latencyMs": {
+            "p50": 18.161792000000787,
+            "p95": 18.911207999999533
+          }
+        }
+      }
+    }
+  }
+}

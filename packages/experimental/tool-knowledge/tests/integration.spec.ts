@@ -1,6 +1,10 @@
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
-import Knowledge, { type KnowledgeSearchResult } from '@deepseek-ai/dsh-experimental-knowledge'
+import Knowledge, {
+  KnowledgeChunkId,
+  KnowledgeDocumentId,
+  type KnowledgeSearchResult,
+} from '@deepseek-ai/dsh-experimental-knowledge'
 import { LocalKnowledge } from '@deepseek-ai/dsh-experimental-knowledge-local'
 import { CallId } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
@@ -175,6 +179,7 @@ describe('BM25 knowledge tool chain', () => {
     expect(firstContent?.type).toBe('text')
     if (firstContent?.type !== 'text') throw new TypeError('expected text tool content')
     expect(firstContent.text).toContain('Document: photosynthesis')
+    expect(firstContent.text).toContain('[K1]')
 
     const second = await execute('knowledge-turn-1-b', 'energy needed to power a cell')
     expect(second?.isError).toBe(false)
@@ -182,6 +187,7 @@ describe('BM25 knowledge tool chain', () => {
     expect(secondContent?.type).toBe('text')
     if (secondContent?.type !== 'text') throw new TypeError('expected text tool content')
     expect(secondContent.text).toContain('Document: mitochondria')
+    expect(secondContent.text).toContain('[K2]')
     await expect(execute('knowledge-turn-1-c', 'third evidence')).resolves.toMatchObject({ isError: true })
     const limited = await execute('knowledge-turn-1-c', 'third evidence')
     const limitedContent = limited?.content[0]
@@ -190,7 +196,12 @@ describe('BM25 knowledge tool chain', () => {
     expect(limitedContent.text).toContain('limited to 2 searches')
 
     events.push({ type: 'turn/end', data: { turn: 1 } }, { type: 'turn/start', data: { turn: 2 } })
-    await expect(execute('knowledge-turn-2-a', 'photosynthesis')).resolves.toMatchObject({ isError: false })
+    const nextTurn = await execute('knowledge-turn-2-a', 'photosynthesis')
+    expect(nextTurn?.isError).toBe(false)
+    const nextTurnContent = nextTurn?.content[0]
+    expect(nextTurnContent?.type).toBe('text')
+    if (nextTurnContent?.type !== 'text') throw new TypeError('expected text tool content')
+    expect(nextTurnContent.text).toContain('[K1]')
 
     const endedAgent = { session: { events: [{ type: 'turn/end', data: { turn: 2 } }] } } as never
     const ended = await context.tools.execute({
@@ -223,14 +234,22 @@ describe('BM25 knowledge tool chain', () => {
 
   it('reserves concurrent slots before provider completion and counts provider failures', async () => {
     const completions: Array<() => void> = []
-    let fail = false
+    let failuresRemaining = 0
     class ControlledKnowledge extends Knowledge {
       search(): Promise<KnowledgeSearchResult> {
-        if (fail) return Promise.reject(new Error('fixture provider failure'))
+        if (failuresRemaining > 0) {
+          failuresRemaining -= 1
+          return Promise.reject(new Error('fixture provider failure'))
+        }
         return new Promise((resolve) => {
           completions.push(() => {
             resolve({
-              hits: [],
+              hits: [{
+                documentId: KnowledgeDocumentId('controlled'),
+                chunkId: KnowledgeChunkId('controlled:0-1'),
+                text: 'controlled evidence',
+                score: 1,
+              }],
               strategy: { retrieval: 'bm25', rerank: false },
             })
           })
@@ -265,9 +284,15 @@ describe('BM25 knowledge tool chain', () => {
     for (const complete of completions) complete()
     const completed = await Promise.all([first, second])
     expect(completed.map(result => result?.isError)).toEqual([false, false])
+    const citations = completed.map((result) => {
+      const content = result?.content[0]
+      if (content?.type !== 'text') throw new TypeError('expected text tool content')
+      return content.text.match(/\[K\d+\]/)?.[0]
+    })
+    expect(citations).toEqual(['[K1]', '[K6]'])
 
     events.push({ type: 'turn/end', data: { turn: 1 } }, { type: 'turn/start', data: { turn: 2 } })
-    fail = true
+    failuresRemaining = 2
     await expect(execute('knowledge-failure-a')).resolves.toMatchObject({ isError: true })
     await expect(execute('knowledge-failure-b')).resolves.toMatchObject({ isError: true })
     const failureLimited = await execute('knowledge-failure-c')
@@ -276,5 +301,18 @@ describe('BM25 knowledge tool chain', () => {
     expect(failureLimitedContent?.type).toBe('text')
     if (failureLimitedContent?.type !== 'text') throw new TypeError('expected text tool content')
     expect(failureLimitedContent.text).toContain('limited to 2 searches')
+
+    events.push({ type: 'turn/end', data: { turn: 2 } }, { type: 'turn/start', data: { turn: 3 } })
+    failuresRemaining = 1
+    await expect(execute('knowledge-reserved-failure-a')).resolves.toMatchObject({ isError: true })
+    const afterFailure = execute('knowledge-reserved-failure-b')
+    await Promise.resolve()
+    expect(completions).toHaveLength(3)
+    completions[2]!()
+    const afterFailureResult = await afterFailure
+    const afterFailureContent = afterFailureResult?.content[0]
+    expect(afterFailureContent?.type).toBe('text')
+    if (afterFailureContent?.type !== 'text') throw new TypeError('expected text tool content')
+    expect(afterFailureContent.text).toContain('[K6]')
   })
 })

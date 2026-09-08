@@ -88,8 +88,8 @@ export type {
   Bm25TermContribution,
   KnowledgeBm25Analyzer,
 } from './bm25.ts'
-export { chunkDocuments } from './chunker.ts'
-export type { ChunkRecord, ChunkingOptions } from './chunker.ts'
+export { chunkDocuments, DEFAULT_CHUNKING_STRATEGY } from './chunker.ts'
+export type { ChunkRecord, ChunkingOptions, ChunkingStrategy } from './chunker.ts'
 export { resolveConfig } from './config.ts'
 export {
   DEFAULT_ALLOWED_DENSE_INDEXES,
@@ -139,6 +139,9 @@ export type {
   EvaluationMode,
   EvaluationProvider,
   EvaluationProviderFactory,
+  EvaluationQueryDetail,
+  EvaluationQueryDetailSink,
+  EvaluationRankedDocument,
   EvaluationReport,
   EvaluationRun,
   EvaluateDatasetOptions,
@@ -170,6 +173,7 @@ export type {
   DenseIndexBuildPlan,
   DenseIndexMode,
   DenseIndexRequest,
+  DenseVectorBuildStats,
 } from './index-builder.ts'
 export {
   buildT2RankingBenchmarkSlices,
@@ -207,6 +211,14 @@ export { resolveKnowledgeSearchStrategy } from './strategy.ts'
 export type { KnowledgeSearchCapabilities, KnowledgeSearchExecutionPlan, KnowledgeSearchPolicy } from './strategy.ts'
 export { countTextScripts, profileTextScript, resolveTextScriptProfile } from './script-profile.ts'
 export type { TextScriptCounts, TextScriptProfile } from './script-profile.ts'
+export {
+  DENSE_ENCODING_IMPLEMENTATION_VERSION,
+  denseVectorCacheKey,
+  denseVectorConfigSha256,
+  DenseVectorCache,
+  VECTOR_CACHE_FILE,
+} from './vector-cache.ts'
+export type { DenseVectorCacheConfig, DenseVectorCacheEntry } from './vector-cache.ts'
 export {
   extractSciFactArchive,
   downloadDatasetFile,

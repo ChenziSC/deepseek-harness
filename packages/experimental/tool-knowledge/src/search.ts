@@ -102,6 +102,7 @@ function evidenceFromHit(hit: KnowledgeHit, citation: string, hitMaxChars: numbe
  * @param hitMaxChars - maximum rendered Unicode code points per evidence item.
  * @param outputMaxChars - maximum rendered Unicode code points for the complete result.
  * @param strategy - resolved retrieval strategy reported with the evidence.
+ * @param citationStart - first numeric citation identifier assigned to retained evidence.
  * @returns evidence that fits both limits plus a truncation indicator.
  */
 export function collectKnowledgeResult(
@@ -109,11 +110,12 @@ export function collectKnowledgeResult(
   hitMaxChars: number,
   outputMaxChars: number,
   strategy: ResolvedKnowledgeSearchStrategy,
+  citationStart = 1,
 ): KnowledgeToolResult {
   const evidence: KnowledgeEvidence[] = []
   let truncated = false
   for (const hit of hits) {
-    const projected = evidenceFromHit(hit, `K${evidence.length + 1}`, hitMaxChars)
+    const projected = evidenceFromHit(hit, `K${citationStart + evidence.length}`, hitMaxChars)
     if (projected.evidence === undefined) {
       truncated = true
       continue

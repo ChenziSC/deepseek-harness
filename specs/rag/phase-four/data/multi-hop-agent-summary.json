@@ -1,0 +1,2693 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-07",
+  "track": "real-loader-agent",
+  "sampleSha256": "b9b6d598ed6da219dbf1d84457e3c2539c009b9f846f8f63b855d319a86dcf00",
+  "rawResultsSha256": "919a6427bb0a67e8508f2a7f3c1c60830fb61d32a797e5df8dd86aa8dcf0b1e2",
+  "configuration": {
+    "model": "deepseek-v4-flash",
+    "retrieval": "auto",
+    "rerank": "off",
+    "denseIndex": "exact",
+    "candidateCount": 50,
+    "maxResults": 10,
+    "maxSearchesPerTurn": 2
+  },
+  "metrics": {
+    "sampleCount": 100,
+    "successfulTurns": 100,
+    "twoSuccessfulSearches": 100,
+    "secondRoundMarginalHitCount": 95,
+    "secondRoundMarginalHitRate": 0.95,
+    "meanSecondRoundDuplicateRatio": 0.0,
+    "highDuplicateSecondRoundCount": 0,
+    "thirdSearchAttemptCount": 29,
+    "thirdSearchRejectedCount": 29,
+    "thirdSearchRejectionRate": 1.0,
+    "turnWallMs": {
+      "p50": 19307.260583000018,
+      "p95": 48350.42874999999,
+      "mean": 23129.236462120003
+    },
+    "usage": {
+      "inputTokens": {
+        "total": 785890,
+        "p50": 7741,
+        "p95": 10833
+      },
+      "outputTokens": {
+        "total": 224845,
+        "p50": 1749,
+        "p95": 5272
+      },
+      "cacheReadTokens": {
+        "total": 1153280,
+        "p50": 7680,
+        "p95": 22400
+      },
+      "cacheWriteTokens": {
+        "total": 0,
+        "p50": 0,
+        "p95": 0
+      },
+      "reasoningTokens": {
+        "total": 145959,
+        "p50": 1062,
+        "p95": 4319
+      }
+    },
+    "deterministicUpperBoundAtSameMaxResults": 0.88,
+    "firstSearchCompleteEvidenceCount": 0,
+    "firstSearchCompleteEvidenceRate": 0.0,
+    "afterTwoSearchesCompleteEvidenceCount": 87,
+    "afterTwoSearchesCompleteEvidenceRate": 0.87,
+    "constructedCoverageDifference": 0.87
+  },
+  "citationAssessment": {
+    "outputsWithKReferences": 99,
+    "outputsWithExplicitDocumentIds": 27,
+    "outputsWithInvalidKReferenceNumber": 1,
+    "status": "ambiguous",
+    "reason": "K identifiers restart at K1 for each search, so references spanning two calls cannot be mapped unambiguously to document IDs."
+  },
+  "incompleteSamples": [
+    "multi-hop-006",
+    "multi-hop-022",
+    "multi-hop-024",
+    "multi-hop-026",
+    "multi-hop-031",
+    "multi-hop-044",
+    "multi-hop-056",
+    "multi-hop-059",
+    "multi-hop-060",
+    "multi-hop-074",
+    "multi-hop-076",
+    "multi-hop-081",
+    "multi-hop-094"
+  ],
+  "samples": [
+    {
+      "id": "multi-hop-001",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 19023.624125,
+      "usage": {
+        "inputTokens": 6355,
+        "outputTokens": 1569,
+        "cacheReadTokens": 7808,
+        "reasoningTokens": 741
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "蜂巢快递柜取件验证码输入错误怎么办",
+        "杜仲泡水喝的功效与作用"
+      ]
+    },
+    {
+      "id": "multi-hop-002",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 26971.26475,
+      "usage": {
+        "inputTokens": 12333,
+        "outputTokens": 2221,
+        "cacheReadTokens": 3968,
+        "reasoningTokens": 1335
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "生产过后肚子还有一层肚皮 产后腹部赘肉 原因",
+        "金庸群侠传x 如来神掌 怎么获得"
+      ]
+    },
+    {
+      "id": "multi-hop-003",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 23307.721583000002,
+      "usage": {
+        "inputTokens": 7451,
+        "outputTokens": 1531,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 645
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": true,
+      "generatedQueries": [
+        "大学网上选宿舍流程 操作步骤",
+        "红色教育内容 开展形式 主题"
+      ]
+    },
+    {
+      "id": "multi-hop-004",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 25368.886791999998,
+      "usage": {
+        "inputTokens": 7388,
+        "outputTokens": 1809,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1009
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "怎么判断鱼卵是否活着 鱼卵受精 死卵 孵化",
+        "圣恩浮岛漂浮湿地 效果 怎么样 好用吗"
+      ]
+    },
+    {
+      "id": "multi-hop-005",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 37506.769624999986,
+      "usage": {
+        "inputTokens": 6690,
+        "outputTokens": 2928,
+        "cacheReadTokens": 18432,
+        "reasoningTokens": 2068
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "胆碱的作用与重要性 缺乏的危害 食物来源",
+        "乐美雅 Luminarc 青苹果 玻璃杯 餐具 对比 哪个好"
+      ]
+    },
+    {
+      "id": "multi-hop-006",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": false,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 58535.63062500001,
+      "usage": {
+        "inputTokens": 9041,
+        "outputTokens": 5272,
+        "cacheReadTokens": 10752,
+        "reasoningTokens": 4688
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "肋弓由第7至10对肋骨依次连接而成，是否正确？肋弓的构成",
+        "女生做瓷砖销售好不好，瓷砖销售工作前景怎么样"
+      ]
+    },
+    {
+      "id": "multi-hop-007",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 47192.48320900002,
+      "usage": {
+        "inputTokens": 8600,
+        "outputTokens": 4678,
+        "cacheReadTokens": 21120,
+        "reasoningTokens": 3657
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "霸天虎人物介绍 变形金刚 人物",
+        "维族 能歌善舞 又称什么族 维吾尔族"
+      ]
+    },
+    {
+      "id": "multi-hop-008",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 44833.54458300002,
+      "usage": {
+        "inputTokens": 7772,
+        "outputTokens": 3857,
+        "cacheReadTokens": 20224,
+        "reasoningTokens": 3227
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "专升本专业可以选中专吗",
+        "雪中悍刀行 卢升象是谁 人物介绍"
+      ]
+    },
+    {
+      "id": "multi-hop-009",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 21177.19391700001,
+      "usage": {
+        "inputTokens": 9562,
+        "outputTokens": 1589,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 928
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "中国进口鳕鱼主要来自哪些国家",
+        "游戏主播七喵是男是女 性别"
+      ]
+    },
+    {
+      "id": "multi-hop-010",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 50637.46162500001,
+      "usage": {
+        "inputTokens": 6205,
+        "outputTokens": 5418,
+        "cacheReadTokens": 17792,
+        "reasoningTokens": 4571
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "桂苓片的功效与作用",
+        "精灵宝可梦和神奇宝贝的关系"
+      ]
+    },
+    {
+      "id": "multi-hop-011",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 21108.329416999994,
+      "usage": {
+        "inputTokens": 7582,
+        "outputTokens": 1719,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1154
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "腾讯体育 美娜姐姐 简介",
+        "阿弥陀佛 往生 哪里 西方极乐世界"
+      ]
+    },
+    {
+      "id": "multi-hop-012",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 16698.280874999968,
+      "usage": {
+        "inputTokens": 5879,
+        "outputTokens": 1098,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 617
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "龙视安 网络枪 摄像头 亮灯 无信号 解决方法",
+        "司鱼 怎么样 评价"
+      ]
+    },
+    {
+      "id": "multi-hop-013",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 34198.71708400001,
+      "usage": {
+        "inputTokens": 5943,
+        "outputTokens": 3364,
+        "cacheReadTokens": 18304,
+        "reasoningTokens": 2754
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "中国龙打一数字 谜语",
+        "怀孕38天要去医院检查吗 孕早期检查"
+      ]
+    },
+    {
+      "id": "multi-hop-014",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 34812.44641699999,
+      "usage": {
+        "inputTokens": 9407,
+        "outputTokens": 3188,
+        "cacheReadTokens": 22016,
+        "reasoningTokens": 2136
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "长条气球怎么做爱心 教程",
+        "改变乐平的历史名人"
+      ]
+    },
+    {
+      "id": "multi-hop-015",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 24697.407666999992,
+      "usage": {
+        "inputTokens": 6726,
+        "outputTokens": 2270,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1573
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "西安发源地的卡没用完",
+        "胸口痛什么原因"
+      ]
+    },
+    {
+      "id": "multi-hop-016",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 40631.455665999965,
+      "usage": {
+        "inputTokens": 8155,
+        "outputTokens": 4190,
+        "cacheReadTokens": 22528,
+        "reasoningTokens": 3495
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "二氧化硫 SO2 能否使pH试纸褪色",
+        "灵剑尊 水流香 嫁给谁 结局"
+      ]
+    },
+    {
+      "id": "multi-hop-017",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 17304.549457999998,
+      "usage": {
+        "inputTokens": 6081,
+        "outputTokens": 1345,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 713
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "妈妈倒车时不慎撞死自己的孩子 刑事责任 过失致人死亡",
+        "协和丰胸霜 怎么样 效果 评价"
+      ]
+    },
+    {
+      "id": "multi-hop-018",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 11000.247792000097,
+      "usage": {
+        "inputTokens": 6320,
+        "outputTokens": 926,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 495
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "不破楼兰终不还 出自哪首古诗 王昌龄 从军行",
+        "皮蛋 寒性 食物 性质 中医 凉性还是寒性"
+      ]
+    },
+    {
+      "id": "multi-hop-019",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 44937.58875000003,
+      "usage": {
+        "inputTokens": 8573,
+        "outputTokens": 4907,
+        "cacheReadTokens": 22272,
+        "reasoningTokens": 4141
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "亚洲四大神器是什么",
+        "介绍家人工作的英语短篇作文"
+      ]
+    },
+    {
+      "id": "multi-hop-020",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 18264.066666999952,
+      "usage": {
+        "inputTokens": 8715,
+        "outputTokens": 1723,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 885
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "东北名酒 白酒排行榜",
+        "淘宝 迷你摄像头 可以使用吗"
+      ]
+    },
+    {
+      "id": "multi-hop-021",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 11304.635332999966,
+      "usage": {
+        "inputTokens": 6916,
+        "outputTokens": 917,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 291
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "学生会女生部简介",
+        "精神病一级 每月补贴"
+      ]
+    },
+    {
+      "id": "multi-hop-022",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": false,
+      "secondRoundMarginalHit": false,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 22087.575124999945,
+      "usage": {
+        "inputTokens": 7418,
+        "outputTokens": 2347,
+        "cacheReadTokens": 19840,
+        "reasoningTokens": 1670
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "重庆 渝州 改称 重庆 时间 历史",
+        "pmg 评级 纸币 潮斑"
+      ]
+    },
+    {
+      "id": "multi-hop-023",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 19092.218333000004,
+      "usage": {
+        "inputTokens": 8938,
+        "outputTokens": 1749,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1124
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "强行亲吻他人犯法吗 强制猥亵 侮辱罪 刑法 法律规定",
+        "全国胰腺癌专家前十名 权威专家推荐"
+      ]
+    },
+    {
+      "id": "multi-hop-024",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": false,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 28912.593541999966,
+      "usage": {
+        "inputTokens": 8244,
+        "outputTokens": 2794,
+        "cacheReadTokens": 20608,
+        "reasoningTokens": 1707
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "清洁生产的企业发展观",
+        "不同的路由打开不同网页会卡 卡顿问题"
+      ]
+    },
+    {
+      "id": "multi-hop-025",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 20615.640125000027,
+      "usage": {
+        "inputTokens": 6763,
+        "outputTokens": 1917,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1172
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "微信象棋闯关攻略大全",
+        "深蹲哄睡的原理"
+      ]
+    },
+    {
+      "id": "multi-hop-026",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": false,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 29024.45133399999,
+      "usage": {
+        "inputTokens": 7835,
+        "outputTokens": 3227,
+        "cacheReadTokens": 20096,
+        "reasoningTokens": 2425
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "自助餐最贵的酒水",
+        "氮的氧化物 种类 性质"
+      ]
+    },
+    {
+      "id": "multi-hop-027",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 20588.372375000064,
+      "usage": {
+        "inputTokens": 6653,
+        "outputTokens": 1950,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 704
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "小白萝卜腌制方法大全 腌萝卜做法",
+        "月有阴晴圆缺 意义 含义 人有悲欢离合"
+      ]
+    },
+    {
+      "id": "multi-hop-028",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 13593.668541000057,
+      "usage": {
+        "inputTokens": 5622,
+        "outputTokens": 1230,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 628
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "中国自主研发的显卡",
+        "短途飞机有免费吃的吗"
+      ]
+    },
+    {
+      "id": "multi-hop-029",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 14329.417000000034,
+      "usage": {
+        "inputTokens": 9783,
+        "outputTokens": 1246,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 691
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "联通5g套餐99元包含多少流量",
+        "排列三直选定位公式 玩法技巧"
+      ]
+    },
+    {
+      "id": "multi-hop-030",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 18317.86195900008,
+      "usage": {
+        "inputTokens": 8090,
+        "outputTokens": 1903,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1303
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "2021年广东省人身损害赔偿金计算标准 城镇居民人均可支配收入",
+        "华为 日本 员工 人数 日本人"
+      ]
+    },
+    {
+      "id": "multi-hop-031",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": false,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 11314.998124999987,
+      "usage": {
+        "inputTokens": 10070,
+        "outputTokens": 1004,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 603
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "联合国军 朝鲜战争 死亡人数",
+        "4008888518 电话"
+      ]
+    },
+    {
+      "id": "multi-hop-032",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 15667.710666999938,
+      "usage": {
+        "inputTokens": 3781,
+        "outputTokens": 1365,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 495
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "飘带领衬衫的缝制方法 飘带 领子 缝制工艺",
+        "一个鼻子长期不通气 单侧鼻塞 原因 鼻中隔偏曲"
+      ]
+    },
+    {
+      "id": "multi-hop-033",
+      "status": "success",
+      "attemptedSearches": 4,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 57221.82641699999,
+      "usage": {
+        "inputTokens": 13314,
+        "outputTokens": 7685,
+        "cacheReadTokens": 22400,
+        "reasoningTokens": 5460
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "中餐基本味型 调料比例大全 糖醋 鱼香 麻辣 家常味",
+        "男人出轨 女人 怎么说 心态 话语"
+      ]
+    },
+    {
+      "id": "multi-hop-034",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 14313.483874999974,
+      "usage": {
+        "inputTokens": 9999,
+        "outputTokens": 1265,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 575
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "痘医生科学祛痘连锁机构怎么样 评价",
+        "百胜 储备经理 面试问题"
+      ]
+    },
+    {
+      "id": "multi-hop-035",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 12224.97562500007,
+      "usage": {
+        "inputTokens": 8276,
+        "outputTokens": 965,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 423
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "侠客风云传 名声上限",
+        "属龙的处女座2020年运势"
+      ]
+    },
+    {
+      "id": "multi-hop-036",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 19406.174041999977,
+      "usage": {
+        "inputTokens": 5959,
+        "outputTokens": 1712,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1095
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "吉利厂家金融 是不是网贷 正规吗",
+        "济宁美开乐技校怎么样"
+      ]
+    },
+    {
+      "id": "multi-hop-037",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 19769.976832999986,
+      "usage": {
+        "inputTokens": 7208,
+        "outputTokens": 1749,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 793
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "58同城 注册新账号 任务 赚钱 是真的吗 刷单 骗局",
+        "儿菜 营养价值 功效 作用"
+      ]
+    },
+    {
+      "id": "multi-hop-038",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 21093.802084000003,
+      "usage": {
+        "inputTokens": 7883,
+        "outputTokens": 1968,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1340
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "widely 后面加什么 搭配",
+        "中联泵车打灰时怠速高 故障"
+      ]
+    },
+    {
+      "id": "multi-hop-039",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 23145.865458000004,
+      "usage": {
+        "inputTokens": 8379,
+        "outputTokens": 2292,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1062
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "马王堆T字形帛画赏析 内容 艺术特点 意义",
+        "广元 招聘工人 招工信息"
+      ]
+    },
+    {
+      "id": "multi-hop-040",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 14929.425290999916,
+      "usage": {
+        "inputTokens": 6624,
+        "outputTokens": 1482,
+        "cacheReadTokens": 7808,
+        "reasoningTokens": 685
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "电子标怎么二次报价",
+        "去店里洗脸一般多少钱"
+      ]
+    },
+    {
+      "id": "multi-hop-041",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 18344.888167000136,
+      "usage": {
+        "inputTokens": 8343,
+        "outputTokens": 1719,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 225
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "步步高平板刷机教程 视频",
+        "肠内肠外营养支持 临床营养治疗"
+      ]
+    },
+    {
+      "id": "multi-hop-042",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 18659.631708000008,
+      "usage": {
+        "inputTokens": 6667,
+        "outputTokens": 1660,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 892
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "被举报受贿怎么办 受贿罪 立案标准 法律后果",
+        "北京 肝癌 治疗 好的医院"
+      ]
+    },
+    {
+      "id": "multi-hop-043",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 15280.721209000149,
+      "usage": {
+        "inputTokens": 8263,
+        "outputTokens": 1425,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 950
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "Swisse 护发护甲片 副作用",
+        "形容好的言论的名词 好话 称赞的言语"
+      ]
+    },
+    {
+      "id": "multi-hop-044",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": false,
+      "secondRoundMarginalHit": false,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 11967.360082999903,
+      "usage": {
+        "inputTokens": 6132,
+        "outputTokens": 973,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 583
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "烟油量最低的香烟 焦油含量最低",
+        "数控铣床编程100例图"
+      ]
+    },
+    {
+      "id": "multi-hop-045",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 34164.468124999985,
+      "usage": {
+        "inputTokens": 10195,
+        "outputTokens": 3349,
+        "cacheReadTokens": 23296,
+        "reasoningTokens": 2552
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "华为专业相机 戈壁 模式",
+        "李字行书怎么写好看 书法"
+      ]
+    },
+    {
+      "id": "multi-hop-046",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 12683.45841700011,
+      "usage": {
+        "inputTokens": 4764,
+        "outputTokens": 913,
+        "cacheReadTokens": 16256,
+        "reasoningTokens": 437
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "火星直播松视分享号是多少",
+        "肋骨断了 扎住肺 怎么处理"
+      ]
+    },
+    {
+      "id": "multi-hop-047",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 16820.91437500003,
+      "usage": {
+        "inputTokens": 8701,
+        "outputTokens": 1686,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 923
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "遂川 新型冠状病毒 确诊患者",
+        "python 安装 教程 环境配置"
+      ]
+    },
+    {
+      "id": "multi-hop-048",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 12269.284749999997,
+      "usage": {
+        "inputTokens": 9888,
+        "outputTokens": 967,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 354
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "开满鲜花的小路 主要内容",
+        "万能钥匙PC客户端下载 避免捆绑流氓软件 官方渠道"
+      ]
+    },
+    {
+      "id": "multi-hop-049",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 16515.214541999965,
+      "usage": {
+        "inputTokens": 7593,
+        "outputTokens": 1555,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 721
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "抖音和腾讯微视用户数量对比，哪个用户多",
+        "修改注册表解决固态硬盘假死问题"
+      ]
+    },
+    {
+      "id": "multi-hop-050",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 16212.949207999827,
+      "usage": {
+        "inputTokens": 7439,
+        "outputTokens": 1415,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 773
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "私立医院生孩子 价格 费用",
+        "纺织厂 工资 一般多少"
+      ]
+    },
+    {
+      "id": "multi-hop-051",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 14949.378500000194,
+      "usage": {
+        "inputTokens": 6492,
+        "outputTokens": 1482,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 641
+      },
+      "hasKReferences": false,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "杜仲泡水喝的功效与作用",
+        "蜂巢快递柜取件验证码输入错误怎么办"
+      ]
+    },
+    {
+      "id": "multi-hop-052",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 19065.56300000011,
+      "usage": {
+        "inputTokens": 8478,
+        "outputTokens": 1841,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 807
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "金庸群侠传x如来神掌怎么获得",
+        "生产过后怎么还有一层肚子"
+      ]
+    },
+    {
+      "id": "multi-hop-053",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 21641.892500000038,
+      "usage": {
+        "inputTokens": 7545,
+        "outputTokens": 2138,
+        "cacheReadTokens": 7808,
+        "reasoningTokens": 1280
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "红色教育内容 写什么 心得体会 入党积极分子 思想汇报",
+        "大学新生 网上选宿舍 流程 操作步骤"
+      ]
+    },
+    {
+      "id": "multi-hop-054",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 21931.771875000093,
+      "usage": {
+        "inputTokens": 7263,
+        "outputTokens": 1961,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1098
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "圣恩浮岛漂浮湿地好用吗 水族",
+        "怎么判断鱼卵是否活着"
+      ]
+    },
+    {
+      "id": "multi-hop-055",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 17965.539499999977,
+      "usage": {
+        "inputTokens": 6548,
+        "outputTokens": 1728,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 918
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "乐美雅和青苹果 哪个好 玻璃杯 对比",
+        "胆碱的重要性和作用"
+      ]
+    },
+    {
+      "id": "multi-hop-056",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": false,
+      "secondRoundMarginalHit": false,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 66000.13687499995,
+      "usage": {
+        "inputTokens": 11491,
+        "outputTokens": 7905,
+        "cacheReadTokens": 26752,
+        "reasoningTokens": 6986
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "女孩做瓷砖销售好吗",
+        "肋弓由第7至10对肋软骨依次连接而成 是否正确"
+      ]
+    },
+    {
+      "id": "multi-hop-057",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 54615.18570800013,
+      "usage": {
+        "inputTokens": 8919,
+        "outputTokens": 6038,
+        "cacheReadTokens": 21760,
+        "reasoningTokens": 5060
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "维族是一个能歌善舞的民族 又称什么族",
+        "霸天虎人物介绍"
+      ]
+    },
+    {
+      "id": "multi-hop-058",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 33401.12354100006,
+      "usage": {
+        "inputTokens": 7042,
+        "outputTokens": 3512,
+        "cacheReadTokens": 18944,
+        "reasoningTokens": 2757
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "卢升象 雪中悍刀行 是谁 人物介绍",
+        "专升本可以报的专业 中专 招生专业 报考条件"
+      ]
+    },
+    {
+      "id": "multi-hop-059",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": false,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 20633.67545799997,
+      "usage": {
+        "inputTokens": 9387,
+        "outputTokens": 1994,
+        "cacheReadTokens": 21120,
+        "reasoningTokens": 1305
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "游戏主播 七喵 性别 男 女",
+        "中国进口鳕鱼主要来自哪些国家"
+      ]
+    },
+    {
+      "id": "multi-hop-060",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": false,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 13622.527083000023,
+      "usage": {
+        "inputTokens": 6059,
+        "outputTokens": 1409,
+        "cacheReadTokens": 17920,
+        "reasoningTokens": 726
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "精灵宝可梦 神奇宝贝 关系 宠物小精灵",
+        "桂苓片的功效与作用"
+      ]
+    },
+    {
+      "id": "multi-hop-061",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 13961.751584000012,
+      "usage": {
+        "inputTokens": 7585,
+        "outputTokens": 1208,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 566
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "阿弥陀佛往生哪里 极乐世界",
+        "腾讯体育 美娜 姐姐 简介 主持人"
+      ]
+    },
+    {
+      "id": "multi-hop-062",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 20640.243832999884,
+      "usage": {
+        "inputTokens": 6769,
+        "outputTokens": 2011,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1373
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "司鱼怎么样 评价",
+        "龙视安网络摄像机 亮灯 无信号 故障排查"
+      ]
+    },
+    {
+      "id": "multi-hop-063",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 22377.42491599988,
+      "usage": {
+        "inputTokens": 6102,
+        "outputTokens": 2215,
+        "cacheReadTokens": 18432,
+        "reasoningTokens": 1628
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "怀孕38天要去医院检查吗 孕期检查时间",
+        "中国龙 打一数字 谜语"
+      ]
+    },
+    {
+      "id": "multi-hop-064",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 16318.19366700006,
+      "usage": {
+        "inputTokens": 7741,
+        "outputTokens": 1489,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 736
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "改变乐平的历史名人 乐平名人 乐平历史人物",
+        "长条气球怎么拧爱心 气球造型教程"
+      ]
+    },
+    {
+      "id": "multi-hop-065",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 17653.388375000075,
+      "usage": {
+        "inputTokens": 8462,
+        "outputTokens": 1601,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 902
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "胸口痛的原因 胸痛 可能病因",
+        "西安 发源地 卡 没用完 余额 处理"
+      ]
+    },
+    {
+      "id": "multi-hop-066",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 31100.601375,
+      "usage": {
+        "inputTokens": 7792,
+        "outputTokens": 3371,
+        "cacheReadTokens": 20864,
+        "reasoningTokens": 2758
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "灵剑尊 水流香 嫁给了谁 结婚 丈夫",
+        "SO2 二氧化硫 能使 pH 试纸 褪色 漂白吗"
+      ]
+    },
+    {
+      "id": "multi-hop-067",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 12696.372583999846,
+      "usage": {
+        "inputTokens": 6052,
+        "outputTokens": 924,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 360
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "协和丰胸霜 怎么样 效果",
+        "妈妈倒车不慎撞死自己孩子"
+      ]
+    },
+    {
+      "id": "multi-hop-068",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 12314.03979200013,
+      "usage": {
+        "inputTokens": 6800,
+        "outputTokens": 1211,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 746
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "皮蛋 寒性 食物 性质",
+        "不破楼兰终不还 古诗 出处"
+      ]
+    },
+    {
+      "id": "multi-hop-069",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 32106.8137499999,
+      "usage": {
+        "inputTokens": 8341,
+        "outputTokens": 3508,
+        "cacheReadTokens": 21120,
+        "reasoningTokens": 2637
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "介绍家人的职业或工作的英语短文 作文范文 family members' jobs",
+        "亚洲四大神器是什么"
+      ]
+    },
+    {
+      "id": "multi-hop-070",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 19307.260583000018,
+      "usage": {
+        "inputTokens": 8415,
+        "outputTokens": 1823,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1067
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "淘宝迷你摄像头 真的可以用吗 效果 质量",
+        "东北名酒 白酒排行榜"
+      ]
+    },
+    {
+      "id": "multi-hop-071",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 16512.345917000173,
+      "usage": {
+        "inputTokens": 8232,
+        "outputTokens": 1661,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 818
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "精神病一级 每月补贴 标准",
+        "学生会女生部 简介 职责"
+      ]
+    },
+    {
+      "id": "multi-hop-072",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 31668.93508399994,
+      "usage": {
+        "inputTokens": 8781,
+        "outputTokens": 3147,
+        "cacheReadTokens": 20608,
+        "reasoningTokens": 2388
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "PMG评级纸币 潮斑 处理",
+        "重庆 古称渝州 改称重庆 时间 南宋 恭州"
+      ]
+    },
+    {
+      "id": "multi-hop-073",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 20579.332457999953,
+      "usage": {
+        "inputTokens": 9298,
+        "outputTokens": 1825,
+        "cacheReadTokens": 7808,
+        "reasoningTokens": 1135
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "全国胰腺癌专家前十名 排名",
+        "你不知道,强行亲女生犯法吗"
+      ]
+    },
+    {
+      "id": "multi-hop-074",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": false,
+      "secondRoundMarginalHit": false,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 26673.73545800001,
+      "usage": {
+        "inputTokens": 8416,
+        "outputTokens": 2681,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1734
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "不同的路由打开不同网页会卡",
+        "清洁生产的企业发展观"
+      ]
+    },
+    {
+      "id": "multi-hop-075",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 25949.080041000117,
+      "usage": {
+        "inputTokens": 7682,
+        "outputTokens": 2391,
+        "cacheReadTokens": 19712,
+        "reasoningTokens": 1487
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "深蹲哄睡的原理 宝宝 深蹲 哄睡 为什么有效",
+        "微信象棋闯关攻略 残局 过关技巧"
+      ]
+    },
+    {
+      "id": "multi-hop-076",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": false,
+      "secondRoundMarginalHit": false,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 18432.94462500012,
+      "usage": {
+        "inputTokens": 7959,
+        "outputTokens": 1848,
+        "cacheReadTokens": 19840,
+        "reasoningTokens": 1082
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "氮气的氧化物",
+        "自助餐最贵的酒水是什么"
+      ]
+    },
+    {
+      "id": "multi-hop-077",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 24354.1002500001,
+      "usage": {
+        "inputTokens": 7039,
+        "outputTokens": 2707,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1517
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "月有阴晴圆缺 意义 含义 水调歌头",
+        "小白萝卜 腌制方法大全 泡菜 腌萝卜"
+      ]
+    },
+    {
+      "id": "multi-hop-078",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 15228.251292000095,
+      "usage": {
+        "inputTokens": 5839,
+        "outputTokens": 1278,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 549
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "短途飞机有免费餐食吗 航空公司 短途航班 免费食品",
+        "中国自主研发的显卡 国产显卡"
+      ]
+    },
+    {
+      "id": "multi-hop-079",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 29353.468000000023,
+      "usage": {
+        "inputTokens": 9598,
+        "outputTokens": 3406,
+        "cacheReadTokens": 22784,
+        "reasoningTokens": 2591
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "排列三直选定位公式",
+        "联通5G套餐99元包含多少流量"
+      ]
+    },
+    {
+      "id": "multi-hop-080",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 14038.338457999998,
+      "usage": {
+        "inputTokens": 7941,
+        "outputTokens": 1308,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 463
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "华为 日本 员工 人数",
+        "2021 广东省 人身损害赔偿 标准 残疾赔偿金 死亡赔偿金"
+      ]
+    },
+    {
+      "id": "multi-hop-081",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": false,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 21213.25675000003,
+      "usage": {
+        "inputTokens": 10235,
+        "outputTokens": 2057,
+        "cacheReadTokens": 22528,
+        "reasoningTokens": 1523
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "4008888518 是哪里的电话",
+        "联合国军在朝鲜战争中死亡人数"
+      ]
+    },
+    {
+      "id": "multi-hop-082",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 16973.741708000034,
+      "usage": {
+        "inputTokens": 4141,
+        "outputTokens": 1359,
+        "cacheReadTokens": 15744,
+        "reasoningTokens": 427
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "鼻子长期不通气 单侧鼻塞 原因 怎么办",
+        "飘带领衬衫的缝制方法 裁剪 制作步骤"
+      ]
+    },
+    {
+      "id": "multi-hop-083",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 48350.42874999999,
+      "usage": {
+        "inputTokens": 11813,
+        "outputTokens": 6709,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 4319
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "男人出轨 女人 怎么说 表达 说法",
+        "中餐基本味型 调料比例 大全"
+      ]
+    },
+    {
+      "id": "multi-hop-084",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 20538.5906250001,
+      "usage": {
+        "inputTokens": 10833,
+        "outputTokens": 2024,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1088
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "百胜储备经理面试问题",
+        "痘医生科学祛痘连锁机构怎么样"
+      ]
+    },
+    {
+      "id": "multi-hop-085",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 15996.999375000087,
+      "usage": {
+        "inputTokens": 8283,
+        "outputTokens": 1523,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 846
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "属龙的处女座2020年运势",
+        "侠客风云传名声上限"
+      ]
+    },
+    {
+      "id": "multi-hop-086",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 19696.570667000058,
+      "usage": {
+        "inputTokens": 5842,
+        "outputTokens": 1877,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1214
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "济宁美开乐技校 怎么样 评价",
+        "吉利厂家金融 属于网贷吗"
+      ]
+    },
+    {
+      "id": "multi-hop-087",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 14024.46358300017,
+      "usage": {
+        "inputTokens": 7026,
+        "outputTokens": 1356,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 597
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "儿菜的营养价值及功效",
+        "58同城注册新账号任务赚钱真假"
+      ]
+    },
+    {
+      "id": "multi-hop-088",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 38979.28533300001,
+      "usage": {
+        "inputTokens": 7214,
+        "outputTokens": 4291,
+        "cacheReadTokens": 21504,
+        "reasoningTokens": 3420
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "中联泵车 打灰 怠速高 故障 原因 处理",
+        "widely 后面接什么 用法 widely used"
+      ]
+    },
+    {
+      "id": "multi-hop-089",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 22642.759874999683,
+      "usage": {
+        "inputTokens": 8676,
+        "outputTokens": 2276,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1072
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "广元 招聘 工人 招工信息",
+        "马王堆 T字形帛画 赏析 内容 艺术特点"
+      ]
+    },
+    {
+      "id": "multi-hop-090",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 19821.949209000195,
+      "usage": {
+        "inputTokens": 6896,
+        "outputTokens": 1863,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1100
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "去店里洗脸一般多少钱 美容院洗脸价格",
+        "电子标怎么二次报价"
+      ]
+    },
+    {
+      "id": "multi-hop-091",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 15218.068874999972,
+      "usage": {
+        "inputTokens": 9718,
+        "outputTokens": 1381,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 330
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "肠内肠外营养支持 临床应用 适应证",
+        "步步高平板 刷机 视频教程"
+      ]
+    },
+    {
+      "id": "multi-hop-092",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 16331.381375000092,
+      "usage": {
+        "inputTokens": 7691,
+        "outputTokens": 1477,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 779
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "北京 肝癌 哪个医院好 治疗",
+        "有人举报受贿 该怎么办"
+      ]
+    },
+    {
+      "id": "multi-hop-093",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 15330.46483399994,
+      "usage": {
+        "inputTokens": 8323,
+        "outputTokens": 1331,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 804
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "形容好的言论的名词",
+        "swisse护发护甲片副作用"
+      ]
+    },
+    {
+      "id": "multi-hop-094",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": false,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 13531.949749999967,
+      "usage": {
+        "inputTokens": 6184,
+        "outputTokens": 1198,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 522
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "数控铣床编程100例图",
+        "烟油量最低的香烟"
+      ]
+    },
+    {
+      "id": "multi-hop-095",
+      "status": "success",
+      "attemptedSearches": 3,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": true,
+      "thirdSearchRejected": true,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 30104.785625000204,
+      "usage": {
+        "inputTokens": 11009,
+        "outputTokens": 3021,
+        "cacheReadTokens": 20992,
+        "reasoningTokens": 2189
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "李字行书写法技巧 行书怎么写好看",
+        "华为专业相机 戈壁 拍摄"
+      ]
+    },
+    {
+      "id": "multi-hop-096",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 15436.514708000232,
+      "usage": {
+        "inputTokens": 4079,
+        "outputTokens": 1314,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 785
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "肋骨断了 扎住肺 处理",
+        "火星直播松视分享号"
+      ]
+    },
+    {
+      "id": "multi-hop-097",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 13967.668834000051,
+      "usage": {
+        "inputTokens": 9066,
+        "outputTokens": 1293,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 581
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "python安装",
+        "遂川 新型冠状病毒 患者"
+      ]
+    },
+    {
+      "id": "multi-hop-098",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 18404.95195800031,
+      "usage": {
+        "inputTokens": 9824,
+        "outputTokens": 1703,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1085
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "万能钥匙 PC端 电脑版 下载 官网 避免捆绑流氓软件",
+        "开满鲜花的小路 主要内容 故事大意"
+      ]
+    },
+    {
+      "id": "multi-hop-099",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 18452.472083999965,
+      "usage": {
+        "inputTokens": 7308,
+        "outputTokens": 1951,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 1125
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": true,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "修改注册表 解决固态硬盘假死",
+        "抖音 微视 用户人数 哪个多"
+      ]
+    },
+    {
+      "id": "multi-hop-100",
+      "status": "success",
+      "attemptedSearches": 2,
+      "successfulSearches": 2,
+      "thirdSearchAttempted": false,
+      "thirdSearchRejected": false,
+      "singleRoundCompleteEvidence": false,
+      "twoRoundCompleteEvidence": true,
+      "secondRoundMarginalHit": true,
+      "secondRoundDuplicateRatio": 0.0,
+      "wallMs": 14732.692916999895,
+      "usage": {
+        "inputTokens": 7143,
+        "outputTokens": 1189,
+        "cacheReadTokens": 7680,
+        "reasoningTokens": 550
+      },
+      "hasKReferences": true,
+      "hasExplicitDocumentIds": false,
+      "invalidKReferenceNumber": false,
+      "generatedQueries": [
+        "纺织厂工人工资一般多少钱一个月",
+        "私立医院生孩子剖腹产费用价格"
+      ]
+    }
+  ],
+  "claimClassification": "guided-agent-diagnostic",
+  "acceptanceStatus": "invalidated",
+  "acceptanceReason": "The semantic review passed only 51 of 100 samples, and the experiment lacks competitive single-search baselines."
+}

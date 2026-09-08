@@ -14,6 +14,7 @@ import {
   loadDenseVectors,
   loadKnowledgeIndex,
   type ChunkTokenizer,
+  type DenseVectorBuildStats,
 } from '@deepseek-ai/dsh-experimental-knowledge-local'
 import { deriveKnowledgeIndexFromExact } from '../src/index-builder.ts'
 import { KnowledgeSqliteWriter } from '../src/sqlite-index.ts'
@@ -23,6 +24,15 @@ const whitespaceTokenizer: ChunkTokenizer = {
   countTokens(text) {
     return text.match(/\S+/gu)?.length ?? 0
   },
+}
+
+function deterministicVectors(texts: readonly string[], dimensions = 4): Float32Array {
+  const vectors = new Float32Array(texts.length * dimensions)
+  for (const [row, text] of texts.entries()) {
+    const byte = createHash('sha256').update(text).digest()[0] as number
+    vectors[row * dimensions + byte % dimensions] = 1
+  }
+  return vectors
 }
 
 async function temporaryDirectory(): Promise<string> {
@@ -75,6 +85,21 @@ describe('SQLite index construction', () => {
     expect(matches.map(match => match.ordinal)).toEqual([0, 1])
     expect(matches.every(match => Number.isFinite(match.score))).toBe(true)
     expect(await readdir(outputDir)).toEqual(['knowledge.sqlite', 'manifest.json'])
+    loaded.sqlite.close()
+  })
+
+  it('records and loads the token-window chunking baseline', async () => {
+    const outputDir = join(await temporaryDirectory(), 'index')
+    await buildKnowledgeIndex({
+      corpusText: '{"id":"doc","text":"# Heading\\none two three four"}',
+      outputDir,
+      tokenizer: whitespaceTokenizer,
+      chunking: { maxTokens: 3, overlapTokens: 0, strategy: 'token-window-v1' },
+    })
+
+    const loaded = await loadKnowledgeIndex(outputDir)
+    expect(loaded.manifest.chunking.strategy).toBe('token-window-v1')
+    expect(loaded.sqlite.allChunks().every(chunk => chunk.sectionPath === undefined)).toBe(true)
     loaded.sqlite.close()
   })
 
@@ -391,7 +416,7 @@ describe('SQLite index construction', () => {
             return Promise.resolve(vectors)
           },
         },
-        batchSize: 3,
+        batchSize: 1,
         modelId: 'test-model',
         revision: 'a'.repeat(40),
         dtype: 'q8',
@@ -546,6 +571,7 @@ describe('SQLite index construction', () => {
       [{ analyzer: 'mixed-zh-en-v1' as const }, 'derived analyzer must match'],
       [{ chunking: { maxTokens: 4, overlapTokens: 0 } }, 'derived chunking must match'],
       [{ chunking: { maxTokens: 8, overlapTokens: 1 } }, 'derived chunking must match'],
+      [{ chunking: { maxTokens: 8, overlapTokens: 0, strategy: 'token-window-v1' as const } }, 'derived chunking must match'],
       [{ tokenizerModelId: 'other' }, 'derived tokenizer must match'],
       [{ tokenizerRevision: 'other' }, 'derived tokenizer must match'],
     ] as const
@@ -685,6 +711,9 @@ describe('SQLite index construction', () => {
     [{ exactScanMaxElements: 1.5 }, 'Dense exactScanMaxElements must be a positive safe integer'],
     [{ connectivity: 0 }, 'Dense connectivity must be positive'],
     [{ expansionAdd: 0 }, 'Dense expansionAdd must be positive'],
+    [{ vectorCacheDir: ' ' }, 'Dense vectorCacheDir must be non-empty'],
+    [{ importVectorsFrom: ' ' }, 'Dense importVectorsFrom must be non-empty'],
+    [{ importVectorsFrom: '/index' }, 'Dense importVectorsFrom requires vectorCacheDir'],
   ])('rejects invalid Dense build settings %j', async (override, message) => {
     await expect(buildKnowledgeIndex({
       corpusText: '{"id":"doc","text":"alpha"}',
@@ -734,5 +763,321 @@ describe('SQLite index construction', () => {
         dimensions: Number.MAX_SAFE_INTEGER,
       },
     })).rejects.toThrow('Dense scanElements exceeds safe integer range')
+  })
+
+  it('reports a zero reuse ratio for an empty Dense corpus', async () => {
+    const stats: DenseVectorBuildStats[] = []
+    await buildKnowledgeIndex({
+      corpusText: '',
+      outputDir: join(await temporaryDirectory(), 'empty-dense'),
+      tokenizer: whitespaceTokenizer,
+      chunking: { maxTokens: 8, overlapTokens: 0 },
+      dense: {
+        encoder: { embedDocuments: () => Promise.reject(new Error('must not encode')) },
+        batchSize: 1,
+        modelId: 'test-model',
+        revision: 'a'.repeat(40),
+        dtype: 'q8',
+        dimensions: 4,
+        vectorCacheDir: join(await temporaryDirectory(), 'cache'),
+        onVectorBuildStats: value => stats.push(value),
+      },
+    })
+    expect(stats[0]).toMatchObject({ totalInputCount: 0, cacheHitCount: 0, encodedInputCount: 0, reuseRatio: 0 })
+  })
+
+
+  it('reuses unchanged, repeated, reordered, deleted, and ordinal-shifted Dense inputs', async () => {
+    const root = await temporaryDirectory()
+    const cacheDir = join(root, 'cache')
+    const initialCorpus = [
+      { id: 'doc-b', text: 'shared body' },
+      { id: 'doc-a', title: 'Original title', text: 'alpha body' },
+      { id: 'doc-e', text: '# Old heading\n\nsection body' },
+      { id: 'doc-c', text: 'shared body' },
+    ].map(value => JSON.stringify(value)).join('\n')
+    const changedCorpus = [
+      { id: 'doc-e', text: '# New heading\n\nsection body' },
+      { id: 'doc-d', text: 'new body' },
+      { id: 'doc-c', text: 'shared body' },
+      { id: 'doc-a', title: 'Changed title', text: 'alpha body' },
+    ].map(value => JSON.stringify(value)).join('\n')
+    const build = async (
+      corpusText: string,
+      outputDir: string,
+      embedDocuments: (texts: string[]) => Promise<Float32Array>,
+      stats: DenseVectorBuildStats[],
+      revision = 'a'.repeat(40),
+    ) => buildKnowledgeIndex({
+      corpusText,
+      outputDir,
+      tokenizer: whitespaceTokenizer,
+      chunking: { maxTokens: 32, overlapTokens: 0 },
+      dense: {
+        encoder: { embedDocuments },
+        batchSize: 10,
+        modelId: 'test-model',
+        revision,
+        dtype: 'q8',
+        dimensions: 4,
+        denseIndex: 'exact',
+        vectorCacheDir: cacheDir,
+        onVectorBuildStats: value => stats.push(value),
+      },
+    })
+
+    const initialCalls: string[][] = []
+    const initialStats: DenseVectorBuildStats[] = []
+    const initialDir = join(root, 'initial')
+    await build(initialCorpus, initialDir, (texts) => {
+      initialCalls.push(texts)
+      return Promise.resolve(deterministicVectors(texts))
+    }, initialStats)
+    expect(initialCalls.flat()).toHaveLength(4)
+    expect(initialStats[0]).toMatchObject({
+      totalInputCount: 5,
+      cacheHitCount: 1,
+      encodedInputCount: 4,
+      reuseRatio: 0.2,
+    })
+
+    const unchangedStats: DenseVectorBuildStats[] = []
+    const unchangedDir = join(root, 'unchanged')
+    await build(initialCorpus.split('\n').reverse().join('\n'), unchangedDir, () => {
+      throw new Error('unchanged inputs must not be encoded')
+    }, unchangedStats)
+    expect(unchangedStats[0]).toMatchObject({
+      totalInputCount: 5,
+      cacheHitCount: 5,
+      encodedInputCount: 0,
+      reuseRatio: 1,
+    })
+    expect(await readFile(join(unchangedDir, 'dense.f32le'))).toEqual(await readFile(join(initialDir, 'dense.f32le')))
+
+    const changedCalls: string[][] = []
+    const changedStats: DenseVectorBuildStats[] = []
+    const changedDir = join(root, 'changed')
+    await build(changedCorpus, changedDir, (texts) => {
+      changedCalls.push(texts)
+      return Promise.resolve(deterministicVectors(texts))
+    }, changedStats)
+    expect(changedCalls.flat()).toEqual(expect.arrayContaining([
+      expect.stringContaining('Changed title'),
+      expect.stringContaining('New heading'),
+      'new body',
+    ]))
+    expect(changedStats[0]).toMatchObject({
+      totalInputCount: 5,
+      cacheHitCount: 1,
+      encodedInputCount: 4,
+      reuseRatio: 0.2,
+    })
+    const changed = await loadKnowledgeIndex(changedDir)
+    const inputs = changed.sqlite.denseInputs(-1, 10)
+    expect(await loadDenseVectors(changed)).toEqual(deterministicVectors(inputs.map(row => row.text)))
+    changed.sqlite.close()
+  })
+
+  it('does not reuse vectors after any Dense configuration change', async () => {
+    const root = await temporaryDirectory()
+    const cacheDir = join(root, 'cache')
+    const common = {
+      corpusText: '{"id":"doc","text":"alpha"}',
+      tokenizer: whitespaceTokenizer,
+      chunking: { maxTokens: 8, overlapTokens: 0 },
+    }
+    await buildKnowledgeIndex({
+      ...common,
+      outputDir: join(root, 'first'),
+      dense: {
+        encoder: { embedDocuments: texts => Promise.resolve(deterministicVectors(texts)) },
+        batchSize: 1,
+        modelId: 'test-model',
+        revision: 'a'.repeat(40),
+        dtype: 'q8',
+        dimensions: 4,
+        vectorCacheDir: cacheDir,
+      },
+    })
+    const stats: DenseVectorBuildStats[] = []
+    await buildKnowledgeIndex({
+      ...common,
+      outputDir: join(root, 'changed-config'),
+      dense: {
+        encoder: { embedDocuments: texts => Promise.resolve(deterministicVectors(texts)) },
+        batchSize: 1,
+        modelId: 'test-model',
+        revision: 'b'.repeat(40),
+        dtype: 'q8',
+        dimensions: 4,
+        vectorCacheDir: cacheDir,
+        onVectorBuildStats: value => stats.push(value),
+      },
+    })
+    expect(stats[0]).toMatchObject({ cacheHitCount: 0, encodedInputCount: 1 })
+  })
+
+  it('keeps committed cache batches after failure without publishing a target manifest', async () => {
+    const root = await temporaryDirectory()
+    const cacheDir = join(root, 'cache')
+    const corpusText = [
+      '{"id":"doc-a","text":"alpha"}',
+      '{"id":"doc-b","text":"beta"}',
+      '{"id":"doc-c","text":"gamma"}',
+    ].join('\n')
+    let calls = 0
+    const failedDir = join(root, 'failed')
+    await expect(buildKnowledgeIndex({
+      corpusText,
+      outputDir: failedDir,
+      tokenizer: whitespaceTokenizer,
+      chunking: { maxTokens: 8, overlapTokens: 0 },
+      dense: {
+        encoder: {
+          embedDocuments(texts) {
+            calls += 1
+            if (calls === 2) throw new Error('interrupted')
+            return Promise.resolve(deterministicVectors(texts))
+          },
+        },
+        batchSize: 1,
+        modelId: 'test-model',
+        revision: 'a'.repeat(40),
+        dtype: 'q8',
+        dimensions: 4,
+        denseIndex: 'exact',
+        vectorCacheDir: cacheDir,
+      },
+    })).rejects.toThrow('interrupted')
+    expect(await readdir(failedDir)).not.toContain('manifest.json')
+
+    const retriedTexts: string[] = []
+    const stats: DenseVectorBuildStats[] = []
+    await buildKnowledgeIndex({
+      corpusText,
+      outputDir: join(root, 'retried'),
+      tokenizer: whitespaceTokenizer,
+      chunking: { maxTokens: 8, overlapTokens: 0 },
+      dense: {
+        encoder: {
+          embedDocuments(texts) {
+            retriedTexts.push(...texts)
+            return Promise.resolve(deterministicVectors(texts))
+          },
+        },
+        batchSize: 3,
+        modelId: 'test-model',
+        revision: 'a'.repeat(40),
+        dtype: 'q8',
+        dimensions: 4,
+        denseIndex: 'exact',
+        vectorCacheDir: cacheDir,
+        onVectorBuildStats: value => stats.push(value),
+      },
+    })
+    expect(retriedTexts).toEqual(['beta', 'gamma'])
+    expect(stats[0]).toMatchObject({ cacheHitCount: 1, encodedInputCount: 2 })
+  })
+
+  it('imports a verified Exact index into the cache without modifying the source', async () => {
+    const root = await temporaryDirectory()
+    const corpusText = [
+      '{"id":"doc-a","text":"alpha"}',
+      '{"id":"doc-b","text":"beta"}',
+      '{"id":"doc-c","text":"alpha"}',
+    ].join('\n')
+    const sourceDir = join(root, 'source')
+    await buildKnowledgeIndex({
+      corpusText,
+      outputDir: sourceDir,
+      tokenizer: whitespaceTokenizer,
+      chunking: { maxTokens: 8, overlapTokens: 0 },
+      dense: {
+        encoder: { embedDocuments: texts => Promise.resolve(deterministicVectors(texts)) },
+        batchSize: 3,
+        modelId: 'test-model',
+        revision: 'a'.repeat(40),
+        dtype: 'q8',
+        dimensions: 4,
+        denseIndex: 'exact',
+      },
+    })
+    const sourceBefore = await Promise.all([
+      readFile(join(sourceDir, 'manifest.json')),
+      readFile(join(sourceDir, 'knowledge.sqlite')),
+      readFile(join(sourceDir, 'dense.f32le')),
+    ])
+    const stats: DenseVectorBuildStats[] = []
+    await buildKnowledgeIndex({
+      corpusText,
+      outputDir: join(root, 'target'),
+      tokenizer: whitespaceTokenizer,
+      chunking: { maxTokens: 8, overlapTokens: 0 },
+      dense: {
+        encoder: { embedDocuments: () => Promise.reject(new Error('imported vectors must be reused')) },
+        batchSize: 3,
+        modelId: 'test-model',
+        revision: 'a'.repeat(40),
+        dtype: 'q8',
+        dimensions: 4,
+        denseIndex: 'both',
+        vectorCacheDir: join(root, 'cache'),
+        importVectorsFrom: sourceDir,
+        onVectorBuildStats: value => stats.push(value),
+      },
+    })
+    expect(stats[0]).toMatchObject({
+      totalInputCount: 3,
+      cacheHitCount: 3,
+      encodedInputCount: 0,
+      importedVectorCount: 2,
+    })
+    expect(await Promise.all([
+      readFile(join(sourceDir, 'manifest.json')),
+      readFile(join(sourceDir, 'knowledge.sqlite')),
+      readFile(join(sourceDir, 'dense.f32le')),
+    ])).toEqual(sourceBefore)
+
+    await expect(buildKnowledgeIndex({
+      corpusText,
+      outputDir: join(root, 'mismatch'),
+      tokenizer: whitespaceTokenizer,
+      chunking: { maxTokens: 8, overlapTokens: 0 },
+      dense: {
+        encoder: { embedDocuments: texts => Promise.resolve(deterministicVectors(texts)) },
+        batchSize: 1,
+        modelId: 'test-model',
+        revision: 'b'.repeat(40),
+        dtype: 'q8',
+        dimensions: 4,
+        vectorCacheDir: join(root, 'other-cache'),
+        importVectorsFrom: sourceDir,
+      },
+    })).rejects.toThrow('Dense configuration does not match')
+    expect(await readdir(join(root, 'mismatch'))).not.toContain('manifest.json')
+
+    const bm25Source = join(root, 'bm25-source')
+    await buildBm25KnowledgeIndex({
+      corpusText,
+      outputDir: bm25Source,
+      tokenizer: whitespaceTokenizer,
+      chunking: { maxTokens: 8, overlapTokens: 0 },
+    })
+    await expect(buildKnowledgeIndex({
+      corpusText,
+      outputDir: join(root, 'missing-exact'),
+      tokenizer: whitespaceTokenizer,
+      chunking: { maxTokens: 8, overlapTokens: 0 },
+      dense: {
+        encoder: { embedDocuments: texts => Promise.resolve(deterministicVectors(texts)) },
+        batchSize: 1,
+        modelId: 'test-model',
+        revision: 'a'.repeat(40),
+        dtype: 'q8',
+        dimensions: 4,
+        vectorCacheDir: join(root, 'missing-exact-cache'),
+        importVectorsFrom: bm25Source,
+      },
+    })).rejects.toThrow('must retain dense.f32le')
   })
 })

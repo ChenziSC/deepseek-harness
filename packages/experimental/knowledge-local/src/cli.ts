@@ -1,7 +1,8 @@
 /** Argument handling for the experimental `dsh-knowledge` command. */
 
-import { mkdir, readdir, writeFile } from 'node:fs/promises'
+import { mkdir, open, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { performance } from 'node:perf_hooks'
 import { createInterface } from 'node:readline'
 import { parseArgs } from 'node:util'
 import {
@@ -10,6 +11,7 @@ import {
   type BuildDenseIndexOptions,
   type DenseIndexBuildPlan,
   type DenseIndexMode,
+  type DenseVectorBuildStats,
 } from './index-builder.ts'
 import { loadKnowledgeIndex, verifyKnowledgeIndex, type KnowledgeIndexManifest } from './index-format.ts'
 import { evaluateDataset, renderEvaluationReport } from './evaluation.ts'
@@ -29,7 +31,11 @@ import {
 } from './hnsw.ts'
 import { DEFAULT_EXACT_SCAN_MAX_ELEMENTS } from './index-builder.ts'
 import { BGE_M3_MODEL_ID, BGE_M3_REVISION, loadBgeChunkTokenizer } from './tokenizer.ts'
-import { DEFAULT_CANDIDATE_COUNT, DEFAULT_RERANKER_CANDIDATE_COUNT } from './config.ts'
+import {
+  DEFAULT_ADAPTIVE_RERANK_MIN_SCORE_GAP_RATIO,
+  DEFAULT_CANDIDATE_COUNT,
+  DEFAULT_RERANKER_CANDIDATE_COUNT,
+} from './config.ts'
 import {
   buildT2RankingBenchmarkSlices,
   DEFAULT_T2RANKING_CHUNK_TARGETS,
@@ -135,12 +141,15 @@ async function runIndex(
       components: { type: 'string', default: 'bm25' },
       'max-tokens': { type: 'string', default: '384' },
       'overlap-tokens': { type: 'string', default: '64' },
+      'chunking-strategy': { type: 'string', default: 'markdown-structure-v1' },
       'sqlite-batch-size': { type: 'string', default: '500' },
       analyzer: { type: 'string', default: 'mixed-zh-en-v1' },
       'dense-model-id': { type: 'string', default: BGE_M3_MODEL_ID },
       'dense-model-revision': { type: 'string', default: BGE_M3_REVISION },
       'dense-max-tokens': { type: 'string', default: String(DEFAULT_DENSE_MAX_TOKENS) },
       'embedding-batch-size': { type: 'string', default: '32' },
+      'vector-cache-dir': { type: 'string' },
+      'import-vectors-from': { type: 'string' },
       'dense-index': { type: 'string', default: 'auto' },
       'exact-scan-max-elements': { type: 'string', default: String(DEFAULT_EXACT_SCAN_MAX_ELEMENTS) },
       connectivity: { type: 'string', default: String(DEFAULT_HNSW_CONNECTIVITY) },
@@ -161,6 +170,9 @@ async function runIndex(
   if (values.analyzer !== 'english-v1' && values.analyzer !== 'mixed-zh-en-v1') {
     throw new TypeError('--analyzer must be english-v1 or mixed-zh-en-v1')
   }
+  if (values['chunking-strategy'] !== 'token-window-v1' && values['chunking-strategy'] !== 'markdown-structure-v1') {
+    throw new TypeError('--chunking-strategy must be token-window-v1 or markdown-structure-v1')
+  }
   if (
     values['dense-index'] !== 'auto'
     && values['dense-index'] !== 'exact'
@@ -173,6 +185,12 @@ async function runIndex(
   const outputDir = required(values.output, 'output')
   const modelCacheDir = required(values['model-cache-dir'], 'model-cache-dir')
   const denseEnabled = values.components === 'bm25,dense'
+  if (!denseEnabled && (values['vector-cache-dir'] !== undefined || values['import-vectors-from'] !== undefined)) {
+    throw new TypeError('--vector-cache-dir and --import-vectors-from require --components bm25,dense')
+  }
+  if (values['import-vectors-from'] !== undefined && values['vector-cache-dir'] === undefined) {
+    throw new TypeError('--import-vectors-from requires --vector-cache-dir')
+  }
   const denseModelId = denseEnabled ? required(values['dense-model-id'], 'dense-model-id') : BGE_M3_MODEL_ID
   const denseModelRevision = denseEnabled
     ? required(values['dense-model-revision'], 'dense-model-revision')
@@ -184,24 +202,41 @@ async function runIndex(
     revision: denseModelRevision,
   })
   let encoder: Awaited<ReturnType<typeof loadDenseEncoder>> | undefined
+  let modelLoadMs = 0
+  let modelEmbeddingMs = 0
   const getEncoder = async () => {
-    encoder ??= await loadDenseEncoder({
-      cacheDir: modelCacheDir,
-      localFilesOnly: true,
-      modelId: denseModelId,
-      revision: denseModelRevision,
-      dtype: BGE_DENSE_DTYPE,
-      modelFile: BGE_DENSE_MODEL_FILE,
-      dimensions: DENSE_DIMENSIONS,
-      maxTokens: numberOption(values['dense-max-tokens'], 'dense-max-tokens'),
-      queryPrefix: BGE_QUERY_PREFIX,
-    })
+    if (encoder === undefined) {
+      const startedAt = performance.now()
+      encoder = await loadDenseEncoder({
+        cacheDir: modelCacheDir,
+        localFilesOnly: true,
+        modelId: denseModelId,
+        revision: denseModelRevision,
+        dtype: BGE_DENSE_DTYPE,
+        modelFile: BGE_DENSE_MODEL_FILE,
+        dimensions: DENSE_DIMENSIONS,
+        maxTokens: numberOption(values['dense-max-tokens'], 'dense-max-tokens'),
+        queryPrefix: BGE_QUERY_PREFIX,
+      })
+      modelLoadMs = performance.now() - startedAt
+    }
     return encoder
   }
+  let vectorBuildStats: DenseVectorBuildStats | undefined
   const dense: BuildDenseIndexOptions | undefined = !denseEnabled
     ? undefined
     : {
-      encoder: { embedDocuments: texts => getEncoder().then(value => value.embedDocuments(texts)) },
+      encoder: {
+        async embedDocuments(texts) {
+          const value = await getEncoder()
+          const startedAt = performance.now()
+          try {
+            return await value.embedDocuments(texts)
+          } finally {
+            modelEmbeddingMs += performance.now() - startedAt
+          }
+        },
+      },
       batchSize: numberOption(values['embedding-batch-size'], 'embedding-batch-size'),
       modelId: denseModelId,
       revision: denseModelRevision,
@@ -214,6 +249,15 @@ async function runIndex(
       exactScanMaxElements: numberOption(values['exact-scan-max-elements'], 'exact-scan-max-elements'),
       connectivity: numberOption(values.connectivity, 'connectivity'),
       expansionAdd: numberOption(values['expansion-add'], 'expansion-add'),
+      ...(values['vector-cache-dir'] === undefined
+        ? {}
+        : { vectorCacheDir: required(values['vector-cache-dir'], 'vector-cache-dir') }),
+      ...(values['import-vectors-from'] === undefined
+        ? {}
+        : { importVectorsFrom: required(values['import-vectors-from'], 'import-vectors-from') }),
+      onVectorBuildStats(stats) {
+        vectorBuildStats = stats
+      },
       ...(values['dense-index'] === 'auto' && stdin.isTTY === true && stdout.isTTY === true
         ? { selectIndex: (plan: DenseIndexBuildPlan) => confirmDenseIndex(plan, stdin, stdout, stderr) }
         : {}),
@@ -230,6 +274,7 @@ async function runIndex(
       chunking: {
         maxTokens: numberOption(values['max-tokens'], 'max-tokens'),
         overlapTokens: numberOption(values['overlap-tokens'], 'overlap-tokens'),
+        strategy: values['chunking-strategy'],
       },
       sqliteBatchSize: numberOption(values['sqlite-batch-size'], 'sqlite-batch-size'),
       tokenizerModelId: denseModelId,
@@ -249,6 +294,12 @@ async function runIndex(
     ...(manifest.dense === undefined ? {} : {
       denseIndex: manifest.dense.resolvedIndex,
       recommendedDenseIndex: manifest.dense.recommendedIndex,
+    }),
+    ...(vectorBuildStats === undefined ? {} : {
+      denseBuild: {
+        ...vectorBuildStats,
+        timingsMs: { ...vectorBuildStats.timingsMs, embedding: modelEmbeddingMs, modelLoad: modelLoadMs },
+      },
     }),
   })}\n`)
   return 0
@@ -377,6 +428,7 @@ async function runDerive(argv: readonly string[], stdout: Pick<NodeJS.WriteStrea
     chunking: {
       maxTokens: manifest.chunking.maxTokens,
       overlapTokens: manifest.chunking.overlapTokens,
+      strategy: manifest.chunking.strategy,
     },
     tokenizerModelId: manifest.chunking.tokenizerModelId,
     tokenizerRevision: manifest.chunking.tokenizerRevision,
@@ -430,6 +482,10 @@ async function runEvaluate(argv: readonly string[], stdout: Pick<NodeJS.WriteStr
       'max-results': { type: 'string', default: '20' },
       'candidate-count': { type: 'string', default: String(DEFAULT_CANDIDATE_COUNT) },
       'reranker-candidate-count': { type: 'string', default: String(DEFAULT_RERANKER_CANDIDATE_COUNT) },
+      'adaptive-rerank-min-score-gap-ratio': {
+        type: 'string',
+        default: String(DEFAULT_ADAPTIVE_RERANK_MIN_SCORE_GAP_RATIO),
+      },
       'warmup-queries': { type: 'string', default: '10' },
       output: { type: 'string' },
       dataset: { type: 'string', default: 'scifact' },
@@ -449,32 +505,46 @@ async function runEvaluate(argv: readonly string[], stdout: Pick<NodeJS.WriteStr
     throw new TypeError('--dataset must be scifact, mldr, t2ranking, or mlqa')
   }
   await prepareReportDirectory(outputDir)
-  const report = await evaluateDataset({
-    indexDir,
-    queriesPath,
-    qrelsPath,
-    modelCacheDir,
-    maxResults: numberOption(values['max-results'], 'max-results'),
-    candidateCount: numberOption(values['candidate-count'], 'candidate-count'),
-    rerankerCandidateCount: numberOption(values['reranker-candidate-count'], 'reranker-candidate-count'),
-    warmupQueries: numberOption(values['warmup-queries'], 'warmup-queries'),
-    dataset: values.dataset,
-    ...(values['query-limit'] === undefined
-      ? {}
-      : { queryLimit: numberOption(values['query-limit'], 'query-limit') }),
-    modes: listOption(values.modes, 'modes', ['bm25', 'dense', 'hybrid'] as const),
-    ...(values['dense-indexes'] === undefined
-      ? {}
-      : { denseIndexes: listOption(values['dense-indexes'], 'dense-indexes', ['exact', 'hnsw'] as const) }),
-    rerankValues: listOption(values.rerank, 'rerank', ['off', 'auto', 'on'] as const),
-    hnswExpansionSearch: numberOption(values['expansion-search'], 'expansion-search'),
-  })
   const jsonPath = join(outputDir, 'report.json')
   const markdownPath = join(outputDir, 'report.md')
+  const queryDetailsPath = join(outputDir, 'queries.jsonl')
+  const queryDetails = await open(queryDetailsPath, 'wx')
+  let report: Awaited<ReturnType<typeof evaluateDataset>>
+  try {
+    report = await evaluateDataset({
+      indexDir,
+      queriesPath,
+      qrelsPath,
+      modelCacheDir,
+      maxResults: numberOption(values['max-results'], 'max-results'),
+      candidateCount: numberOption(values['candidate-count'], 'candidate-count'),
+      rerankerCandidateCount: numberOption(values['reranker-candidate-count'], 'reranker-candidate-count'),
+      adaptiveRerankMinScoreGapRatio: numberOption(
+        values['adaptive-rerank-min-score-gap-ratio'],
+        'adaptive-rerank-min-score-gap-ratio',
+      ),
+      warmupQueries: numberOption(values['warmup-queries'], 'warmup-queries'),
+      dataset: values.dataset,
+      ...(values['query-limit'] === undefined
+        ? {}
+        : { queryLimit: numberOption(values['query-limit'], 'query-limit') }),
+      modes: listOption(values.modes, 'modes', ['auto', 'bm25', 'dense', 'hybrid'] as const),
+      ...(values['dense-indexes'] === undefined
+        ? {}
+        : { denseIndexes: listOption(values['dense-indexes'], 'dense-indexes', ['exact', 'hnsw'] as const) }),
+      rerankValues: listOption(values.rerank, 'rerank', ['off', 'auto', 'on'] as const),
+      hnswExpansionSearch: numberOption(values['expansion-search'], 'expansion-search'),
+      onQueryDetail: async (detail) => {
+        await queryDetails.write(`${JSON.stringify(detail)}\n`)
+      },
+    })
+  } finally {
+    await queryDetails.close()
+  }
   await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' })
   await writeFile(markdownPath, renderEvaluationReport(report), { flag: 'wx' })
   const failedRuns = report.runs.filter(run => run.status === 'failed').length
-  stdout.write(`${JSON.stringify({ report: jsonPath, markdown: markdownPath, failedRuns })}\n`)
+  stdout.write(`${JSON.stringify({ report: jsonPath, markdown: markdownPath, queries: queryDetailsPath, failedRuns })}\n`)
   return failedRuns === 0 ? 0 : 2
 }
 

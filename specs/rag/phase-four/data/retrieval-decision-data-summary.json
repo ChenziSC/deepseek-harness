@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-07",
+  "sampleCount": 100,
+  "categoryCounts": {
+    "single": 25,
+    "dual": 25,
+    "bridge": 20,
+    "sufficient": 15,
+    "conflict": 15
+  },
+  "trackCounts": {
+    "t2ranking-dense": 50,
+    "controlled-bm25": 50
+  },
+  "controlledDocumentCount": 100,
+  "files": {
+    "retrieval-decision-samples.jsonl": {
+      "sha256": "0b9203b9c55d6bd1f428f4fe47e308494597ece666d1d068e2fce1308fca128f",
+      "bytes": 38198,
+      "lineCount": 100
+    },
+    "retrieval-decision-controlled-corpus.jsonl": {
+      "sha256": "2d8a9caaf22af7e5a151123ec66113a2239ee0c84db0e0cf7061c84c5ec2f4f1",
+      "bytes": 24024,
+      "lineCount": 100
+    }
+  }
+}

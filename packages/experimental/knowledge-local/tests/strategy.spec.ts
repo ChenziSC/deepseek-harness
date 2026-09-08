@@ -18,7 +18,6 @@ const policy: KnowledgeSearchPolicy = {
 const capabilities: KnowledgeSearchCapabilities = {
   autoDenseIndex: 'exact',
   availableDenseIndexes: ['exact'],
-  corpusScript: 'latin',
 }
 
 describe('knowledge search strategy resolution', () => {
@@ -43,18 +42,16 @@ describe('knowledge search strategy resolution', () => {
     })
   })
 
-  it('routes exact terms, cross-script queries, and ordinary language deterministically', () => {
+  it('routes exact terms to BM25 and other queries to Dense', () => {
     const automatic = { ...policy, defaultRetrieval: 'auto' as const }
     expect(resolveKnowledgeSearchStrategy('ERR_CONNECTION_RESET in api_client', undefined, automatic, capabilities))
       .toMatchObject({ retrieval: 'bm25' })
     expect(resolveKnowledgeSearchStrategy('光合作用是什么', undefined, automatic, capabilities))
       .toMatchObject({ retrieval: 'dense' })
     expect(resolveKnowledgeSearchStrategy('what powers photosynthesis', undefined, automatic, capabilities))
-      .toMatchObject({ retrieval: 'hybrid' })
-    expect(resolveKnowledgeSearchStrategy('what powers photosynthesis', undefined, automatic, {
-      ...capabilities,
-      corpusScript: 'cjk',
-    })).toMatchObject({ retrieval: 'dense' })
+      .toMatchObject({ retrieval: 'dense' })
+    expect(resolveKnowledgeSearchStrategy('hello 世界', undefined, automatic, capabilities))
+      .toMatchObject({ retrieval: 'dense' })
   })
 
   it('keeps explicit choices and constrains automatic routing to the allowed set', () => {

@@ -16,9 +16,11 @@ function hit(text: string): KnowledgeHit {
 }
 
 describe('knowledge_search output', () => {
-  it('assigns call-local citations and omits provider scores', () => {
+  it('assigns citations from the requested start and omits provider scores', () => {
     const result = collectKnowledgeResult([hit('first'), { ...hit('second'), chunkId: KnowledgeChunkId('doc-1:1-2') }], 200, 1_000, strategy)
     expect(result.evidence.map(item => item.citation)).toEqual(['K1', 'K2'])
+    const continued = collectKnowledgeResult([hit('first'), hit('second')], 200, 1_000, strategy, 6)
+    expect(continued.evidence.map(item => item.citation)).toEqual(['K6', 'K7'])
     expect(result.evidence[0]).not.toHaveProperty('score')
     expect(renderKnowledgeResult(result)).toContain('[K1]')
     expect(renderKnowledgeResult({ evidence: [], truncated: false, strategy }))
@@ -36,10 +38,10 @@ describe('knowledge_search output', () => {
     expect(Array.from(renderKnowledgeResult(result)).length).toBeLessThanOrEqual(160)
   })
 
-  it('keeps citations contiguous when an oversized fixed header drops a hit', () => {
+  it('keeps citations contiguous from the requested start when an oversized fixed header drops a hit', () => {
     const oversized = { ...hit('first'), documentId: KnowledgeDocumentId('x'.repeat(200)) }
-    const result = collectKnowledgeResult([oversized, hit('second')], 100, 1_000, strategy)
-    expect(result.evidence.map(item => item.citation)).toEqual(['K1'])
+    const result = collectKnowledgeResult([oversized, hit('second')], 100, 1_000, strategy, 6)
+    expect(result.evidence.map(item => item.citation)).toEqual(['K6'])
     expect(result.evidence[0]?.text).toBe('second')
     expect(result.truncated).toBe(true)
   })

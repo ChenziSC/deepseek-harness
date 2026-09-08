@@ -10,8 +10,11 @@ import { promisify } from 'node:util'
 import { Context } from '@deepseek-ai/cordis'
 import {
   KnowledgeDocumentId,
+  type KnowledgeRetrieval,
   type KnowledgeRerank,
   type KnowledgeSearchResult,
+  type ResolvedKnowledgeSearchStrategy,
+  type ResolvedKnowledgeRetrieval,
 } from '@deepseek-ai/dsh-experimental-knowledge'
 import {
   parseSciFactQrelsTsv,
@@ -39,8 +42,8 @@ import {
   DEFAULT_RERANKER_MAX_TOKENS,
 } from './reranker.ts'
 
-/** Retrieval modes included in the fixed evaluation matrix. */
-export type EvaluationMode = 'bm25' | 'dense' | 'hybrid'
+/** Retrieval preferences included in the evaluation matrix. */
+export type EvaluationMode = KnowledgeRetrieval
 
 /** Aggregate quality measurements for one successful run. */
 export interface EvaluationMetrics {
@@ -69,8 +72,38 @@ export interface EvaluationRun {
   readonly metrics?: EvaluationMetrics
   readonly latencyMs?: { readonly p50: number; readonly p95: number }
   readonly rerankAppliedRate?: number
+  readonly resolvedRetrievalCounts?: Readonly<Record<ResolvedKnowledgeRetrieval, number>>
   readonly approximation?: { readonly recallAt10: number; readonly recallAt100: number }
 }
+
+/** One document in a query's de-duplicated result ranking. */
+export interface EvaluationRankedDocument {
+  readonly documentId: string
+  readonly score: number
+}
+
+/** Per-query evidence retained outside the concise aggregate report. */
+export interface EvaluationQueryDetail {
+  readonly schemaVersion: 1
+  readonly queryId: string
+  readonly queryText: string
+  readonly requestedStrategy: {
+    readonly retrieval: EvaluationMode
+    readonly denseIndex?: 'exact' | 'hnsw'
+    readonly rerank: KnowledgeRerank
+  }
+  readonly relevantDocuments: readonly { readonly documentId: string; readonly relevance: number }[]
+  readonly status: 'success' | 'failed'
+  readonly latencyMs: number
+  readonly resolvedStrategy?: ResolvedKnowledgeSearchStrategy
+  readonly recallTopScoreGapRatio?: number
+  readonly rankedDocuments?: readonly EvaluationRankedDocument[]
+  readonly metrics?: EvaluationMetrics
+  readonly error?: string
+}
+
+/** Receives each measured query record in stable execution order. */
+export type EvaluationQueryDetailSink = (detail: EvaluationQueryDetail) => void | Promise<void>
 
 /** Machine-readable result of one fixed dataset evaluation matrix. */
 export interface EvaluationReport {
@@ -85,6 +118,10 @@ export interface EvaluationReport {
   }
   readonly corpusSha256: string
   readonly indexFingerprint: string
+  readonly inputs: {
+    readonly queriesSha256: string
+    readonly qrelsSha256: string
+  }
   readonly models: {
     readonly dense?: { readonly modelId: string; readonly revision: string; readonly dtype: 'q8' }
     readonly reranker?: { readonly modelId: string; readonly revision: string; readonly dtype: 'q8' }
@@ -172,6 +209,25 @@ function ndcgAt10(documents: readonly string[], judgments: ReadonlyMap<string, n
   return idealDcg === 0 ? 0 : dcg(actual) / idealDcg
 }
 
+function calculateQueryMetrics(query: SciFactEvaluationQuery, documentIds: readonly string[]): EvaluationMetrics {
+  const judgments = new Map(query.relevantDocuments.map(item => [item.documentId as string, item.relevance]))
+  const relevant = new Set(judgments.keys())
+  return {
+    recallAt1: recallAt(documentIds, relevant, 1),
+    recallAt5: recallAt(documentIds, relevant, 5),
+    recallAt10: recallAt(documentIds, relevant, 10),
+    recallAt20: recallAt(documentIds, relevant, 20),
+    recallAt100: recallAt(documentIds, relevant, 100),
+    mrrAt10: reciprocalRankAt10(documentIds, relevant),
+    ndcgAt10: ndcgAt10(documentIds, judgments),
+    successAt1: successAt(documentIds, relevant, 1),
+    successAt5: successAt(documentIds, relevant, 5),
+    successAt10: successAt(documentIds, relevant, 10),
+    successAt20: successAt(documentIds, relevant, 20),
+    successAt100: successAt(documentIds, relevant, 100),
+  }
+}
+
 /**
  * Calculate document-level quality metrics for a complete query set.
  * @param ranked - query judgments and de-duplicated document rankings.
@@ -179,24 +235,7 @@ function ndcgAt10(documents: readonly string[], judgments: ReadonlyMap<string, n
  */
 export function calculateMetrics(ranked: readonly RankedDocuments[]): EvaluationMetrics {
   if (ranked.length === 0) throw new TypeError('knowledge-local: evaluation requires at least one query')
-  const perQuery = ranked.map(({ query, documentIds }) => {
-    const judgments = new Map(query.relevantDocuments.map(item => [item.documentId as string, item.relevance]))
-    const relevant = new Set(judgments.keys())
-    return {
-      recallAt1: recallAt(documentIds, relevant, 1),
-      recallAt5: recallAt(documentIds, relevant, 5),
-      recallAt10: recallAt(documentIds, relevant, 10),
-      recallAt20: recallAt(documentIds, relevant, 20),
-      recallAt100: recallAt(documentIds, relevant, 100),
-      mrrAt10: reciprocalRankAt10(documentIds, relevant),
-      ndcgAt10: ndcgAt10(documentIds, judgments),
-      successAt1: successAt(documentIds, relevant, 1),
-      successAt5: successAt(documentIds, relevant, 5),
-      successAt10: successAt(documentIds, relevant, 10),
-      successAt20: successAt(documentIds, relevant, 20),
-      successAt100: successAt(documentIds, relevant, 100),
-    }
-  })
+  const perQuery = ranked.map(({ query, documentIds }) => calculateQueryMetrics(query, documentIds))
   return Object.fromEntries(
     Object.keys(perQuery[0] as EvaluationMetrics).map(key => [
       key,
@@ -218,17 +257,25 @@ export function nearestRank(values: readonly number[], percentile: number): numb
   return sorted[index] as number
 }
 
-function foldDocuments(result: KnowledgeSearchResult, limit: number): string[] {
-  const documents: string[] = []
+function foldDocuments(result: KnowledgeSearchResult, limit: number): EvaluationRankedDocument[] {
+  const documents: EvaluationRankedDocument[] = []
   const seen = new Set<string>()
   for (const hit of result.hits) {
     const documentId = hit.documentId as string
     if (seen.has(documentId)) continue
     seen.add(documentId)
-    documents.push(documentId)
+    documents.push({ documentId, score: hit.score })
     if (documents.length === limit) break
   }
   return documents
+}
+
+function recallTopScoreGapRatio(result: KnowledgeSearchResult): number | undefined {
+  if (result.strategy.rerank || result.hits.length < 2) return undefined
+  const first = result.hits[0]?.score as number
+  const second = result.hits[1]?.score as number
+  const scale = Math.max(Math.abs(first), Math.abs(second), Number.EPSILON)
+  return (first - second) / scale
 }
 
 async function evaluateRun(
@@ -236,11 +283,14 @@ async function evaluateRun(
   queries: readonly SciFactEvaluationQuery[],
   maxResults: number,
   warmupQueries: number,
+  requestedStrategy: EvaluationQueryDetail['requestedStrategy'],
+  onQueryDetail?: EvaluationQueryDetailSink,
 ): Promise<{
   metrics: EvaluationMetrics
   latencyMs: { p50: number; p95: number }
   ranked: readonly RankedDocuments[]
   rerankAppliedRate: number
+  resolvedRetrievalCounts: Readonly<Record<ResolvedKnowledgeRetrieval, number>>
 }> {
   for (let index = 0; index < warmupQueries; index += 1) {
     const query = queries[index % queries.length]
@@ -249,18 +299,60 @@ async function evaluateRun(
   const ranked: RankedDocuments[] = []
   const latencies: number[] = []
   let rerankApplied = 0
+  const resolvedRetrievalCounts: Record<ResolvedKnowledgeRetrieval, number> = { bm25: 0, dense: 0, hybrid: 0 }
   for (const query of queries) {
     const startedAt = performance.now()
-    const result = await provider.search(query.text, maxResults)
+    let result: KnowledgeSearchResult
+    try {
+      result = await provider.search(query.text, maxResults)
+    } catch (error) {
+      await onQueryDetail?.({
+        schemaVersion: 1,
+        queryId: query.id,
+        queryText: query.text,
+        requestedStrategy,
+        relevantDocuments: query.relevantDocuments.map(item => ({
+          documentId: item.documentId as string,
+          relevance: item.relevance,
+        })),
+        status: 'failed',
+        latencyMs: performance.now() - startedAt,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      throw error
+    }
+    const latencyMs = performance.now() - startedAt
     if (result.strategy.rerank) rerankApplied += 1
-    latencies.push(performance.now() - startedAt)
-    ranked.push({ query, documentIds: foldDocuments(result, maxResults) })
+    resolvedRetrievalCounts[result.strategy.retrieval] += 1
+    const rankedDocuments = foldDocuments(result, maxResults)
+    const documentIds = rankedDocuments.map(document => document.documentId)
+    const metrics = calculateQueryMetrics(query, documentIds)
+    const scoreGapRatio = recallTopScoreGapRatio(result)
+    latencies.push(latencyMs)
+    ranked.push({ query, documentIds })
+    await onQueryDetail?.({
+      schemaVersion: 1,
+      queryId: query.id,
+      queryText: query.text,
+      requestedStrategy,
+      relevantDocuments: query.relevantDocuments.map(item => ({
+        documentId: item.documentId as string,
+        relevance: item.relevance,
+      })),
+      status: 'success',
+      latencyMs,
+      resolvedStrategy: result.strategy,
+      ...(scoreGapRatio === undefined ? {} : { recallTopScoreGapRatio: scoreGapRatio }),
+      rankedDocuments,
+      metrics,
+    })
   }
   return {
     metrics: calculateMetrics(ranked),
     latencyMs: { p50: nearestRank(latencies, 0.5), p95: nearestRank(latencies, 0.95) },
     ranked,
     rerankAppliedRate: rerankApplied / queries.length,
+    resolvedRetrievalCounts,
   }
 }
 
@@ -286,6 +378,7 @@ function approximationRecall(
  * @param denseIndexes - Dense implementations to compare.
  * @param modes - recall modes to execute.
  * @param rerankValues - reranking preferences to execute.
+ * @param onQueryDetail - optional sink for measured per-query records.
  * @returns successful or failed run records in stable order.
  */
 export async function evaluateMatrix(
@@ -296,16 +389,29 @@ export async function evaluateMatrix(
   denseIndexes: readonly ('exact' | 'hnsw')[] = ['exact'],
   modes: readonly EvaluationMode[] = ['bm25', 'dense', 'hybrid'],
   rerankValues: readonly KnowledgeRerank[] = ['off', 'auto', 'on'],
+  onQueryDetail?: EvaluationQueryDetailSink,
 ): Promise<EvaluationRun[]> {
   const runs: EvaluationRun[] = []
   const rankings = new Map<string, readonly RankedDocuments[]>()
   for (const mode of modes) {
     const indexes = mode === 'bm25' ? ['exact' as const] : denseIndexes
     for (const denseIndex of indexes) for (const rerank of rerankValues) {
+      const requestedStrategy: EvaluationQueryDetail['requestedStrategy'] = {
+        retrieval: mode,
+        ...(mode === 'bm25' ? {} : { denseIndex }),
+        rerank,
+      }
       let provider: EvaluationProvider | undefined
       try {
         provider = await createProvider(mode, rerank, denseIndex)
-        const result = await evaluateRun(provider, queries, maxResults, warmupQueries)
+        const result = await evaluateRun(
+          provider,
+          queries,
+          maxResults,
+          warmupQueries,
+          requestedStrategy,
+          onQueryDetail,
+        )
         if (mode !== 'bm25') rankings.set(`${mode}:${rerank}:${denseIndex}`, result.ranked)
         runs.push({
           mode,
@@ -316,6 +422,7 @@ export async function evaluateMatrix(
           metrics: result.metrics,
           latencyMs: result.latencyMs,
           rerankAppliedRate: result.rerankAppliedRate,
+          resolvedRetrievalCounts: result.resolvedRetrievalCounts,
         })
       } catch (error) {
         runs.push({
@@ -372,6 +479,7 @@ export interface EvaluateDatasetOptions {
   readonly denseIndexes?: readonly ('exact' | 'hnsw')[]
   readonly rerankValues?: readonly KnowledgeRerank[]
   readonly hnswExpansionSearch?: number
+  readonly onQueryDetail?: EvaluationQueryDetailSink
 }
 
 /**
@@ -467,7 +575,7 @@ export async function evaluateDataset(options: EvaluateDatasetOptions): Promise<
         defaultRetrieval: mode,
         defaultDenseIndex: denseIndex,
         defaultRerank: 'off',
-        allowedRetrieval: [mode],
+        allowedRetrieval: mode === 'auto' ? ['bm25', 'dense', 'hybrid'] : [mode],
         allowedDenseIndexes: [denseIndex],
         allowedRerank: rerank !== 'off',
         candidateCount,
@@ -489,7 +597,15 @@ export async function evaluateDataset(options: EvaluateDatasetOptions): Promise<
       throw error
     }
     return {
-      search: (query, maxResults) => context.knowledge.search({ query, maxResults, strategy: { rerank } }),
+      search: (query, maxResults) => context.knowledge.search({
+        query,
+        maxResults,
+        strategy: {
+          retrieval: mode,
+          ...(mode === 'dense' || mode === 'hybrid' ? { denseIndex } : {}),
+          rerank,
+        },
+      }),
       dispose: () => context.fiber.dispose(),
     }
   }
@@ -501,6 +617,10 @@ export async function evaluateDataset(options: EvaluateDatasetOptions): Promise<
     platform: { os: platform(), release: release(), arch: arch(), node: process.version },
     corpusSha256: index.manifest.corpus.sha256,
     indexFingerprint: createHash('sha256').update(manifestText).digest('hex'),
+    inputs: {
+      queriesSha256: createHash('sha256').update(queryText).digest('hex'),
+      qrelsSha256: createHash('sha256').update(qrelsText).digest('hex'),
+    },
     models: {
       ...(denseManifest === undefined ? {} : { dense: {
         modelId: denseManifest.modelId,
@@ -543,6 +663,7 @@ export async function evaluateDataset(options: EvaluateDatasetOptions): Promise<
       denseIndexes,
       modes,
       rerankValues,
+      options.onQueryDetail,
     ),
     build: {
       durationMs: index.manifest.build.durationMs,

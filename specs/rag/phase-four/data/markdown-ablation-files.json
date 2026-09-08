@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "revision": "955a9acb56acfbc9b0c7ff3760550d6819fb2f75",
+  "documentCount": 20,
+  "files": [
+    {
+      "path": "docs/architecture.md",
+      "sha256": "6a6e9d4fdb582661d2f27ad14ec4bee287ba7b764963b96964a54435662fd55b",
+      "bytes": 9409
+    },
+    {
+      "path": "docs/testing.md",
+      "sha256": "f47370270ceee93392660f8982c8e293883c1dd2cb625e580814a67474660036",
+      "bytes": 9287
+    },
+    {
+      "path": "docs/development.md",
+      "sha256": "b7eb2eb7cd8b871dc61e5c734f66b0f505e3315f077c3c679d9f5a286be2bd30",
+      "bytes": 16153
+    },
+    {
+      "path": "docs/defensive-patterns.md",
+      "sha256": "919d27a033c655ea6187496872caa4aa9babf08d87179562ca23545301108bb1",
+      "bytes": 3653
+    },
+    {
+      "path": "docs/cordis-primer.md",
+      "sha256": "90e493ea854a8e23fed0fa6b973ade950d4fd100e6365c6ad52d83d3436f27e9",
+      "bytes": 4018
+    },
+    {
+      "path": "docs/agent-lifecycle.md",
+      "sha256": "348a63eebf0e704a44c9ececd22a4ebcbf0691161ab4a81790f96f7d4a743f9d",
+      "bytes": 4524
+    },
+    {
+      "path": "docs/tool-execution-pipeline.md",
+      "sha256": "4f2f0a8459db2da876c445bb86d66d909b8f648c2c03855217274d8067cad243",
+      "bytes": 4038
+    },
+    {
+      "path": "docs/capability-seams.md",
+      "sha256": "851c977343dc60e3e00c4d49bd0380b4f8fe1452816460ec876dc4d263ad5be6",
+      "bytes": 40938
+    },
+    {
+      "path": "docs/event-producer-consumer.md",
+      "sha256": "8c0501c57fef77ce3c1f0f8b20161501e9dd809a5c8e19757e8f2de3770d6916",
+      "bytes": 21309
+    },
+    {
+      "path": "docs/cookbook/adding-a-tool.md",
+      "sha256": "95da7e00ac9e9b2a93a56b25721f75ab83a7994e51c0444d8b030271143eb7c1",
+      "bytes": 12538
+    },
+    {
+      "path": "docs/cookbook/adding-a-package.md",
+      "sha256": "c8875416813450e6021d5da2406c1d672edb5be012e857761be5e5551e4ad903",
+      "bytes": 12187
+    },
+    {
+      "path": "docs/cookbook/extension-cookbook.md",
+      "sha256": "f00e246d829ab66b826b3d5a146f99f1fcca3859e3f32ee083d733b90d6f7591",
+      "bytes": 11282
+    },
+    {
+      "path": "docs/subsystems/core.md",
+      "sha256": "3c95345c313562b27aeadd679493e92d633ec52dc09f181ad0894cc428823860",
+      "bytes": 56853
+    },
+    {
+      "path": "docs/subsystems/session.md",
+      "sha256": "f01f2c9736d985f87c8e1b6161b3d6fdd7d61fc5592af6b37aa4192e98f0a60c",
+      "bytes": 51434
+    },
+    {
+      "path": "docs/subsystems/llm-streaming.md",
+      "sha256": "2c54e09bc574edb9484f877ab331094629b4b3010c6c5075d799295bdd0b86ed",
+      "bytes": 50169
+    },
+    {
+      "path": "docs/subsystems/subagent.md",
+      "sha256": "0951249af8f3e65cba1b1cdc79ee6cfa57bf3d6f3fb80584eebe6ebdd9ec50c5",
+      "bytes": 52438
+    },
+    {
+      "path": "docs/subsystems/knowledge.md",
+      "sha256": "40a5e7716d2e163f34089f958cc4c9683086a711c045deae378302735c11fee0",
+      "bytes": 6294
+    },
+    {
+      "path": "docs/glossary.md",
+      "sha256": "1ea7ebb468408aff58818426000d36ed500f1175f4ef23f5fd15286997ca9fdf",
+      "bytes": 6521
+    },
+    {
+      "path": "packages/experimental/knowledge-local/README.md",
+      "sha256": "6068a82478b3c1dc07e72d228918a05ac49bc380dc29c6bcb19320d9564c834d",
+      "bytes": 12131
+    },
+    {
+      "path": "packages/experimental/tool-knowledge/README.md",
+      "sha256": "1aa8b1dbdfce2f1e2628af6dd62359d55225fad5025f6648b7d9b2685718533d",
+      "bytes": 3629
+    }
+  ]
+}

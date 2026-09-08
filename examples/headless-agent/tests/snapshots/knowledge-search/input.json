@@ -2,7 +2,7 @@
   "steps": [
     {
       "op": "prompt",
-      "text": "Use the configured knowledge base to answer: What converts light energy in plants? Cite the evidence identifier."
+      "text": "Use the configured knowledge base to answer both parts: What converts light energy in plants, and what generates most of the chemical energy needed to power a cell? Cite the evidence identifier for each part."
     }
   ]
 }
