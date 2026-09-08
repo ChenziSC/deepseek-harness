@@ -1,0 +1,869 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-08",
+  "inputs": {
+    "path": "specs/rag/phase-five/data/semantic-boundary-pilot-samples.jsonl",
+    "sha256": "b1f00ae3d4994575e915a958dd89e98d299ec2c11a59b4c00c48857e0ccf0e1e",
+    "sampleCount": 10,
+    "qualityScoredSampleCount": 6
+  },
+  "configuration": {
+    "modelId": "onnx-community/bge-m3-ONNX",
+    "revision": "25b9af8e87a38eb120cfe87125383677b9cd309e",
+    "dtype": "q8",
+    "maxTokens": 120,
+    "semanticMinTokens": 40,
+    "contextUnits": 1,
+    "percentileThreshold": 0.8,
+    "absoluteDistanceThreshold": 0.25
+  },
+  "parserChecks": {
+    "passed": 10,
+    "total": 10,
+    "codeFencePreserved": true,
+    "shortDocumentUnsplit": true,
+    "longSentenceFallbackSplit": true
+  },
+  "timingsMs": {
+    "total": 4315.464583999999,
+    "boundaryEncoding": 1758.8692919999999
+  },
+  "algorithms": {
+    "last-safe-unit": {
+      "exactBoundaryPrecision": 0.5,
+      "exactBoundaryRecall": 0.5,
+      "nearBoundaryPrecision": 1,
+      "nearBoundaryRecall": 1,
+      "meanBoundaryCount": 1,
+      "maximumObservedChunkTokens": 117
+    },
+    "constrained-max-gap": {
+      "exactBoundaryPrecision": 0.5,
+      "exactBoundaryRecall": 0.5,
+      "nearBoundaryPrecision": 0.8333333333333334,
+      "nearBoundaryRecall": 1,
+      "meanBoundaryCount": 1.5,
+      "maximumObservedChunkTokens": 104
+    },
+    "document-p80": {
+      "exactBoundaryPrecision": 0.3333333333333333,
+      "exactBoundaryRecall": 0.3333333333333333,
+      "nearBoundaryPrecision": 0.8333333333333334,
+      "nearBoundaryRecall": 1,
+      "meanBoundaryCount": 1.5,
+      "maximumObservedChunkTokens": 104
+    },
+    "absolute-0.25": {
+      "exactBoundaryPrecision": 0.3333333333333333,
+      "exactBoundaryRecall": 0.3333333333333333,
+      "nearBoundaryPrecision": 0.9166666666666666,
+      "nearBoundaryRecall": 1,
+      "meanBoundaryCount": 1.1666666666666667,
+      "maximumObservedChunkTokens": 117
+    }
+  },
+  "decision": {
+    "outcome": "stop-before-production-implementation",
+    "selectedAlgorithm": null,
+    "rule": "Continue only if constrained max-gap improves exact boundary recall over the last-safe-unit baseline by at least 0.10 while all chunks stay within maxTokens."
+  },
+  "samples": [
+    {
+      "id": "semantic-pilot-zh-cache-security",
+      "kind": "no-heading-zh",
+      "qualityScored": true,
+      "parserValid": true,
+      "unitCount": 6,
+      "unitTokens": [
+        44,
+        38,
+        35,
+        36,
+        35,
+        37
+      ],
+      "fencedUnitCount": 0,
+      "expectedBoundaryAfterUnits": [
+        2
+      ],
+      "distances": [
+        0.0413700685565509,
+        0.16486693251923035,
+        0.12106136996994687,
+        0.15544540455222178,
+        0.14811414087368013
+      ],
+      "encodingMs": 306.2101670000002,
+      "strategies": {
+        "last-safe-unit": {
+          "boundaries": [
+            2
+          ],
+          "chunkTokens": [
+            117,
+            108
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 117
+        },
+        "constrained-max-gap": {
+          "boundaries": [
+            1,
+            3
+          ],
+          "chunkTokens": [
+            82,
+            71,
+            72
+          ],
+          "exactPrecision": 0,
+          "exactRecall": 0,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 82
+        },
+        "document-p80": {
+          "boundaries": [
+            1,
+            3
+          ],
+          "chunkTokens": [
+            82,
+            71,
+            72
+          ],
+          "exactPrecision": 0,
+          "exactRecall": 0,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 82
+        },
+        "absolute-0.25": {
+          "boundaries": [
+            2
+          ],
+          "chunkTokens": [
+            117,
+            108
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 117
+        }
+      }
+    },
+    {
+      "id": "semantic-pilot-en-transaction-image",
+      "kind": "no-heading-en",
+      "qualityScored": true,
+      "parserValid": true,
+      "unitCount": 6,
+      "unitTokens": [
+        29,
+        38,
+        34,
+        38,
+        32,
+        39
+      ],
+      "fencedUnitCount": 0,
+      "expectedBoundaryAfterUnits": [
+        2
+      ],
+      "distances": [
+        0.047331463682711794,
+        0.17600563841315175,
+        0.13441571283960096,
+        0.11220500553301793,
+        0.1344989697754415
+      ],
+      "encodingMs": 266.5233750000002,
+      "strategies": {
+        "last-safe-unit": {
+          "boundaries": [
+            2
+          ],
+          "chunkTokens": [
+            101,
+            109
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 109
+        },
+        "constrained-max-gap": {
+          "boundaries": [
+            1,
+            4
+          ],
+          "chunkTokens": [
+            67,
+            104,
+            39
+          ],
+          "exactPrecision": 0,
+          "exactRecall": 0,
+          "nearPrecision": 0.5,
+          "nearRecall": 1,
+          "maximumChunkTokens": 104
+        },
+        "document-p80": {
+          "boundaries": [
+            1,
+            4
+          ],
+          "chunkTokens": [
+            67,
+            104,
+            39
+          ],
+          "exactPrecision": 0,
+          "exactRecall": 0,
+          "nearPrecision": 0.5,
+          "nearRecall": 1,
+          "maximumChunkTokens": 104
+        },
+        "absolute-0.25": {
+          "boundaries": [
+            2
+          ],
+          "chunkTokens": [
+            101,
+            109
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 109
+        }
+      }
+    },
+    {
+      "id": "semantic-pilot-weak-labels",
+      "kind": "weak-heading",
+      "qualityScored": true,
+      "parserValid": true,
+      "unitCount": 6,
+      "unitTokens": [
+        25,
+        25,
+        20,
+        24,
+        28,
+        20
+      ],
+      "fencedUnitCount": 0,
+      "expectedBoundaryAfterUnits": [
+        2
+      ],
+      "distances": [
+        0.056257481428015566,
+        0.13800824667366107,
+        0.15901163285854758,
+        0.15211227155531748,
+        0.08177589098707083
+      ],
+      "encodingMs": 167.32158299999992,
+      "strategies": {
+        "last-safe-unit": {
+          "boundaries": [
+            3
+          ],
+          "chunkTokens": [
+            94,
+            48
+          ],
+          "exactPrecision": 0,
+          "exactRecall": 0,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 94
+        },
+        "constrained-max-gap": {
+          "boundaries": [
+            2
+          ],
+          "chunkTokens": [
+            70,
+            72
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 72
+        },
+        "document-p80": {
+          "boundaries": [
+            3
+          ],
+          "chunkTokens": [
+            94,
+            48
+          ],
+          "exactPrecision": 0,
+          "exactRecall": 0,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 94
+        },
+        "absolute-0.25": {
+          "boundaries": [
+            3
+          ],
+          "chunkTokens": [
+            94,
+            48
+          ],
+          "exactPrecision": 0,
+          "exactRecall": 0,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 94
+        }
+      }
+    },
+    {
+      "id": "semantic-pilot-bilingual",
+      "kind": "bilingual",
+      "qualityScored": true,
+      "parserValid": true,
+      "unitCount": 6,
+      "unitTokens": [
+        22,
+        24,
+        17,
+        29,
+        31,
+        30
+      ],
+      "fencedUnitCount": 0,
+      "expectedBoundaryAfterUnits": [
+        2
+      ],
+      "distances": [
+        0.03983283958399719,
+        0.1500598932301378,
+        0.19228912785528873,
+        0.11799061674064781,
+        0.12342688839213589
+      ],
+      "encodingMs": 263.1566250000001,
+      "strategies": {
+        "last-safe-unit": {
+          "boundaries": [
+            3
+          ],
+          "chunkTokens": [
+            92,
+            61
+          ],
+          "exactPrecision": 0,
+          "exactRecall": 0,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 92
+        },
+        "constrained-max-gap": {
+          "boundaries": [
+            2
+          ],
+          "chunkTokens": [
+            63,
+            90
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 90
+        },
+        "document-p80": {
+          "boundaries": [
+            2
+          ],
+          "chunkTokens": [
+            63,
+            90
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 90
+        },
+        "absolute-0.25": {
+          "boundaries": [
+            3
+          ],
+          "chunkTokens": [
+            92,
+            61
+          ],
+          "exactPrecision": 0,
+          "exactRecall": 0,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 92
+        }
+      }
+    },
+    {
+      "id": "semantic-pilot-observability-routing",
+      "kind": "topic-shift-zh",
+      "qualityScored": true,
+      "parserValid": true,
+      "unitCount": 6,
+      "unitTokens": [
+        27,
+        24,
+        21,
+        26,
+        24,
+        30
+      ],
+      "fencedUnitCount": 0,
+      "expectedBoundaryAfterUnits": [
+        2
+      ],
+      "distances": [
+        0.05951685870054624,
+        0.1732629744716958,
+        0.18645048094386973,
+        0.1083485653374261,
+        0.1459836353042696
+      ],
+      "encodingMs": 169.60716700000012,
+      "strategies": {
+        "last-safe-unit": {
+          "boundaries": [
+            3
+          ],
+          "chunkTokens": [
+            98,
+            54
+          ],
+          "exactPrecision": 0,
+          "exactRecall": 0,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 98
+        },
+        "constrained-max-gap": {
+          "boundaries": [
+            2
+          ],
+          "chunkTokens": [
+            72,
+            80
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 80
+        },
+        "document-p80": {
+          "boundaries": [
+            2
+          ],
+          "chunkTokens": [
+            72,
+            80
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 80
+        },
+        "absolute-0.25": {
+          "boundaries": [
+            3
+          ],
+          "chunkTokens": [
+            98,
+            54
+          ],
+          "exactPrecision": 0,
+          "exactRecall": 0,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 98
+        }
+      }
+    },
+    {
+      "id": "semantic-pilot-build-retrieval",
+      "kind": "topic-shift-en",
+      "qualityScored": true,
+      "parserValid": true,
+      "unitCount": 6,
+      "unitTokens": [
+        28,
+        36,
+        32,
+        39,
+        31,
+        32
+      ],
+      "fencedUnitCount": 0,
+      "expectedBoundaryAfterUnits": [
+        2
+      ],
+      "distances": [
+        0.07744735657433166,
+        0.2603944398132608,
+        0.12291065171886328,
+        0.15836899236232693,
+        0.19133322153400023
+      ],
+      "encodingMs": 287.90654099999983,
+      "strategies": {
+        "last-safe-unit": {
+          "boundaries": [
+            2
+          ],
+          "chunkTokens": [
+            96,
+            102
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 102
+        },
+        "constrained-max-gap": {
+          "boundaries": [
+            1,
+            4
+          ],
+          "chunkTokens": [
+            64,
+            102,
+            32
+          ],
+          "exactPrecision": 0,
+          "exactRecall": 0,
+          "nearPrecision": 0.5,
+          "nearRecall": 1,
+          "maximumChunkTokens": 102
+        },
+        "document-p80": {
+          "boundaries": [
+            1,
+            4
+          ],
+          "chunkTokens": [
+            64,
+            102,
+            32
+          ],
+          "exactPrecision": 0,
+          "exactRecall": 0,
+          "nearPrecision": 0.5,
+          "nearRecall": 1,
+          "maximumChunkTokens": 102
+        },
+        "absolute-0.25": {
+          "boundaries": [
+            1,
+            4
+          ],
+          "chunkTokens": [
+            64,
+            102,
+            32
+          ],
+          "exactPrecision": 0,
+          "exactRecall": 0,
+          "nearPrecision": 0.5,
+          "nearRecall": 1,
+          "maximumChunkTokens": 102
+        }
+      }
+    },
+    {
+      "id": "semantic-pilot-code-fence",
+      "kind": "code-fence",
+      "qualityScored": false,
+      "parserValid": true,
+      "unitCount": 4,
+      "unitTokens": [
+        14,
+        22,
+        19,
+        18
+      ],
+      "fencedUnitCount": 1,
+      "expectedBoundaryAfterUnits": [],
+      "distances": [
+        0.13559281295502656,
+        0.16395894900253116,
+        0.12359197924767185
+      ],
+      "encodingMs": 76.47862499999974,
+      "strategies": {
+        "last-safe-unit": {
+          "boundaries": [],
+          "chunkTokens": [
+            73
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 73
+        },
+        "constrained-max-gap": {
+          "boundaries": [],
+          "chunkTokens": [
+            73
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 73
+        },
+        "document-p80": {
+          "boundaries": [],
+          "chunkTokens": [
+            73
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 73
+        },
+        "absolute-0.25": {
+          "boundaries": [],
+          "chunkTokens": [
+            73
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 73
+        }
+      }
+    },
+    {
+      "id": "semantic-pilot-short",
+      "kind": "short-document",
+      "qualityScored": false,
+      "parserValid": true,
+      "unitCount": 1,
+      "unitTokens": [
+        14
+      ],
+      "fencedUnitCount": 0,
+      "expectedBoundaryAfterUnits": [],
+      "distances": [],
+      "encodingMs": 7.953042000000096,
+      "strategies": {
+        "last-safe-unit": {
+          "boundaries": [],
+          "chunkTokens": [
+            14
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 14
+        },
+        "constrained-max-gap": {
+          "boundaries": [],
+          "chunkTokens": [
+            14
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 14
+        },
+        "document-p80": {
+          "boundaries": [],
+          "chunkTokens": [
+            14
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 14
+        },
+        "absolute-0.25": {
+          "boundaries": [],
+          "chunkTokens": [
+            14
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 14
+        }
+      }
+    },
+    {
+      "id": "semantic-pilot-homogeneous",
+      "kind": "homogeneous",
+      "qualityScored": false,
+      "parserValid": true,
+      "unitCount": 6,
+      "unitTokens": [
+        12,
+        11,
+        10,
+        10,
+        11,
+        12
+      ],
+      "fencedUnitCount": 0,
+      "expectedBoundaryAfterUnits": [],
+      "distances": [
+        0.042167971009679506,
+        0.05862267639171492,
+        0.08070309462610648,
+        0.12702498356995084,
+        0.07433671052640656
+      ],
+      "encodingMs": 90.66287499999999,
+      "strategies": {
+        "last-safe-unit": {
+          "boundaries": [],
+          "chunkTokens": [
+            66
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 66
+        },
+        "constrained-max-gap": {
+          "boundaries": [],
+          "chunkTokens": [
+            66
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 66
+        },
+        "document-p80": {
+          "boundaries": [],
+          "chunkTokens": [
+            66
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 66
+        },
+        "absolute-0.25": {
+          "boundaries": [],
+          "chunkTokens": [
+            66
+          ],
+          "exactPrecision": 1,
+          "exactRecall": 1,
+          "nearPrecision": 1,
+          "nearRecall": 1,
+          "maximumChunkTokens": 66
+        }
+      }
+    },
+    {
+      "id": "semantic-pilot-long-sentence",
+      "kind": "single-long-sentence",
+      "qualityScored": false,
+      "parserValid": true,
+      "unitCount": 2,
+      "unitTokens": [
+        120,
+        57
+      ],
+      "fencedUnitCount": 0,
+      "expectedBoundaryAfterUnits": [],
+      "distances": [
+        6.007830366527855e-8
+      ],
+      "encodingMs": 123.0492919999997,
+      "strategies": {
+        "last-safe-unit": {
+          "boundaries": [
+            0
+          ],
+          "chunkTokens": [
+            120,
+            57
+          ],
+          "exactPrecision": 0,
+          "exactRecall": 1,
+          "nearPrecision": 0,
+          "nearRecall": 1,
+          "maximumChunkTokens": 120
+        },
+        "constrained-max-gap": {
+          "boundaries": [
+            0
+          ],
+          "chunkTokens": [
+            120,
+            57
+          ],
+          "exactPrecision": 0,
+          "exactRecall": 1,
+          "nearPrecision": 0,
+          "nearRecall": 1,
+          "maximumChunkTokens": 120
+        },
+        "document-p80": {
+          "boundaries": [
+            0
+          ],
+          "chunkTokens": [
+            120,
+            57
+          ],
+          "exactPrecision": 0,
+          "exactRecall": 1,
+          "nearPrecision": 0,
+          "nearRecall": 1,
+          "maximumChunkTokens": 120
+        },
+        "absolute-0.25": {
+          "boundaries": [
+            0
+          ],
+          "chunkTokens": [
+            120,
+            57
+          ],
+          "exactPrecision": 0,
+          "exactRecall": 1,
+          "nearPrecision": 0,
+          "nearRecall": 1,
+          "maximumChunkTokens": 120
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{"id":"p5-chain-001-step-1","title":"棱舟甲一计划入口","source":"phase-five-chain","text":"棱舟甲一计划的批准轮换窗口不在本页。必须从档案代码 P5C0101XZ 开始逐级核验；最终档案字段 W 表示轮换窗口，字段 S 表示批准状态。"}
+{"id":"p5-chain-001-step-2","title":"P5C0101XZ","source":"phase-five-chain","text":"P5C0101XZ P5C0101XZ P5C0101XZ NEXT=P5C0102XZ"}
+{"id":"p5-chain-001-step-3","title":"P5C0102XZ","source":"phase-five-chain","text":"P5C0102XZ P5C0102XZ P5C0102XZ W=周二 02:10–02:40; S=APPROVED"}
+{"id":"p5-chain-002-step-1","title":"曜谷乙二计划入口","source":"phase-five-chain","text":"曜谷乙二计划的批准轮换窗口不在本页。必须从档案代码 P5C0201XZ 开始逐级核验；最终档案字段 W 表示轮换窗口，字段 S 表示批准状态。"}
+{"id":"p5-chain-002-step-2","title":"P5C0201XZ","source":"phase-five-chain","text":"P5C0201XZ P5C0201XZ P5C0201XZ NEXT=P5C0202XZ"}
+{"id":"p5-chain-002-step-3","title":"P5C0202XZ","source":"phase-five-chain","text":"P5C0202XZ P5C0202XZ P5C0202XZ W=周三 03:10–03:40; S=APPROVED"}
+{"id":"p5-chain-003-step-1","title":"汀岚丙三计划入口","source":"phase-five-chain","text":"汀岚丙三计划的批准轮换窗口不在本页。必须从档案代码 P5C0301XZ 开始逐级核验；最终档案字段 W 表示轮换窗口，字段 S 表示批准状态。"}
+{"id":"p5-chain-003-step-2","title":"P5C0301XZ","source":"phase-five-chain","text":"P5C0301XZ P5C0301XZ P5C0301XZ NEXT=P5C0302XZ"}
+{"id":"p5-chain-003-step-3","title":"P5C0302XZ","source":"phase-five-chain","text":"P5C0302XZ P5C0302XZ P5C0302XZ W=周四 04:10–04:40; S=APPROVED"}
+{"id":"p5-chain-004-step-1","title":"霜砚丁四计划入口","source":"phase-five-chain","text":"霜砚丁四计划的批准轮换窗口不在本页。必须从档案代码 P5C0401XZ 开始逐级核验；最终档案字段 W 表示轮换窗口，字段 S 表示批准状态。"}
+{"id":"p5-chain-004-step-2","title":"P5C0401XZ","source":"phase-five-chain","text":"P5C0401XZ P5C0401XZ P5C0401XZ NEXT=P5C0402XZ"}
+{"id":"p5-chain-004-step-3","title":"P5C0402XZ","source":"phase-five-chain","text":"P5C0402XZ P5C0402XZ P5C0402XZ W=周五 05:10–05:40; S=APPROVED"}
+{"id":"p5-chain-005-step-1","title":"澜册戊五计划入口","source":"phase-five-chain","text":"澜册戊五计划的批准轮换窗口不在本页。必须从档案代码 P5C0501XZ 开始逐级核验；最终档案字段 W 表示轮换窗口，字段 S 表示批准状态。"}
+{"id":"p5-chain-005-step-2","title":"P5C0501XZ","source":"phase-five-chain","text":"P5C0501XZ P5C0501XZ P5C0501XZ NEXT=P5C0502XZ"}
+{"id":"p5-chain-005-step-3","title":"P5C0502XZ","source":"phase-five-chain","text":"P5C0502XZ P5C0502XZ P5C0502XZ W=周一 06:10–06:40; S=APPROVED"}
+{"id":"p5-chain-006-step-1","title":"岚枢己六计划入口","source":"phase-five-chain","text":"岚枢己六计划的批准轮换窗口不在本页。必须从档案代码 P5C0601XZ 开始逐级核验；最终档案字段 W 表示轮换窗口，字段 S 表示批准状态。"}
+{"id":"p5-chain-006-step-2","title":"P5C0601XZ","source":"phase-five-chain","text":"P5C0601XZ P5C0601XZ P5C0601XZ NEXT=P5C0602XZ"}
+{"id":"p5-chain-006-step-3","title":"P5C0602XZ","source":"phase-five-chain","text":"P5C0602XZ P5C0602XZ P5C0602XZ NEXT=P5C0603XZ"}
+{"id":"p5-chain-006-step-4","title":"P5C0603XZ","source":"phase-five-chain","text":"P5C0603XZ P5C0603XZ P5C0603XZ W=周二 07:10–07:40; S=APPROVED"}
+{"id":"p5-chain-007-step-1","title":"澈轮庚七计划入口","source":"phase-five-chain","text":"澈轮庚七计划的批准轮换窗口不在本页。必须从档案代码 P5C0701XZ 开始逐级核验；最终档案字段 W 表示轮换窗口，字段 S 表示批准状态。"}
+{"id":"p5-chain-007-step-2","title":"P5C0701XZ","source":"phase-five-chain","text":"P5C0701XZ P5C0701XZ P5C0701XZ NEXT=P5C0702XZ"}
+{"id":"p5-chain-007-step-3","title":"P5C0702XZ","source":"phase-five-chain","text":"P5C0702XZ P5C0702XZ P5C0702XZ NEXT=P5C0703XZ"}
+{"id":"p5-chain-007-step-4","title":"P5C0703XZ","source":"phase-five-chain","text":"P5C0703XZ P5C0703XZ P5C0703XZ W=周三 08:10–08:40; S=APPROVED"}
+{"id":"p5-chain-008-step-1","title":"烛台辛八计划入口","source":"phase-five-chain","text":"烛台辛八计划的批准轮换窗口不在本页。必须从档案代码 P5C0801XZ 开始逐级核验；最终档案字段 W 表示轮换窗口，字段 S 表示批准状态。"}
+{"id":"p5-chain-008-step-2","title":"P5C0801XZ","source":"phase-five-chain","text":"P5C0801XZ P5C0801XZ P5C0801XZ NEXT=P5C0802XZ"}
+{"id":"p5-chain-008-step-3","title":"P5C0802XZ","source":"phase-five-chain","text":"P5C0802XZ P5C0802XZ P5C0802XZ NEXT=P5C0803XZ"}
+{"id":"p5-chain-008-step-4","title":"P5C0803XZ","source":"phase-five-chain","text":"P5C0803XZ P5C0803XZ P5C0803XZ W=周四 01:10–01:40; S=APPROVED"}
+{"id":"p5-chain-009-step-1","title":"砾桥壬九计划入口","source":"phase-five-chain","text":"砾桥壬九计划的批准轮换窗口不在本页。必须从档案代码 P5C0901XZ 开始逐级核验；最终档案字段 W 表示轮换窗口，字段 S 表示批准状态。"}
+{"id":"p5-chain-009-step-2","title":"P5C0901XZ","source":"phase-five-chain","text":"P5C0901XZ P5C0901XZ P5C0901XZ NEXT=P5C0902XZ"}
+{"id":"p5-chain-009-step-3","title":"P5C0902XZ","source":"phase-five-chain","text":"P5C0902XZ P5C0902XZ P5C0902XZ NEXT=P5C0903XZ"}
+{"id":"p5-chain-009-step-4","title":"P5C0903XZ","source":"phase-five-chain","text":"P5C0903XZ P5C0903XZ P5C0903XZ W=周五 02:10–02:40; S=APPROVED"}
+{"id":"p5-chain-010-step-1","title":"墨屿癸十计划入口","source":"phase-five-chain","text":"墨屿癸十计划的批准轮换窗口不在本页。必须从档案代码 P5C1001XZ 开始逐级核验；最终档案字段 W 表示轮换窗口，字段 S 表示批准状态。"}
+{"id":"p5-chain-010-step-2","title":"P5C1001XZ","source":"phase-five-chain","text":"P5C1001XZ P5C1001XZ P5C1001XZ NEXT=P5C1002XZ"}
+{"id":"p5-chain-010-step-3","title":"P5C1002XZ","source":"phase-five-chain","text":"P5C1002XZ P5C1002XZ P5C1002XZ NEXT=P5C1003XZ"}
+{"id":"p5-chain-010-step-4","title":"P5C1003XZ","source":"phase-five-chain","text":"P5C1003XZ P5C1003XZ P5C1003XZ W=周一 03:10–03:40; S=APPROVED"}
+{"id":"p5-chain-011-step-1","title":"苔原子一计划入口","source":"phase-five-chain","text":"苔原子一计划的批准轮换窗口不在本页。必须从档案代码 P5C1101XZ 开始逐级核验；最终档案字段 W 表示轮换窗口，字段 S 表示批准状态。"}
+{"id":"p5-chain-011-step-2","title":"P5C1101XZ","source":"phase-five-chain","text":"P5C1101XZ P5C1101XZ P5C1101XZ NEXT=P5C1102XZ"}
+{"id":"p5-chain-011-step-3","title":"P5C1102XZ","source":"phase-five-chain","text":"P5C1102XZ P5C1102XZ P5C1102XZ NEXT=P5C1103XZ"}
+{"id":"p5-chain-011-step-4","title":"P5C1103XZ","source":"phase-five-chain","text":"P5C1103XZ P5C1103XZ P5C1103XZ NEXT=P5C1104XZ"}
+{"id":"p5-chain-011-step-5","title":"P5C1104XZ","source":"phase-five-chain","text":"P5C1104XZ P5C1104XZ P5C1104XZ NEXT=P5C1105XZ"}
+{"id":"p5-chain-011-step-6","title":"P5C1105XZ","source":"phase-five-chain","text":"P5C1105XZ P5C1105XZ P5C1105XZ W=周二 04:10–04:40; S=APPROVED"}
+{"id":"p5-chain-012-step-1","title":"镜塔丑二计划入口","source":"phase-five-chain","text":"镜塔丑二计划的批准轮换窗口不在本页。必须从档案代码 P5C1201XZ 开始逐级核验；最终档案字段 W 表示轮换窗口，字段 S 表示批准状态。"}
+{"id":"p5-chain-012-step-2","title":"P5C1201XZ","source":"phase-five-chain","text":"P5C1201XZ P5C1201XZ P5C1201XZ NEXT=P5C1202XZ"}
+{"id":"p5-chain-012-step-3","title":"P5C1202XZ","source":"phase-five-chain","text":"P5C1202XZ P5C1202XZ P5C1202XZ NEXT=P5C1203XZ"}
+{"id":"p5-chain-012-step-4","title":"P5C1203XZ","source":"phase-five-chain","text":"P5C1203XZ P5C1203XZ P5C1203XZ NEXT=P5C1204XZ"}
+{"id":"p5-chain-012-step-5","title":"P5C1204XZ","source":"phase-five-chain","text":"P5C1204XZ P5C1204XZ P5C1204XZ NEXT=P5C1205XZ"}
+{"id":"p5-chain-012-step-6","title":"P5C1205XZ","source":"phase-five-chain","text":"P5C1205XZ P5C1205XZ P5C1205XZ W=周三 05:10–05:40; S=APPROVED"}
+{"id":"p5-chain-013-step-1","title":"渚门寅三计划入口","source":"phase-five-chain","text":"渚门寅三计划的批准轮换窗口不在本页。必须从档案代码 P5C1301XZ 开始逐级核验；最终档案字段 W 表示轮换窗口，字段 S 表示批准状态。"}
+{"id":"p5-chain-013-step-2","title":"P5C1301XZ","source":"phase-five-chain","text":"P5C1301XZ P5C1301XZ P5C1301XZ NEXT=P5C1302XZ"}
+{"id":"p5-chain-013-step-3","title":"P5C1302XZ","source":"phase-five-chain","text":"P5C1302XZ P5C1302XZ P5C1302XZ NEXT=P5C1303XZ"}
+{"id":"p5-chain-013-step-4","title":"P5C1303XZ","source":"phase-five-chain","text":"P5C1303XZ P5C1303XZ P5C1303XZ NEXT=P5C1304XZ"}
+{"id":"p5-chain-013-step-5","title":"P5C1304XZ","source":"phase-five-chain","text":"P5C1304XZ P5C1304XZ P5C1304XZ NEXT=P5C1305XZ"}
+{"id":"p5-chain-013-step-6","title":"P5C1305XZ","source":"phase-five-chain","text":"P5C1305XZ P5C1305XZ P5C1305XZ W=周四 06:10–06:40; S=APPROVED"}
+{"id":"p5-chain-014-step-1","title":"砚河卯四计划入口","source":"phase-five-chain","text":"砚河卯四计划的批准轮换窗口不在本页。必须从档案代码 P5C1401XZ 开始逐级核验；最终档案字段 W 表示轮换窗口，字段 S 表示批准状态。"}
+{"id":"p5-chain-014-step-2","title":"P5C1401XZ","source":"phase-five-chain","text":"P5C1401XZ P5C1401XZ P5C1401XZ NEXT=P5C1402XZ"}
+{"id":"p5-chain-014-step-3","title":"P5C1402XZ","source":"phase-five-chain","text":"P5C1402XZ P5C1402XZ P5C1402XZ NEXT=P5C1403XZ"}
+{"id":"p5-chain-014-step-4","title":"P5C1403XZ","source":"phase-five-chain","text":"P5C1403XZ P5C1403XZ P5C1403XZ NEXT=P5C1404XZ"}
+{"id":"p5-chain-014-step-5","title":"P5C1404XZ","source":"phase-five-chain","text":"P5C1404XZ P5C1404XZ P5C1404XZ NEXT=P5C1405XZ"}
+{"id":"p5-chain-014-step-6","title":"P5C1405XZ","source":"phase-five-chain","text":"P5C1405XZ P5C1405XZ P5C1405XZ W=周五 07:10–07:40; S=APPROVED"}
+{"id":"p5-chain-015-step-1","title":"杉庭辰五计划入口","source":"phase-five-chain","text":"杉庭辰五计划的批准轮换窗口不在本页。必须从档案代码 P5C1501XZ 开始逐级核验；最终档案字段 W 表示轮换窗口，字段 S 表示批准状态。"}
+{"id":"p5-chain-015-step-2","title":"P5C1501XZ","source":"phase-five-chain","text":"P5C1501XZ P5C1501XZ P5C1501XZ NEXT=P5C1502XZ"}
+{"id":"p5-chain-015-step-3","title":"P5C1502XZ","source":"phase-five-chain","text":"P5C1502XZ P5C1502XZ P5C1502XZ NEXT=P5C1503XZ"}
+{"id":"p5-chain-015-step-4","title":"P5C1503XZ","source":"phase-five-chain","text":"P5C1503XZ P5C1503XZ P5C1503XZ NEXT=P5C1504XZ"}
+{"id":"p5-chain-015-step-5","title":"P5C1504XZ","source":"phase-five-chain","text":"P5C1504XZ P5C1504XZ P5C1504XZ NEXT=P5C1505XZ"}
+{"id":"p5-chain-015-step-6","title":"P5C1505XZ","source":"phase-five-chain","text":"P5C1505XZ P5C1505XZ P5C1505XZ W=周一 08:10–08:40; S=APPROVED"}
+{"id":"p5-unresolved-conflict-001-a","title":"北岭系统变更通知甲","source":"phase-five-conflict","text":"北岭系统通知甲：切换日期为2026-11-03。通知编号 UC-A-001。当前知识库没有最终裁定记录。"}
+{"id":"p5-unresolved-conflict-001-b","title":"北岭系统变更通知乙","source":"phase-five-conflict","text":"北岭系统通知乙：切换日期为2026-11-08。通知编号 UC-B-001。当前知识库没有最终裁定记录。"}
+{"id":"p5-unresolved-conflict-002-a","title":"东泉系统变更通知甲","source":"phase-five-conflict","text":"东泉系统通知甲：切换日期为2026-11-04。通知编号 UC-A-002。当前知识库没有最终裁定记录。"}
+{"id":"p5-unresolved-conflict-002-b","title":"东泉系统变更通知乙","source":"phase-five-conflict","text":"东泉系统通知乙：切换日期为2026-11-09。通知编号 UC-B-002。当前知识库没有最终裁定记录。"}
+{"id":"p5-unresolved-conflict-003-a","title":"南浦系统变更通知甲","source":"phase-five-conflict","text":"南浦系统通知甲：切换日期为2026-11-05。通知编号 UC-A-003。当前知识库没有最终裁定记录。"}
+{"id":"p5-unresolved-conflict-003-b","title":"南浦系统变更通知乙","source":"phase-five-conflict","text":"南浦系统通知乙：切换日期为2026-11-10。通知编号 UC-B-003。当前知识库没有最终裁定记录。"}
+{"id":"p5-unresolved-conflict-004-a","title":"西川系统变更通知甲","source":"phase-five-conflict","text":"西川系统通知甲：切换日期为2026-11-06。通知编号 UC-A-004。当前知识库没有最终裁定记录。"}
+{"id":"p5-unresolved-conflict-004-b","title":"西川系统变更通知乙","source":"phase-five-conflict","text":"西川系统通知乙：切换日期为2026-11-11。通知编号 UC-B-004。当前知识库没有最终裁定记录。"}
+{"id":"p5-unresolved-conflict-005-a","title":"中庭系统变更通知甲","source":"phase-five-conflict","text":"中庭系统通知甲：切换日期为2026-11-07。通知编号 UC-A-005。当前知识库没有最终裁定记录。"}
+{"id":"p5-unresolved-conflict-005-b","title":"中庭系统变更通知乙","source":"phase-five-conflict","text":"中庭系统通知乙：切换日期为2026-11-12。通知编号 UC-B-005。当前知识库没有最终裁定记录。"}
+{"id":"p5-no-answer-distractor","title":"无关节点说明","source":"phase-five-no-answer","text":"该页只记录普通节点的资产盘点流程，不包含主控制器型号或维护窗口。"}

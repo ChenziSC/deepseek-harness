@@ -725,6 +725,8 @@ export interface Config {
   hitMaxChars?: number
   /** Maximum rendered length of the complete tool result. */
   outputMaxChars?: number
+  /** Maximum rendered length of all successful results in one agent turn. */
+  turnOutputMaxChars?: number
   /** Cooperative tool deadline in milliseconds. */
   timeoutMs?: number
   /** Maximum model-driven searches allowed in one agent turn. */
@@ -732,7 +734,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/experimental/tool-knowledge/src/index.ts:25`](../packages/experimental/tool-knowledge/src/index.ts)
+Source: [`packages/experimental/tool-knowledge/src/index.ts:27`](../packages/experimental/tool-knowledge/src/index.ts)
 
 <a id="deepseek-aidsh-file-reference-local"></a>
 
