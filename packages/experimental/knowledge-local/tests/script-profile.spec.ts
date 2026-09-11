@@ -1,8 +1,4 @@
-import {
-  countTextScripts,
-  profileTextScript,
-  resolveTextScriptProfile,
-} from '@deepseek-ai/dsh-experimental-knowledge-local'
+import { countTextScripts, profileTextScript, resolveTextScriptProfile } from '../src/script-profile.ts'
 import { describe, expect, it } from 'vitest'
 
 describe('text script profiling', () => {

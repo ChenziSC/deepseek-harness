@@ -5,7 +5,7 @@ import {
   type KnowledgeChunkId as KnowledgeChunkIdType,
   type KnowledgeDocumentId,
 } from '@deepseek-ai/dsh-experimental-knowledge'
-import { compareCodePoints } from './bm25.ts'
+import { compareCodePoints } from './ordering.ts'
 import type { CorpusDocument } from './corpus.ts'
 import type { ChunkTokenizer } from './tokenizer.ts'
 
@@ -277,7 +277,7 @@ function chunkDocument(document: CorpusDocument, tokenizer: ChunkTokenizer, opti
       startToken,
       endToken,
     })
-    if (end >= document.text.length) break
+    if (skipWhitespaceForward(document.text, end) >= document.text.length) break
     let nextStart = overlapStart(
       document.text,
       startBoundary,

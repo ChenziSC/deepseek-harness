@@ -4,14 +4,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it } from 'vitest'
-import {
-  buildKnowledgeIndex,
-  DENSE_DIMENSIONS,
-  loadDenseVectors,
-  loadKnowledgeIndex,
-  verifyKnowledgeIndex,
-  type ChunkTokenizer,
-} from '@deepseek-ai/dsh-experimental-knowledge-local'
+import type { ChunkTokenizer } from '../src/tokenizer.ts'
+import { DENSE_DIMENSIONS } from '../src/dense.ts'
+import { buildKnowledgeIndex } from '../src/index-builder.ts'
+import { loadDenseVectors, loadKnowledgeIndex, verifyKnowledgeIndex } from '../src/index-format.ts'
 
 const temporaryDirectories: string[] = []
 const whitespaceTokenizer: ChunkTokenizer = {
@@ -108,12 +104,12 @@ afterEach(async () => {
   await Promise.all(temporaryDirectories.splice(0).map(directory => rm(directory, { recursive: true, force: true })))
 })
 
-describe('version-three knowledge index validation', () => {
+describe('version-four knowledge index validation', () => {
   it.each([
     ['manifest JSON', async (indexDir: string) => writeFile(join(indexDir, 'manifest.json'), '{'), 'manifest.json is not valid JSON'],
     ['manifest object', async (indexDir: string) => writeFile(join(indexDir, 'manifest.json'), '[]'), 'manifest must be an object'],
     ['manifest fields', async (indexDir: string) => rewriteManifest(indexDir, (value) => { value['extra'] = true }), 'manifest fields are incompatible'],
-    ['format version', async (indexDir: string) => rewriteManifest(indexDir, (value) => { value['formatVersion'] = 2 }), 'formatVersion must be 3'],
+    ['format version', async (indexDir: string) => rewriteManifest(indexDir, (value) => { value['formatVersion'] = 2 }), 'formatVersion must be 4'],
     ['nested manifest objects', async (indexDir: string) => rewriteManifest(indexDir, (value) => { value['build'] = null }), 'manifest fields are incomplete'],
     ['createdBy fields', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['createdBy'])['extra'] = true }), 'manifest createdBy fields are incompatible'],
     ['package identity', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['createdBy'])['package'] = 'other' }), 'manifest package is unsupported'],
@@ -129,6 +125,7 @@ describe('version-three knowledge index validation', () => {
     ['chunking overlap', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['chunking'])['overlapTokens'] = 8 }), 'manifest chunking or script profile is invalid'],
     ['chunking strategy', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['chunking'])['strategy'] = 'other' }), 'manifest chunking or script profile is invalid'],
     ['script profile', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['corpus'])['scriptProfile'] = 'other' }), 'manifest chunking or script profile is invalid'],
+    ['document metadata', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['corpus'])['documentMetadata'] = 'other' }), 'manifest chunking or script profile is invalid'],
     ['BM25 fields', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['bm25'])['extra'] = true }), 'manifest bm25 fields are incompatible'],
     ['BM25 analyzer', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['bm25'])['analyzer'] = 'other' }), 'manifest BM25 configuration is unsupported'],
     ['BM25 implementation', async (indexDir: string) => rewriteManifest(indexDir, (value) => { record(value['bm25'])['implementation'] = 'other' }), 'manifest BM25 configuration is unsupported'],
@@ -165,6 +162,24 @@ describe('version-three knowledge index validation', () => {
     const fts = await createIndex()
     await rewriteSqlite(fts, 'DELETE FROM bm25_fts WHERE rowid = 1')
     await expect(loadKnowledgeIndex(fts)).rejects.toThrow('knowledge.sqlite schema or contents are incompatible')
+
+    const uncoveredDocument = await createIndex()
+    await rewriteSqlite(uncoveredDocument, "UPDATE chunks SET document_id = 'doc-a' WHERE document_id = 'doc-b'")
+    await expect(loadKnowledgeIndex(uncoveredDocument)).rejects.toThrow('knowledge.sqlite schema or contents are incompatible')
+  })
+
+  it.each([
+    "PRAGMA ignore_check_constraints = ON; UPDATE documents SET source_version = ' ' WHERE document_id = 'doc-a'",
+    "PRAGMA ignore_check_constraints = ON; UPDATE documents SET supersedes_document_id = '' WHERE document_id = 'doc-a'",
+    "PRAGMA ignore_check_constraints = ON; UPDATE documents SET valid_from = '2026-01-01T00:00:00.000Z', valid_from_ms = NULL WHERE document_id = 'doc-a'",
+    "UPDATE documents SET valid_from = '2026-01-01T08:00:00+08:00', valid_from_ms = 1767225600000 WHERE document_id = 'doc-a'",
+    "UPDATE documents SET valid_until = '2026-01-01T08:00:00+08:00', valid_until_ms = 1767225600000 WHERE document_id = 'doc-a'",
+    "PRAGMA ignore_check_constraints = ON; UPDATE documents SET valid_from = '2027-01-01T00:00:00.000Z', valid_from_ms = 1798761600000, valid_until = '2026-01-01T00:00:00.000Z', valid_until_ms = 1767225600000 WHERE document_id = 'doc-a'",
+    "PRAGMA ignore_check_constraints = ON; UPDATE documents SET supersedes_document_id = 'doc-a' WHERE document_id = 'doc-a'",
+  ] as const)('rejects invalid durable document metadata', async (sql) => {
+    const indexDir = await createIndex()
+    await rewriteSqlite(indexDir, sql)
+    await expect(loadKnowledgeIndex(indexDir)).rejects.toThrow('knowledge.sqlite schema or contents are incompatible')
   })
 
   it('queries read-only SQLite and validates selected chunk rows', async () => {
@@ -173,6 +188,8 @@ describe('version-three knowledge index validation', () => {
     const loaded = await loadKnowledgeIndex(indexDir)
     expect(loaded.sqlite.searchBm25('alpha " OR beta', 2).map(match => match.ordinal)).toEqual([0, 1])
     expect(loaded.sqlite.searchBm25('!!!', 2)).toEqual([])
+    expect(() => loaded.sqlite.eligibleOrdinals(Number.NaN, 2)).toThrow('validity time must be a safe integer')
+    expect(() => loaded.sqlite.eligibleOrdinals(Date.now(), 1)).toThrow('eligible ordinal is out of range')
     expect(loaded.sqlite.chunks([1, 0]).map(chunk => chunk.documentId)).toEqual(['doc-b', 'doc-a'])
     expect(() => loaded.sqlite.chunks([99])).toThrow('ordinal 99 is missing')
     expect(() => loaded.sqlite.adjacentChunks(99)).toThrow('ordinal 99 is missing')
@@ -330,7 +347,7 @@ describe('version-three knowledge index validation', () => {
   it('verifies and closes a complete index', async () => {
     const indexDir = await createIndex('hnsw')
     await expect(verifyKnowledgeIndex(indexDir)).resolves.toMatchObject({
-      formatVersion: 3,
+      formatVersion: 4,
       hnsw: { library: 'usearch' },
     })
   })

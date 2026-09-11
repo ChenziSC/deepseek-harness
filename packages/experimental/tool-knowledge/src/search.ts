@@ -13,6 +13,10 @@ export interface KnowledgeEvidence {
   readonly title?: string
   readonly sectionPath?: string
   readonly source?: string
+  readonly sourceVersion?: string
+  readonly validFrom?: string
+  readonly validUntil?: string
+  readonly supersedes?: string
   readonly text: string
   readonly previousText?: string
   readonly nextText?: string
@@ -42,6 +46,9 @@ function renderUntrustedValue(value: string): string {
 
 function renderEvidence(evidence: KnowledgeEvidence): string {
   const hasContext = evidence.previousText !== undefined || evidence.nextText !== undefined
+  const validity = evidence.validFrom === undefined && evidence.validUntil === undefined
+    ? 'unknown'
+    : `from ${evidence.validFrom ?? 'unbounded'}; until ${evidence.validUntil ?? 'unbounded'} (exclusive)`
   return [
     `----- BEGIN UNTRUSTED KNOWLEDGE EVIDENCE ${evidence.citation} -----`,
     `[${evidence.citation}]`,
@@ -52,6 +59,11 @@ function renderEvidence(evidence: KnowledgeEvidence): string {
     ...(evidence.title === undefined ? [] : ['Title:', renderUntrustedValue(evidence.title)]),
     ...(evidence.sectionPath === undefined ? [] : ['Section:', renderUntrustedValue(evidence.sectionPath)]),
     ...(evidence.source === undefined ? [] : ['Source:', renderUntrustedValue(evidence.source)]),
+    'Version:',
+    renderUntrustedValue(evidence.sourceVersion ?? 'unknown'),
+    'Validity:',
+    renderUntrustedValue(validity),
+    ...(evidence.supersedes === undefined ? [] : ['Supersedes:', renderUntrustedValue(evidence.supersedes)]),
     ...(hasContext ? ['Matched chunk:', renderUntrustedValue(evidence.text)] : ['Text:', renderUntrustedValue(evidence.text)]),
     ...(evidence.previousText === undefined ? [] : ['Previous chunk:', renderUntrustedValue(evidence.previousText)]),
     ...(evidence.nextText === undefined ? [] : ['Next chunk:', renderUntrustedValue(evidence.nextText)]),
@@ -79,6 +91,10 @@ function evidenceFromHit(hit: KnowledgeHit, citation: string, hitMaxChars: numbe
     ...(hit.title === undefined ? {} : { title: hit.title }),
     ...(hit.sectionPath === undefined ? {} : { sectionPath: hit.sectionPath }),
     ...(hit.source === undefined ? {} : { source: hit.source }),
+    ...(hit.sourceVersion === undefined ? {} : { sourceVersion: hit.sourceVersion }),
+    ...(hit.validFrom === undefined ? {} : { validFrom: hit.validFrom }),
+    ...(hit.validUntil === undefined ? {} : { validUntil: hit.validUntil }),
+    ...(hit.supersedes === undefined ? {} : { supersedes: hit.supersedes }),
     text: '',
   }
   const fixedLength = codePoints(renderEvidence(fixed)).length

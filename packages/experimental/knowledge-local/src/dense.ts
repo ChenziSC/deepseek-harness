@@ -1,12 +1,12 @@
 /** Exact dense-vector validation and retrieval. */
 
 import { KnowledgeError } from '@deepseek-ai/dsh-experimental-knowledge'
-import { compareCodePoints } from './bm25.ts'
+import { compareCodePoints } from './ordering.ts'
 
 /** Embedding width of the second-phase BGE-M3 default. */
 export const DENSE_DIMENSIONS = 1024
 /** Maximum accepted deviation from unit L2 norm. */
-export const DENSE_NORMALIZATION_TOLERANCE = 1e-4
+const DENSE_NORMALIZATION_TOLERANCE = 1e-4
 
 /** One dense retrieval match before projection to a knowledge hit. */
 export interface DenseMatch {
@@ -78,6 +78,7 @@ function throwIfCancelled(signal: AbortSignal | undefined): void {
  * @param dimensions - values per embedding.
  * @param limit - maximum matches to return.
  * @param signal - optional cooperative cancellation signal.
+ * @param eligibleOrdinals - optional row-aligned eligibility mask.
  * @returns exact matches ordered by descending score and chunk identifier.
  */
 export function searchDense(
@@ -87,6 +88,7 @@ export function searchDense(
   dimensions: number,
   limit: number,
   signal?: AbortSignal,
+  eligibleOrdinals?: Uint8Array,
 ): DenseMatch[] {
   if (!Number.isSafeInteger(limit) || limit < 1) throw new TypeError('knowledge-local: dense limit must be positive')
   if (!Number.isSafeInteger(dimensions) || dimensions < 1) {
@@ -99,10 +101,14 @@ export function searchDense(
   if (chunkIds !== undefined && chunkIds.length !== rowCount) {
     throw new TypeError('knowledge-local: dense index dimensions do not match its data length')
   }
+  if (eligibleOrdinals !== undefined && eligibleOrdinals.length !== rowCount) {
+    throw new TypeError('knowledge-local: dense eligibility mask does not match its row count')
+  }
   validateDenseVectors(query, 1, dimensions, 'knowledge-local: dense query')
   const matches: DenseMatch[] = []
   for (let ordinal = 0; ordinal < rowCount; ordinal += 1) {
     if (ordinal % 256 === 0) throwIfCancelled(signal)
+    if (eligibleOrdinals?.[ordinal] === 0) continue
     const score = dotProduct(vectors, ordinal * dimensions, query, dimensions)
     if (!Number.isFinite(score)) throw new TypeError('knowledge-local: dense index contains a non-finite value')
     matches.push({

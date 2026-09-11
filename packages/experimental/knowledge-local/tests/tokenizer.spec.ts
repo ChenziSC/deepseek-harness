@@ -11,11 +11,7 @@ vi.mock('@huggingface/transformers', () => ({
   },
 }))
 
-import {
-  BGE_M3_MODEL_ID,
-  BGE_M3_REVISION,
-  loadBgeChunkTokenizer,
-} from '@deepseek-ai/dsh-experimental-knowledge-local'
+import { BGE_M3_MODEL_ID, BGE_M3_REVISION, loadBgeChunkTokenizer } from '../src/tokenizer.ts'
 
 describe('BGE chunk tokenizer', () => {
   it('loads default identity and counts tokens without special tokens', async () => {

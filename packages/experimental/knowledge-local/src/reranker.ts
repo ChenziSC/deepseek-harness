@@ -20,7 +20,7 @@ export interface RerankMatch {
 }
 
 /** Tensor fields consumed from one sequence-classification result. */
-export interface RerankerTensorOutput {
+interface RerankerTensorOutput {
   readonly type: string
   readonly dims: readonly number[]
   readonly data: unknown

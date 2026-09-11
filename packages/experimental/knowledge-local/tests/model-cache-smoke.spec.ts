@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { KnowledgeChunkId, KnowledgeDocumentId } from '@deepseek-ai/dsh-experimental-knowledge'
-import {
-  DENSE_DIMENSIONS,
-  loadDenseEncoder,
-  loadReranker,
-} from '@deepseek-ai/dsh-experimental-knowledge-local'
+import { DENSE_DIMENSIONS } from '../src/dense.ts'
+import { loadDenseEncoder } from '../src/model-runtime.ts'
+import { loadReranker } from '../src/reranker.ts'
 
 const denseCacheDir = process.env['DSH_BGE_MODEL_CACHE_DIR']
 const rerankerCacheDir = process.env['DSH_BGE_RERANKER_CACHE_DIR']

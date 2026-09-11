@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import {
-  chunkDocuments,
-  parseCorpusJsonl,
-  type ChunkTokenizer,
-} from '@deepseek-ai/dsh-experimental-knowledge-local'
+import { chunkDocuments } from '../src/chunker.ts'
+import type { ChunkTokenizer } from '../src/tokenizer.ts'
+import { parseCorpusJsonl } from '../src/corpus.ts'
 
 const whitespaceTokenizer: ChunkTokenizer = {
   countTokens(text) {
@@ -99,6 +97,12 @@ describe('deterministic chunking', () => {
     const documents = parseCorpusJsonl('{"id":"doc","text":"One. Two three four five."}')
     expect(chunkDocuments(documents, whitespaceTokenizer, { maxTokens: 4, overlapTokens: 3 })
       .map(chunk => chunk.text)).toEqual(['One.', 'Two three four five.'])
+  })
+
+  it('does not emit an overlap-only tail before trailing whitespace', () => {
+    const documents = parseCorpusJsonl('{"id":"doc","text":"one two three\\n\\n"}')
+    expect(chunkDocuments(documents, whitespaceTokenizer, { maxTokens: 3, overlapTokens: 1 })
+      .map(chunk => [chunk.startToken, chunk.endToken, chunk.text])).toEqual([[0, 3, 'one two three']])
   })
 
   it('handles astral code points without splitting surrogate pairs', () => {

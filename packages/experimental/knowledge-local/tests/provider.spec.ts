@@ -1,25 +1,20 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { Context } from '@deepseek-ai/cordis'
-import {
-  BGE_M3_MODEL_ID,
-  BGE_M3_REVISION,
-  DENSE_DIMENSIONS,
-  DenseEncoder,
-  LocalKnowledge,
-  Reranker,
-  buildKnowledgeIndex,
-  loadKnowledgeIndex,
-  resolveConfig,
-  type ChunkTokenizer,
-  type DenseFeatureExtractor,
-  type LocalKnowledgeConfig,
-  type RerankerBackend,
-} from '@deepseek-ai/dsh-experimental-knowledge-local'
+import type { ChunkTokenizer } from '../src/tokenizer.ts'
+import { resolveConfig, type LocalKnowledgeConfig } from '../src/config.ts'
+import { DENSE_DIMENSIONS } from '../src/dense.ts'
+import { HnswIndex } from '../src/hnsw.ts'
+import { buildKnowledgeIndex } from '../src/index-builder.ts'
+import { loadKnowledgeIndex } from '../src/index-format.ts'
+import { LocalKnowledge } from '../src/index.ts'
+import { DenseEncoder, type DenseFeatureExtractor } from '../src/model-runtime.ts'
+import { Reranker, type RerankerBackend } from '../src/reranker.ts'
+import { BGE_M3_MODEL_ID, BGE_M3_REVISION } from '../src/tokenizer.ts'
 import type { ResolvedKnowledgeRetrieval } from '@deepseek-ai/dsh-experimental-knowledge'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const temporaryDirectories: string[] = []
 const contexts: Context[] = []
@@ -120,7 +115,44 @@ async function bm25Index(text: string, maxTokens = 2, overlapTokens = 0): Promis
   return outputDir
 }
 
+async function versionedIndex(
+  documents: readonly Record<string, unknown>[],
+  denseIndex: 'exact' | 'hnsw' | 'both' = 'both',
+): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-knowledge-provider-versioned-'))
+  const outputDir = join(root, 'index')
+  temporaryDirectories.push(root)
+  await buildKnowledgeIndex({
+    corpusText: documents.map(document => JSON.stringify(document)).join('\n'),
+    outputDir,
+    tokenizer: whitespaceTokenizer,
+    chunking: { maxTokens: 32, overlapTokens: 0 },
+    dense: {
+      encoder: {
+        embedDocuments(texts) {
+          return Promise.resolve(unitRows(texts.length, 0))
+        },
+      },
+      batchSize: 8,
+      modelId: BGE_M3_MODEL_ID,
+      revision: BGE_M3_REVISION,
+      dtype: 'q8',
+      denseIndex,
+    },
+  })
+  return outputDir
+}
+
+async function versionValidityCorpus(): Promise<readonly Record<string, unknown>[]> {
+  const text = await readFile(
+    new URL('../../../../specs/rag/phase-six/data/version-validity-corpus.jsonl', import.meta.url),
+    'utf8',
+  )
+  return text.trim().split('\n').map(line => JSON.parse(line) as Record<string, unknown>)
+}
+
 afterEach(async () => {
+  vi.restoreAllMocks()
   await Promise.all(contexts.splice(0).map(context => context.fiber.dispose()))
   await Promise.all(temporaryDirectories.splice(0).map(directory => rm(directory, { recursive: true, force: true })))
 })
@@ -307,6 +339,323 @@ describe('LocalKnowledge model-backed modes', () => {
     await expect(context.knowledge.search({ query: 'alpha', maxResults: 0 })).rejects.toThrow('positive result limit')
     await expect(context.knowledge.search({ query: 'alpha', maxResults: 1.5 })).rejects.toThrow('positive result limit')
     await expect(context.knowledge.search({ query: 'alpha', maxResults: 3 })).rejects.toThrow('exceeds the configured candidate count')
+    await expect(context.knowledge.search({ query: 'alpha', maxResults: 1, asOf: '2026-01-01' }))
+      .rejects.toMatchObject({ code: 'KNOWLEDGE_INVALID_REQUEST' })
+  })
+
+  it.each([
+    ['bm25', undefined],
+    ['dense', 'exact'],
+    ['dense', 'hnsw'],
+    ['hybrid', 'exact'],
+  ] as const)('filters %s/%s candidates at one inclusive-exclusive instant', async (retrieval, denseIndex) => {
+    const indexDir = await versionedIndex(await versionValidityCorpus())
+    class TestKnowledge extends LocalKnowledge {
+      protected override createDenseEncoder(): Promise<DenseEncoder> {
+        return Promise.resolve(queryEncoder(0))
+      }
+    }
+    const context = new Context()
+    contexts.push(context)
+    await context.plugin(TestKnowledge, {
+      indexDir,
+      defaultRetrieval: retrieval,
+      defaultDenseIndex: denseIndex ?? 'exact',
+      defaultRerank: 'off',
+      allowedRetrieval: [retrieval],
+      allowedDenseIndexes: denseIndex === undefined ? [] : [denseIndex],
+      allowedRerank: false,
+      ...(denseIndex === undefined ? {} : { modelCacheDir: '/cache' }),
+      candidateCount: 7,
+    })
+
+    const result = await context.knowledge.search({
+      query: 'common',
+      maxResults: 7,
+      asOf: '2026-06-01T08:00:00+08:00',
+    })
+    expect(result.hits.map(hit => hit.documentId).sort()).toEqual([
+      'c-starting',
+      'e-unknown',
+      'f-left-only',
+      'g-right-only',
+      'h-overlap-v1',
+      'i-overlap-v2',
+    ])
+    expect(result.hits.find(hit => hit.documentId === 'c-starting')).toMatchObject({
+      sourceVersion: '2026.2',
+      validFrom: '2026-06-01T00:00:00.000Z',
+      supersedes: 'a-expired',
+    })
+    expect(result.hits.find(hit => hit.documentId === 'e-unknown')).not.toHaveProperty('validFrom')
+  })
+
+  it('selects the fixed version corpus at two historical instants and one future instant', async () => {
+    const context = new Context()
+    contexts.push(context)
+    await context.plugin(LocalKnowledge, {
+      indexDir: await versionedIndex(await versionValidityCorpus(), 'exact'),
+      ...fixedStrategy('bm25'),
+      candidateCount: 9,
+    })
+    const documentsAt = (asOf: string) => context.knowledge.search({
+      query: 'common',
+      maxResults: 9,
+      asOf,
+    }).then(result => result.hits.map(hit => hit.documentId).sort())
+
+    await expect(documentsAt('2025-06-01T00:00:00Z')).resolves.toEqual([
+      'a-expired',
+      'b-ending',
+      'e-unknown',
+      'f-left-only',
+      'g-right-only',
+      'h-overlap-v1',
+    ])
+    await expect(documentsAt('2026-06-01T00:00:00Z')).resolves.toEqual([
+      'c-starting',
+      'e-unknown',
+      'f-left-only',
+      'g-right-only',
+      'h-overlap-v1',
+      'i-overlap-v2',
+    ])
+    await expect(documentsAt('2028-01-01T00:00:00Z')).resolves.toEqual([
+      'c-starting',
+      'd-future',
+      'e-unknown',
+      'f-left-only',
+      'g-right-only',
+      'i-overlap-v2',
+    ])
+  })
+
+  it('filters BM25 candidates before LIMIT and skips Dense model loading when no document is valid', async () => {
+    const indexDir = await versionedIndex([
+      { id: 'a-expired', text: 'common', validUntil: '2026-01-01T00:00:00Z' },
+      { id: 'z-current', text: 'common', validFrom: '2026-01-01T00:00:00Z' },
+    ], 'exact')
+    const bm25Context = new Context()
+    contexts.push(bm25Context)
+    await bm25Context.plugin(LocalKnowledge, {
+      indexDir,
+      ...fixedStrategy('bm25'),
+      candidateCount: 1,
+    })
+    await expect(bm25Context.knowledge.search({
+      query: 'common',
+      maxResults: 1,
+      asOf: '2026-06-01T00:00:00Z',
+    })).resolves.toMatchObject({ hits: [{ documentId: 'z-current' }] })
+
+    let loadCount = 0
+    class TestKnowledge extends LocalKnowledge {
+      protected override createDenseEncoder(): Promise<DenseEncoder> {
+        loadCount += 1
+        return Promise.reject(new Error('must not load'))
+      }
+    }
+    const allFutureIndex = await versionedIndex([
+      { id: 'a-future', text: 'common', validFrom: '2020-01-01T00:00:00Z' },
+      { id: 'b-future', text: 'common', validFrom: '2026-01-01T00:00:00Z' },
+    ], 'exact')
+    const denseContext = new Context()
+    contexts.push(denseContext)
+    await denseContext.plugin(TestKnowledge, {
+      indexDir: allFutureIndex,
+      ...fixedStrategy('dense'),
+      modelCacheDir: '/cache',
+      candidateCount: 2,
+    })
+    await expect(denseContext.knowledge.search({
+      query: 'common',
+      maxResults: 2,
+      asOf: '2010-01-01T00:00:00Z',
+    })).resolves.toMatchObject({ hits: [] })
+    expect(loadCount).toBe(0)
+  })
+
+  it('captures the default instant once and preserves overlapping replacement evidence', async () => {
+    const indexDir = await versionedIndex([
+      { id: 'policy-v1', text: 'expense policy', sourceVersion: '1', validFrom: '2025-01-01T00:00:00Z', validUntil: '2027-01-01T00:00:00Z' },
+      { id: 'policy-v2', text: 'expense policy', sourceVersion: '2', validFrom: '2026-01-01T00:00:00Z', supersedes: 'policy-v1' },
+      { id: 'policy-unknown', text: 'expense policy' },
+    ], 'exact')
+    const context = new Context()
+    contexts.push(context)
+    await context.plugin(LocalKnowledge, {
+      indexDir,
+      ...fixedStrategy('bm25'),
+      candidateCount: 3,
+    })
+
+    await expect(context.knowledge.search({
+      query: 'expense policy',
+      maxResults: 3,
+      asOf: '2025-06-01T00:00:00Z',
+    }).then(result => result.hits.map(hit => hit.documentId).sort())).resolves.toEqual([
+      'policy-unknown',
+      'policy-v1',
+    ])
+    await expect(context.knowledge.search({
+      query: 'expense policy',
+      maxResults: 3,
+      asOf: '2026-06-01T00:00:00Z',
+    }).then(result => result.hits.map(hit => hit.documentId).sort())).resolves.toEqual([
+      'policy-unknown',
+      'policy-v1',
+      'policy-v2',
+    ])
+
+    const now = vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2028-01-01T00:00:00Z'))
+    await expect(context.knowledge.search({
+      query: 'expense policy',
+      maxResults: 3,
+    }).then(result => result.hits.map(hit => hit.documentId).sort())).resolves.toEqual([
+      'policy-unknown',
+      'policy-v2',
+    ])
+    expect(now).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes only eligible candidates to the reranker', async () => {
+    const indexDir = await versionedIndex([
+      { id: 'a-expired', text: 'common expired', validUntil: '2026-01-01T00:00:00Z' },
+      { id: 'b-current', text: 'common current', validFrom: '2026-01-01T00:00:00Z' },
+    ], 'exact')
+    const rerankedDocuments: string[][] = []
+    class TestKnowledge extends LocalKnowledge {
+      protected override createReranker(): Promise<Reranker> {
+        return Promise.resolve(new Reranker({
+          scorePairs(_queries, documents) {
+            rerankedDocuments.push([...documents])
+            return Promise.resolve({
+              type: 'float32',
+              dims: [documents.length],
+              data: new Float32Array(documents.length),
+            })
+          },
+          dispose: () => Promise.resolve(),
+        }, 512))
+      }
+    }
+    const context = new Context()
+    contexts.push(context)
+    await context.plugin(TestKnowledge, {
+      indexDir,
+      ...fixedStrategy('bm25', true),
+      modelCacheDir: '/cache',
+      candidateCount: 2,
+    })
+
+    await expect(context.knowledge.search({
+      query: 'common',
+      maxResults: 2,
+      asOf: '2026-06-01T00:00:00Z',
+    })).resolves.toMatchObject({ hits: [{ documentId: 'b-current' }] })
+    expect(rerankedDocuments).toEqual([['common current']])
+  })
+
+  it('rejects ineligible candidates returned by an internal retrieval stage', async () => {
+    const context = new Context()
+    contexts.push(context)
+    const index = await loadKnowledgeIndex(await versionedIndex([
+      { id: 'expired', text: 'common', validUntil: '2026-01-01T00:00:00Z' },
+      { id: 'current', text: 'common', validFrom: '2026-01-01T00:00:00Z' },
+    ], 'exact'))
+    const provider = new LocalKnowledge(context, {
+      indexDir: '/unused',
+      ...fixedStrategy('bm25'),
+      candidateCount: 2,
+    })
+    const internals = provider as unknown as { index: typeof index }
+    internals.index = index
+    vi.spyOn(internals.index.sqlite, 'searchBm25').mockReturnValue([{ ordinal: 1, score: 1 }])
+
+    await expect(provider.search({
+      query: 'common',
+      maxResults: 1,
+      asOf: '2026-06-01T00:00:00Z',
+    })).rejects.toMatchObject({
+      code: 'KNOWLEDGE_SEARCH_FAILED',
+      cause: { message: 'knowledge-local: retrieval returned an ineligible document' },
+    })
+  })
+
+  it('rejects an ineligible candidate introduced after reranking', async () => {
+    const context = new Context()
+    contexts.push(context)
+    const index = await loadKnowledgeIndex(await versionedIndex([
+      { id: 'expired', text: 'common', validUntil: '2026-01-01T00:00:00Z' },
+      { id: 'current', text: 'common', validFrom: '2026-01-01T00:00:00Z' },
+    ], 'exact'))
+    const provider = new LocalKnowledge(context, {
+      indexDir: '/unused',
+      ...fixedStrategy('bm25', true),
+      modelCacheDir: '/cache',
+      candidateCount: 2,
+    })
+    const internals = provider as unknown as {
+      index: typeof index
+      rerank(query: string, matches: readonly { ordinal: number; score: number }[]): Promise<Array<{ ordinal: number; score: number }>>
+    }
+    internals.index = index
+    internals.rerank = () => Promise.resolve([{ ordinal: 1, score: 1 }])
+
+    await expect(provider.search({
+      query: 'common',
+      maxResults: 1,
+      asOf: '2026-06-01T00:00:00Z',
+    })).rejects.toMatchObject({
+      code: 'KNOWLEDGE_SEARCH_FAILED',
+      cause: { message: 'knowledge-local: retrieval returned an ineligible document' },
+    })
+  })
+
+  it('expands HNSW candidates until enough eligible matches are available', async () => {
+    const indexDir = await versionedIndex([
+      { id: 'a-expired', text: 'common expired', validUntil: '2026-01-01T00:00:00Z' },
+      { id: 'b-future', text: 'common future', validFrom: '2027-01-01T00:00:00Z' },
+      { id: 'c-current', text: 'common current', validFrom: '2026-01-01T00:00:00Z' },
+      { id: 'd-unknown', text: 'common unknown' },
+    ], 'hnsw')
+    const requested: number[] = []
+    vi.spyOn(HnswIndex.prototype, 'search').mockImplementation((_query, limit) => {
+      requested.push(limit)
+      const matches = [
+        { ordinal: 0, score: 1 },
+        { ordinal: 1, score: 0.9 },
+        { ordinal: 2, score: 0.8 },
+      ]
+      if (limit > 2) matches.push({ ordinal: 2, score: 0.7 }, { ordinal: 3, score: 0.6 })
+      return matches
+    })
+    class TestKnowledge extends LocalKnowledge {
+      protected override createDenseEncoder(): Promise<DenseEncoder> {
+        return Promise.resolve(queryEncoder(0))
+      }
+    }
+    const context = new Context()
+    contexts.push(context)
+    await context.plugin(TestKnowledge, {
+      indexDir,
+      defaultRetrieval: 'dense',
+      defaultDenseIndex: 'hnsw',
+      defaultRerank: 'off',
+      allowedRetrieval: ['dense'],
+      allowedDenseIndexes: ['hnsw'],
+      allowedRerank: false,
+      modelCacheDir: '/cache',
+      candidateCount: 2,
+    })
+
+    const result = await context.knowledge.search({
+      query: 'common',
+      maxResults: 2,
+      asOf: '2026-06-01T00:00:00Z',
+    })
+    expect(requested).toEqual([2, 4])
+    expect(result.hits.map(hit => hit.documentId)).toEqual(['c-current', 'd-unknown'])
   })
 
   it('rejects index and provider configuration mismatches at activation', async () => {

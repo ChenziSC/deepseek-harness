@@ -2,7 +2,7 @@
 
 import { createHash, type Hash } from 'node:crypto'
 import { createReadStream, createWriteStream } from 'node:fs'
-import { mkdir, readFile, readdir, stat } from 'node:fs/promises'
+import { mkdir, readFile, stat } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { finished } from 'node:stream/promises'
 import { StringDecoder } from 'node:string_decoder'
@@ -11,11 +11,12 @@ import { KnowledgeDocumentId } from '@deepseek-ai/dsh-experimental-knowledge'
 import { chunkDocuments } from './chunker.ts'
 import { CorpusFormatError, parseCorpusDocumentLine } from './corpus.ts'
 import type { ChunkTokenizer } from './tokenizer.ts'
+import { prepareEmptyDirectory } from './filesystem.ts'
 
 /** Token limit used by the threshold-calibration corpus. */
-export const T2RANKING_BENCHMARK_MAX_TOKENS = 384
+const T2RANKING_BENCHMARK_MAX_TOKENS = 384
 /** Token overlap used by the threshold-calibration corpus. */
-export const T2RANKING_BENCHMARK_OVERLAP_TOKENS = 64
+const T2RANKING_BENCHMARK_OVERLAP_TOKENS = 64
 /** Default nested chunk-count targets around the initial Exact/HNSW threshold. */
 export const DEFAULT_T2RANKING_CHUNK_TARGETS = [10_000, 25_000, 50_000, 100_000] as const
 
@@ -32,7 +33,7 @@ export interface T2RankingBenchmarkOptions {
 }
 
 /** One completed nested T2Ranking slice. */
-export interface T2RankingBenchmarkSlice {
+interface T2RankingBenchmarkSlice {
   readonly chunkTarget: number
   readonly chunkCount: number
   readonly documentCount: number
@@ -81,14 +82,20 @@ interface WrittenFile {
   readonly sha256: string
 }
 
-async function prepareOutputDirectory(outputDir: string): Promise<void> {
-  try {
-    const entries = await readdir(outputDir)
-    if (entries.length > 0) throw new Error(`knowledge-local: output directory is not empty: ${outputDir}`)
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-    await mkdir(outputDir, { recursive: true })
+function twoColumnRow(
+  value: string,
+  source: string,
+  line: number,
+  leftName: string,
+  rightName: string,
+): readonly [string, string] | undefined {
+  const row = value.replace(/\r$/u, '')
+  if (row.trim().length === 0) return undefined
+  const cells = row.split('\t')
+  if (cells.length !== 2) {
+    throw new CorpusFormatError(source, line, `expected ${leftName} and ${rightName} separated by one tab`)
   }
+  return [requiredCell(cells[0], leftName, source, line), requiredCell(cells[1], rightName, source, line)]
 }
 
 function positiveSafeInteger(value: number, name: string): number {
@@ -131,12 +138,8 @@ function judgedQueryIds(text: string, source: string): ReadonlySet<string> {
   }
   const ids = new Set<string>()
   for (let index = 1; index < rows.length; index += 1) {
-    const row = (rows[index] as string).replace(/\r$/u, '')
-    if (row.trim().length === 0) continue
-    const cells = row.split('\t')
-    if (cells.length !== 2) throw new CorpusFormatError(source, index + 1, 'expected qid and pid separated by one tab')
-    ids.add(requiredCell(cells[0], 'qid', source, index + 1))
-    requiredCell(cells[1], 'pid', source, index + 1)
+    const cells = twoColumnRow(rows[index] as string, source, index + 1, 'qid', 'pid')
+    if (cells !== undefined) ids.add(cells[0])
   }
   return ids
 }
@@ -177,13 +180,10 @@ function selectPositivePids(
   const positives = new Map(queries.map(query => [query.id, [] as string[]]))
   const pairs = new Set<string>()
   for (let index = 1; index < rows.length; index += 1) {
-    const row = (rows[index] as string).replace(/\r$/u, '')
-    if (row.trim().length === 0) continue
-    const cells = row.split('\t')
     /* v8 ignore next -- judgedQueryIds validates every non-empty row in this same qrels file. */
-    if (cells.length !== 2) throw new CorpusFormatError(source, index + 1, 'expected qid and pid separated by one tab')
-    const queryId = requiredCell(cells[0], 'qid', source, index + 1)
-    const pid = requiredCell(cells[1], 'pid', source, index + 1)
+    const cells = twoColumnRow(rows[index] as string, source, index + 1, 'qid', 'pid')
+    if (cells === undefined) continue
+    const [queryId, pid] = cells
     if (!selected.has(queryId)) continue
     const pair = `${queryId}\u0000${pid}`
     if (pairs.has(pair)) throw new CorpusFormatError(source, index + 1, 'duplicate query and passage judgment')
@@ -453,7 +453,10 @@ export async function buildT2RankingBenchmarkSlices(
 ): Promise<T2RankingBenchmarkResult> {
   const queryLimit = positiveSafeInteger(options.queryLimit ?? 100, 'queryLimit')
   const targets = resolveTargets(options.chunkTargets)
-  await prepareOutputDirectory(options.outputDir)
+  await prepareEmptyDirectory(
+    options.outputDir,
+    `knowledge-local: output directory is not empty: ${options.outputDir}`,
+  )
   const queryInput = await sourceText(options.queriesPath)
   const qrelsInput = await sourceText(options.qrelsPath)
   const queries = selectQueries(

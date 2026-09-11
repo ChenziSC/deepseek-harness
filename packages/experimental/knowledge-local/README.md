@@ -4,6 +4,8 @@ English | [中文](README.zh.md)
 
 Experimental local provider for [`ctx.knowledge`](../knowledge/README.md). It loads one immutable BM25 or BM25-plus-Dense index, validates every payload before serving BM25, Dense, or Hybrid queries, and offers the `dsh-knowledge` offline command.
 
+The package root exports only the Loader `Config`, `LocalKnowledge`, and the default plugin class. Index construction, dataset parsing, evaluation, and diagnostic algorithms are internal implementation modules rather than supported package-root APIs.
+
 ## Runtime config
 
 ```yaml
@@ -74,20 +76,35 @@ pnpm exec tsx packages/experimental/knowledge-local/src/bin.ts index \
   --dense-index auto \
   --sqlite-batch-size 500 \
   --embedding-batch-size 32 \
+  --derived-cache-dir ./document-cache \
   --vector-cache-dir ./vector-cache
 ```
 
-The tokenizer and any requested q8 ONNX weights must already exist in the explicit model cache. Use `--components bm25` to build the baseline without loading ONNX weights. `--corpus-format` accepts `generic`, `scifact`, `mldr`, or `t2ranking`. `--chunking-strategy` accepts the default `markdown-structure-v1` or the fixed-boundary `token-window-v1`; the latter omits section paths and primarily supports controlled comparisons. Index format 3 stores chunk metadata, optional Markdown section paths, and BM25 data in `knowledge.sqlite`; its manifest records the selected chunking strategy and the corpus's coarse Latin/CJK script profile. `auto` builds Exact-only when `vectorCount × dimensions` is at most `50,000,000` and HNSW-only above it; `exact` and `hnsw` each retain one payload, while `both` retains `dense.f32le` and `dense.usearch`. An interactive terminal shows the exact scale, estimated sizes, and recommendation before embedding and asks for confirmation; non-interactive commands deterministically accept the recommendation. The runtime opens SQLite read-only, validates payload types and sizes on startup, recomputes hashes through `dsh-knowledge verify`, and loads Exact vectors or the HNSW graph only when requested.
+The tokenizer and any requested q8 ONNX weights must already exist in the explicit model cache. Use `--components bm25` to build the baseline without loading ONNX weights. `--corpus-format` accepts `generic`, `scifact`, `mldr`, or `t2ranking`. `--chunking-strategy` accepts the default `markdown-structure-v1` or the fixed-boundary `token-window-v1`; the latter omits section paths and primarily supports controlled comparisons. Index format 4 stores document metadata separately from ordinal-aligned chunks and BM25 data in `knowledge.sqlite`; its manifest records the selected chunking strategy, the corpus's coarse Latin/CJK script profile, and the fixed document-metadata schema. `auto` builds Exact-only when `vectorCount × dimensions` is at most `50,000,000` and HNSW-only above it; `exact` and `hnsw` each retain one payload, while `both` retains `dense.f32le` and `dense.usearch`. An interactive terminal shows the exact scale, estimated sizes, and recommendation before embedding and asks for confirmation; non-interactive commands deterministically accept the recommendation. The runtime opens SQLite read-only, validates payload types and sizes on startup, recomputes hashes through `dsh-knowledge verify`, and loads Exact vectors or the HNSW graph only when requested. Older indexes are rejected and must be rebuilt; unchanged Dense inputs can still reuse the separate vector cache.
 
-`--vector-cache-dir` enables a build-time SQLite cache addressed by the complete Dense configuration and exact title, section path, and chunk text input. Unchanged inputs reuse byte-identical float32 vectors across document additions, deletions, and ordinal changes; duplicate inputs are encoded once. `--import-vectors-from` first verifies a format-3 index and all payload hashes, requires an Exact `dense.f32le` payload with matching Dense settings, and imports it without modifying the source. Each successful embedding batch is committed to the cache before target payload assembly, so a later build can reuse completed batches after interruption. The final JSON output reports cache hits, encoded inputs, reuse ratio, imported vectors, and phase timings. Every target still rebuilds SQLite, Exact ordering, and any HNSW graph, and publishes its manifest last.
+`--derived-cache-dir` enables a separate SQLite cache for complete per-document chunking, Dense input, and analyzed BM25 text. Its key covers the tokenizer revision, chunking settings, analyzer revision, document id, title, and body; source, version, validity, and replacement metadata remain outside the key because they are projected into the target document row and do not affect retrieval text. A hit skips the tokenizer, chunker, and BM25 analyzer, while the builder assigns fresh global ordinals and writes a complete new index. Cache corruption fails the build with the affected key instead of being treated as a miss. The final JSON `documentBuild` object reports document and chunk reuse plus phase timings.
+
+`--vector-cache-dir` independently enables a build-time SQLite cache addressed by the complete Dense configuration and exact title, section path, and chunk text input. Unchanged inputs reuse byte-identical float32 vectors across document additions, deletions, ordinal changes, and changes limited to source or version metadata; duplicate inputs are encoded once. `--import-vectors-from` first verifies a format-4 index and all payload hashes, requires an Exact `dense.f32le` payload with matching Dense settings, and imports it without modifying the source. Each successful embedding batch is committed to the cache before target payload assembly, so a later build can reuse completed batches after interruption. The final JSON `denseBuild` object reports cache hits, encoded inputs, reuse ratio, imported vectors, and phase timings. Every target still rebuilds SQLite, Exact ordering, and any HNSW graph, and publishes its manifest last.
+
+### Contextual-prefix evaluation tools
+
+Contextual prefixes are retained only as offline evaluation tools. A normal `index` command cannot consume generated prefix records and never reads prefix credentials or calls an LLM. `contextual-statistics` scans every source document and writes only aggregate detector, batching, and token-bound statistics; it does not create SQLite, BM25, Exact, HNSW, generated-prefix, or embedding artifacts. Its default `--sample-modulus 1` tokenizes every document, while a larger value still hashes and validates the complete corpus but estimates chunk-level totals from the deterministic subset selected by document-id hash. `contextual-plan` is for a bounded evaluation corpus and writes a reviewable plan without calling a model. Each request reserves the configured per-prefix content tokens plus 128 output tokens for JSON framing and provider reasoning. `contextual-generate` consumes that exact plan, an explicit OpenAI-compatible endpoint, fixed model identity, cache directory, and cumulative token budgets. The API key is read from the named environment variable and is not written to the plan, cache, records, or errors.
+
+```sh
+dsh-knowledge contextual-statistics --corpus ./corpus.jsonl --output ./statistics --model-cache-dir ./model-cache --target dense --max-candidate-ratio 0.15 --max-prefix-tokens 80 --context-window-tokens 1024 --max-chunks-per-request 4 --prompt-version context-prefix-v5 --sample-modulus 100
+dsh-knowledge contextual-plan --corpus ./evaluation-subset.jsonl --output ./plan --model-cache-dir ./model-cache --target dense --max-candidate-ratio 0.15 --max-input-tokens 1000000 --max-output-tokens 100000 --max-prefix-tokens 80 --context-window-tokens 1024 --max-chunks-per-request 4 --budget-action deterministic-fallback --prompt-version context-prefix-v5
+dsh-knowledge contextual-generate --plan ./plan/contextual-prefix-plan.json --output ./records --cache-dir ./prefix-cache --model-cache-dir ./model-cache --base-url https://api.example/v1 --api-key-env PREFIX_API_KEY --model-id fixed-model --revision fixed-revision --reasoning-effort minimal --max-input-tokens 1000000 --max-output-tokens 100000 --budget-action deterministic-fallback
+```
+
+The real-corpus evaluation did not meet its cost, retrieval-quality, generation-success, or factuality thresholds, so generated records are not accepted by the production index command. The tools remain available to reproduce bounded experiments without changing the index format or runtime retrieval behavior.
 
 The generic corpus format is one object per line:
 
 ```json
-{"id":"doc-1","title":"Example","text":"Non-empty body","source":"fixture"}
+{"id":"policy-v2","title":"Example","text":"Non-empty body","source":"fixture","sourceVersion":"2","validFrom":"2026-01-01T00:00:00Z","validUntil":"2027-01-01T00:00:00Z","supersedes":"policy-v1"}
 ```
 
-The package also exports strict SciFact, MLDR, T2Ranking, and MLQA Retrieval parsers for the evaluation command.
+The evaluation command uses strict SciFact, MLDR, T2Ranking, and MLQA Retrieval parsers.
 
 ## Calibrate the Exact/HNSW threshold
 
@@ -111,18 +128,23 @@ pnpm exec tsx packages/experimental/knowledge-local/src/bin.ts derive \
   --corpus ./threshold-slices/chunks-10000/corpus.tsv \
   --output ./index-10000 \
   --model-cache-dir ./model-cache \
+  --derived-cache-dir ./document-cache \
   --dense-index both
 ```
 
-Derivation rebuilds SQLite FTS and optional HNSW payloads, copies Exact vectors in bounded batches, and rejects any target whose chunk identity, retrieval text, analyzer, tokenizer, or chunking differs from the source ordinal prefix. It does not change index format 3 or call the Dense encoder.
+Derivation rebuilds SQLite FTS and optional HNSW payloads, copies Exact vectors in bounded batches, and rejects any target whose chunk identity, retrieval text, analyzer, tokenizer, or chunking differs from the source ordinal prefix. It does not change index format 4 or call the Dense encoder.
 
 ## Retrieval behavior
 
 Each request may select automatic routing or BM25, Dense, or Hybrid recall, Exact or HNSW Dense search, and optional reranking within the provider's allowed sets. Omitted retrieval defaults to `auto`: URLs, paths, code-like identifiers, long numbers, and hexadecimal identifiers route to BM25, while other queries route to Dense. Hybrid remains an explicit choice. If the preferred route is disallowed, the provider chooses the nearest allowed fallback in a fixed order. Explicit high-level choices override routing. Search results include the concrete executed strategy. The model-facing tool does not expose candidate counts, fusion weights, thresholds, model paths, or HNSW parameters.
 
+Optional `asOf` accepts a millisecond-precision RFC 3339 timestamp with an explicit timezone. Omitting it captures the current time once per request. A document is eligible when `validFrom` is absent or not later than the request instant and `validUntil` is absent or later than that instant; unknown validity remains eligible. BM25 applies the predicate before its candidate limit, Exact skips ineligible ordinals during scanning, HNSW doubles its requested neighbor count until it has enough eligible candidates or has searched the complete graph, and Hybrid fuses only filtered candidates. `supersedes` is evidence metadata and does not hide another document or affect ranking.
+
 The default chunker prefers Markdown ATX heading boundaries, then paragraphs and sentences, while keeping fenced code blocks intact unless a block exceeds the token limit. The active heading path is indexed with each chunk for BM25 and Dense retrieval. The token-window strategy uses only the tokenizer's hard limit and configured overlap. After ranking, `adjacentChunkCount: 1` attaches at most one same-document chunk before and after each hit, removes text duplicated by chunk overlap, and does not change result counts or ranking metrics; set it to `0` to disable expansion and reduce returned context.
 
 `mixed-zh-en-v1` applies Unicode NFKC normalization, lowercases ASCII words, preserves digits and underscores, and emits Chinese unigram and bigram terms. Query terms are de-duplicated. Runtime BM25 uses SQLite FTS5's fixed scoring parameters; score ties use chunk-id Unicode code-point order. `english-v1` remains available for first-phase English reproduction.
+
+The earlier in-memory Okapi scorer remains under `src/offline/evaluation` only for token-level diagnostics and controlled historical comparisons. Product retrieval and dataset quality baselines use SQLite FTS5.
 
 Dense mode uses fixed-revision `onnx-community/bge-m3-ONNX` q8 weights. Documents use title plus body, inputs are right-truncated to the configured model-token limit, and 1024-dimensional CLS embeddings are L2-normalized. Exact scans `dense.f32le`; HNSW searches the persisted USearch graph with ordinal keys and the configured `hnswExpansionSearch`.
 
@@ -154,7 +176,7 @@ pnpm exec tsx packages/experimental/knowledge-local/src/bin.ts evaluate \
 
 ## Model Experience
 
-Indirectly, through knowledge Consumers that expose this provider's ranked title, section path, source label, matched chunk, and optional adjacent context while keeping retrieval scores and diagnostics local.
+Indirectly, through knowledge Consumers that expose this provider's ranked title, section path, source label, source version, validity, replacement relation, matched chunk, and optional adjacent context while keeping retrieval scores and diagnostics local.
 
 #### KV Cache effect
 
@@ -166,6 +188,8 @@ No direct invalidation; a Consumer owns any request-prefix changes and appends r
 - The BGE-M3 and reranker models are each larger than 500 MiB. CPU inference, especially reranking and offline embedding of large corpora, is substantially slower and more memory-intensive than BM25; this package does not add an inference queue or resource scheduler.
 - Transformers.js does not expose token offsets. Chunk fallback therefore uses bounded tokenizer-count probes around each chunk and records cumulative local token positions; the result is deterministic for the fixed tokenizer but is not a general offset API for arbitrary tokenizers.
 - Index construction permits an absent or empty target directory and leaves an unpublished incomplete directory after a failure; it does not provide atomic directory replacement or recovery. Full benchmark indexes are intended to be built, evaluated, and removed in sequence on storage-constrained machines rather than retained together.
-- The vector cache accelerates unchanged Dense inputs but does not incrementally update the HNSW graph; every target that retains HNSW rebuilds the complete graph from the newly ordered vector sequence.
+- The document and vector caches accelerate exact reusable work but do not incrementally update the final SQLite, Exact ordering, or HNSW graph; every target remains a complete immutable index.
+- HNSW validity filtering may search progressively larger neighbor sets when many high-ranked vectors are ineligible at the requested time; it never returns an ineligible fallback.
 - The mixed Chinese-English analyzer is deterministic and dictionary-free; it does not provide word segmentation, stemming, stop-word removal, synonyms, or learned sparse retrieval.
 - Automatic routing and adaptive reranking use deterministic heuristics rather than a learned classifier; deployments can override the high-level request or the provider threshold.
+- Contextual-prefix generation is an offline evaluation tool, not an index or online retrieval capability. The real-corpus evaluation failed its release thresholds; full-corpus statistics never imply permission to generate full-corpus prefixes.

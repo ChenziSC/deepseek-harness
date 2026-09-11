@@ -6,18 +6,19 @@ import { DatabaseSync } from 'node:sqlite'
 import { gzipSync } from 'node:zlib'
 import { afterEach, describe, expect, it } from 'vitest'
 import { KnowledgeChunkId, KnowledgeDocumentId } from '@deepseek-ai/dsh-experimental-knowledge'
+import type { ChunkTokenizer } from '../src/tokenizer.ts'
+import { DENSE_DIMENSIONS } from '../src/dense.ts'
 import {
-  buildBm25KnowledgeIndex,
   buildKnowledgeIndex,
-  createDenseIndexBuildPlan,
-  DENSE_DIMENSIONS,
-  loadDenseVectors,
-  loadKnowledgeIndex,
-  type ChunkTokenizer,
-  type DenseVectorBuildStats,
-} from '@deepseek-ai/dsh-experimental-knowledge-local'
-import { deriveKnowledgeIndexFromExact } from '../src/index-builder.ts'
-import { KnowledgeSqliteWriter } from '../src/sqlite-index.ts'
+  deriveKnowledgeIndexFromExact,
+} from '../src/index-builder.ts'
+import { createDenseIndexBuildPlan } from '../src/build/dense-payload.ts'
+import type {
+  DenseVectorBuildStats,
+  KnowledgeIndexBuildStats,
+} from '../src/build/types.ts'
+import { loadDenseVectors, loadKnowledgeIndex } from '../src/index-format.ts'
+import { KnowledgeSqliteWriter } from '../src/sqlite-writer.ts'
 
 const temporaryDirectories: string[] = []
 const whitespaceTokenizer: ChunkTokenizer = {
@@ -46,16 +47,16 @@ afterEach(async () => {
 })
 
 describe('SQLite index construction', () => {
-  it('streams a corpus file into the version-three SQLite payload', async () => {
+  it('streams a corpus file into the version-four SQLite payload', async () => {
     const root = await temporaryDirectory()
     const corpusPath = join(root, 'corpus.jsonl')
     const corpusText = [
       '{"id":"doc-b","text":"delta"}',
-      '{"id":"doc-a","title":"Alpha","text":"alpha beta gamma"}',
+      '{"id":"doc-a","title":"Alpha","text":"alpha beta gamma","source":"fixture","sourceVersion":"2","validFrom":"2026-01-01T08:00:00+08:00","validUntil":"2027-01-01T00:00:00Z","supersedes":"doc-old"}',
     ].join('\n')
     await writeFile(corpusPath, corpusText)
     const outputDir = join(root, 'index')
-    const manifest = await buildBm25KnowledgeIndex({
+    const manifest = await buildKnowledgeIndex({
       corpusPath,
       outputDir,
       tokenizer: whitespaceTokenizer,
@@ -65,12 +66,13 @@ describe('SQLite index construction', () => {
     const loaded = await loadKnowledgeIndex(outputDir)
 
     expect(manifest).toMatchObject({
-      formatVersion: 3,
+      formatVersion: 4,
       corpus: {
         sha256: createHash('sha256').update(corpusText).digest('hex'),
         documentCount: 2,
         chunkCount: 3,
         scriptProfile: 'latin',
+        documentMetadata: 'source-version-validity-v1',
       },
       chunking: { strategy: 'markdown-structure-v1' },
       bm25: { analyzer: 'mixed-zh-en-v1', implementation: 'sqlite-fts5' },
@@ -81,7 +83,15 @@ describe('SQLite index construction', () => {
       'doc-a:2-3',
       'doc-b:0-1',
     ])
-    const matches = loaded.sqlite.searchBm25('alpha', 2)
+    expect(loaded.sqlite.allChunks()[0]).toMatchObject({
+      documentId: 'doc-a',
+      source: 'fixture',
+      sourceVersion: '2',
+      validFrom: '2026-01-01T00:00:00.000Z',
+      validUntil: '2027-01-01T00:00:00.000Z',
+      supersedes: 'doc-old',
+    })
+    const matches = loaded.sqlite.searchBm25('alpha', 2, Date.parse('2026-06-01T00:00:00Z'))
     expect(matches.map(match => match.ordinal)).toEqual([0, 1])
     expect(matches.every(match => Number.isFinite(match.score))).toBe(true)
     expect(await readdir(outputDir)).toEqual(['knowledge.sqlite', 'manifest.json'])
@@ -103,13 +113,216 @@ describe('SQLite index construction', () => {
     loaded.sqlite.close()
   })
 
+  it('reuses document derivations across metadata changes and recomputes only changed retrieval content', async () => {
+    const root = await temporaryDirectory()
+    const cacheDir = join(root, 'derived-cache')
+    let tokenCalls = 0
+    const tokenizer: ChunkTokenizer = {
+      countTokens(text) {
+        tokenCalls += 1
+        return text.match(/\S+/gu)?.length ?? 0
+      },
+    }
+    const build = async (name: string, corpusText: string) => {
+      let stats: Parameters<NonNullable<Parameters<typeof buildKnowledgeIndex>[0]['onBuildStats']>>[0] | undefined
+      const manifest = await buildKnowledgeIndex({
+        corpusText,
+        outputDir: join(root, name),
+        tokenizer,
+        tokenizerModelId: 'test-tokenizer',
+        tokenizerRevision: 'a'.repeat(40),
+        chunking: { maxTokens: 2, overlapTokens: 0 },
+        derivedCacheDir: cacheDir,
+        onBuildStats(value) {
+          stats = value
+        },
+      })
+      return { manifest, stats }
+    }
+
+    const initial = await build('initial', [
+      '{"id":"b","title":"Beta","text":"three four"}',
+      '{"id":"a","title":"Alpha","text":"one two","sourceVersion":"1"}',
+    ].join('\n'))
+    expect(initial.stats).toMatchObject({
+      cacheEnabled: true,
+      cacheQueryCount: 2,
+      cacheHitDocumentCount: 0,
+      recomputedDocumentCount: 2,
+      reusedChunkCount: 0,
+      newChunkCount: 2,
+    })
+    expect(tokenCalls).toBeGreaterThan(0)
+
+    tokenCalls = 0
+    const metadataOnly = await build('metadata', [
+      '{"id":"a","title":"Alpha","text":"one two","source":"new","sourceVersion":"2","validFrom":"2026-01-01T00:00:00Z"}',
+      '{"id":"b","title":"Beta","text":"three four"}',
+    ].join('\n'))
+    expect(metadataOnly.stats).toMatchObject({
+      cacheQueryCount: 2,
+      cacheHitDocumentCount: 2,
+      recomputedDocumentCount: 0,
+      reusedChunkCount: 2,
+      newChunkCount: 0,
+      timingsMs: { chunking: 0, bm25Preprocess: 0, derivedCacheWrite: 0 },
+    })
+    expect(tokenCalls).toBe(0)
+    const metadataIndex = await loadKnowledgeIndex(join(root, 'metadata'))
+    expect(metadataIndex.sqlite.allChunks()[0]).toMatchObject({
+      documentId: 'a',
+      source: 'new',
+      sourceVersion: '2',
+      validFrom: '2026-01-01T00:00:00.000Z',
+      text: 'one two',
+    })
+    metadataIndex.sqlite.close()
+
+    tokenCalls = 0
+    const oneChanged = await build('one-changed', [
+      '{"id":"a","title":"Alpha","text":"one changed"}',
+      '{"id":"b","title":"Beta","text":"three four"}',
+    ].join('\n'))
+    expect(oneChanged.stats).toMatchObject({
+      cacheQueryCount: 2,
+      cacheHitDocumentCount: 1,
+      recomputedDocumentCount: 1,
+      reusedChunkCount: 1,
+      newChunkCount: 1,
+    })
+    expect(tokenCalls).toBeGreaterThan(0)
+    expect(initial.manifest.corpus.chunkCount).toBe(metadataOnly.manifest.corpus.chunkCount)
+    expect(oneChanged.manifest.corpus.chunkCount).toBe(initial.manifest.corpus.chunkCount)
+  })
+
+  it('reassembles inserted, deleted, and reordered documents identically to a cold build', async () => {
+    const root = await temporaryDirectory()
+    const derivedCacheDir = join(root, 'derived-cache')
+    const initialCorpus = [
+      '{"id":"c","title":"Gamma","text":"gamma evidence"}',
+      '{"id":"a","title":"Alpha","text":"alpha evidence"}',
+      '{"id":"b","title":"Beta","text":"beta evidence"}',
+    ].join('\n')
+    const targetCorpus = [
+      '{"id":"d","title":"Delta","text":"delta evidence"}',
+      '{"id":"c","title":"Gamma","text":"gamma evidence"}',
+      '{"id":"a","title":"Alpha","text":"alpha evidence"}',
+    ].join('\n')
+    const build = async (outputDir: string, corpusText: string, cacheDir?: string) => {
+      let stats: KnowledgeIndexBuildStats | undefined
+      await buildKnowledgeIndex({
+        corpusText,
+        outputDir,
+        tokenizer: whitespaceTokenizer,
+        tokenizerModelId: 'test-tokenizer',
+        tokenizerRevision: 'a'.repeat(40),
+        chunking: { maxTokens: 8, overlapTokens: 0 },
+        ...(cacheDir === undefined ? {} : { derivedCacheDir: cacheDir }),
+        onBuildStats(value) {
+          stats = value
+        },
+        dense: {
+          encoder: { embedDocuments: texts => Promise.resolve(deterministicVectors(texts)) },
+          batchSize: 2,
+          modelId: 'test-model',
+          revision: 'a'.repeat(40),
+          dtype: 'q8',
+          dimensions: 4,
+          denseIndex: 'exact',
+        },
+      })
+      return stats as KnowledgeIndexBuildStats
+    }
+
+    await build(join(root, 'initial'), initialCorpus, derivedCacheDir)
+    const reusedStats = await build(join(root, 'reused'), targetCorpus, derivedCacheDir)
+    const coldStats = await build(join(root, 'cold'), targetCorpus)
+    expect(reusedStats).toMatchObject({
+      cacheHitDocumentCount: 2,
+      recomputedDocumentCount: 1,
+      reusedChunkCount: 2,
+      newChunkCount: 1,
+    })
+    expect(coldStats).toMatchObject({ cacheEnabled: false, recomputedDocumentCount: 3 })
+
+    const reused = await loadKnowledgeIndex(join(root, 'reused'))
+    const cold = await loadKnowledgeIndex(join(root, 'cold'))
+    expect(reused.sqlite.allChunks()).toEqual(cold.sqlite.allChunks())
+    expect(reused.sqlite.denseInputs(-1, 10)).toEqual(cold.sqlite.denseInputs(-1, 10))
+    for (const query of ['alpha', 'gamma', 'delta']) {
+      expect(reused.sqlite.searchBm25(query, 10, Date.now())).toEqual(cold.sqlite.searchBm25(query, 10, Date.now()))
+    }
+    expect(await readFile(join(root, 'reused', 'dense.f32le')))
+      .toEqual(await readFile(join(root, 'cold', 'dense.f32le')))
+    reused.sqlite.close()
+    cold.sqlite.close()
+    const ftsRows = (directory: string) => {
+      const database = new DatabaseSync(join(directory, 'knowledge.sqlite'), { readOnly: true })
+      try {
+        return [...database.prepare('SELECT rowid, analyzed FROM bm25_fts ORDER BY rowid').all()]
+      } finally {
+        database.close()
+      }
+    }
+    expect(ftsRows(join(root, 'reused'))).toEqual(ftsRows(join(root, 'cold')))
+  })
+
+  it('reuses complete cached documents after an interrupted build', async () => {
+    const root = await temporaryDirectory()
+    const derivedCacheDir = join(root, 'derived-cache')
+    let shouldFail = true
+    const interruptingTokenizer: ChunkTokenizer = {
+      countTokens(text) {
+        if (shouldFail && text.includes('second')) throw new Error('simulated interruption')
+        return text.match(/\S+/gu)?.length ?? 0
+      },
+    }
+    const corpusText = [
+      '{"id":"a","text":"first document"}',
+      '{"id":"b","text":"second document"}',
+    ].join('\n')
+    await expect(buildKnowledgeIndex({
+      corpusText,
+      outputDir: join(root, 'interrupted'),
+      tokenizer: interruptingTokenizer,
+      tokenizerModelId: 'test-tokenizer',
+      tokenizerRevision: 'a'.repeat(40),
+      chunking: { maxTokens: 8, overlapTokens: 0 },
+      sqliteBatchSize: 1,
+      derivedCacheDir,
+    })).rejects.toThrow('simulated interruption')
+    await expect(readFile(join(root, 'interrupted', 'manifest.json'))).rejects.toMatchObject({ code: 'ENOENT' })
+
+    shouldFail = false
+    let stats: KnowledgeIndexBuildStats | undefined
+    await buildKnowledgeIndex({
+      corpusText,
+      outputDir: join(root, 'resumed'),
+      tokenizer: interruptingTokenizer,
+      tokenizerModelId: 'test-tokenizer',
+      tokenizerRevision: 'a'.repeat(40),
+      chunking: { maxTokens: 8, overlapTokens: 0 },
+      sqliteBatchSize: 1,
+      derivedCacheDir,
+      onBuildStats(value) {
+        stats = value
+      },
+    })
+    expect(stats).toMatchObject({
+      cacheHitDocumentCount: 1,
+      recomputedDocumentCount: 1,
+      reusedChunkCount: 1,
+      newChunkCount: 1,
+    })
+  })
+
   it('streams a gzipped corpus without an expanded temporary copy', async () => {
     const root = await temporaryDirectory()
     const corpusPath = join(root, 'corpus.jsonl.gz')
     const corpusText = '{"docid":"doc","text":"long document"}\n'
     await writeFile(corpusPath, gzipSync(corpusText))
     const outputDir = join(root, 'index')
-    const manifest = await buildBm25KnowledgeIndex({
+    const manifest = await buildKnowledgeIndex({
       corpusPath,
       corpusFormat: 'mldr',
       outputDir,
@@ -130,7 +343,7 @@ describe('SQLite index construction', () => {
   it('indexes Markdown section paths and records a mixed corpus script profile', async () => {
     const outputDir = join(await temporaryDirectory(), 'markdown-index')
     const text = '# Guide\n\n## Install\nalpha beta gamma delta epsilon\n\n这是用于安装步骤的中文详细说明'
-    const manifest = await buildBm25KnowledgeIndex({
+    const manifest = await buildKnowledgeIndex({
       corpusText: `${JSON.stringify({ id: 'guide', text })}\n`,
       outputDir,
       tokenizer: whitespaceTokenizer,
@@ -148,7 +361,7 @@ describe('SQLite index construction', () => {
 
   it('skips a T2Ranking header and accepts a final row without a newline', async () => {
     const outputDir = join(await temporaryDirectory(), 't2ranking-index')
-    const manifest = await buildBm25KnowledgeIndex({
+    const manifest = await buildKnowledgeIndex({
       corpusText: 'pid\ttext\np-1\talpha',
       corpusFormat: 't2ranking',
       outputDir,
@@ -158,7 +371,7 @@ describe('SQLite index construction', () => {
     expect(manifest.corpus).toMatchObject({ documentCount: 1, chunkCount: 1 })
 
     const headerlessDir = join(await temporaryDirectory(), 't2ranking-headerless')
-    const headerless = await buildBm25KnowledgeIndex({
+    const headerless = await buildKnowledgeIndex({
       corpusText: 'p-1\talpha',
       corpusFormat: 't2ranking',
       outputDir: headerlessDir,
@@ -171,20 +384,20 @@ describe('SQLite index construction', () => {
   it('rejects a non-empty target and duplicate streamed document ids', async () => {
     const root = await temporaryDirectory()
     const occupied = join(root, 'occupied')
-    await buildBm25KnowledgeIndex({
+    await buildKnowledgeIndex({
       corpusText: '{"id":"doc","text":"alpha"}',
       outputDir: occupied,
       tokenizer: whitespaceTokenizer,
       chunking: { maxTokens: 2, overlapTokens: 0 },
     })
-    await expect(buildBm25KnowledgeIndex({
+    await expect(buildKnowledgeIndex({
       corpusText: '{"id":"doc","text":"alpha"}',
       outputDir: occupied,
       tokenizer: whitespaceTokenizer,
       chunking: { maxTokens: 2, overlapTokens: 0 },
     })).rejects.toThrow('output directory is not empty')
 
-    await expect(buildBm25KnowledgeIndex({
+    await expect(buildKnowledgeIndex({
       corpusText: '{"id":"doc","text":"alpha"}\n{"id":"doc","text":"beta"}',
       corpusSource: 'fixture.jsonl',
       outputDir: join(root, 'duplicate'),
@@ -337,7 +550,7 @@ describe('SQLite index construction', () => {
 
   it('builds directly from the BEIR SciFact corpus format', async () => {
     const outputDir = join(await temporaryDirectory(), 'scifact-index')
-    const manifest = await buildBm25KnowledgeIndex({
+    const manifest = await buildKnowledgeIndex({
       corpusText: '{"_id":"doc","title":"Claim","text":"evidence body"}\n',
       corpusSource: 'scifact/corpus.jsonl',
       corpusFormat: 'scifact',
@@ -354,7 +567,7 @@ describe('SQLite index construction', () => {
 
   it('accepts an existing empty output directory and explicit tokenizer metadata', async () => {
     const outputDir = await temporaryDirectory()
-    const manifest = await buildBm25KnowledgeIndex({
+    const manifest = await buildKnowledgeIndex({
       corpusText: '{"id":"doc","text":"alpha"}',
       outputDir,
       tokenizer: whitespaceTokenizer,
@@ -370,7 +583,7 @@ describe('SQLite index construction', () => {
 
   it('accepts an empty corpus and skips blank JSONL lines', async () => {
     const emptyDir = join(await temporaryDirectory(), 'empty')
-    await buildBm25KnowledgeIndex({
+    await buildKnowledgeIndex({
       corpusText: '',
       outputDir: emptyDir,
       tokenizer: whitespaceTokenizer,
@@ -382,7 +595,7 @@ describe('SQLite index construction', () => {
     empty.sqlite.close()
 
     const blankDir = join(await temporaryDirectory(), 'blank-lines')
-    const blank = await buildBm25KnowledgeIndex({
+    const blank = await buildKnowledgeIndex({
       corpusText: '\r\n{"id":"doc","text":"alpha"}\r\n   ',
       outputDir: blankDir,
       tokenizer: whitespaceTokenizer,
@@ -428,6 +641,7 @@ describe('SQLite index construction', () => {
     const sourceVectors = await loadDenseVectors(source)
     for (const denseIndex of ['exact', 'hnsw', 'both'] as const) {
       const targetDir = join(root, denseIndex)
+      let buildStats: KnowledgeIndexBuildStats | undefined
       const manifest = await deriveKnowledgeIndexFromExact({
         sourceIndexDir: sourceDir,
         corpusText: targetCorpus,
@@ -435,6 +649,10 @@ describe('SQLite index construction', () => {
         tokenizer: whitespaceTokenizer,
         chunking: { maxTokens: 8, overlapTokens: 0 },
         sqliteBatchSize: 1,
+        derivedCacheDir: join(root, 'derived-cache'),
+        onBuildStats(stats) {
+          buildStats = stats
+        },
         denseIndex,
         ...(denseIndex === 'exact' ? {
           analyzer: 'english-v1' as const,
@@ -448,7 +666,7 @@ describe('SQLite index construction', () => {
       const target = await loadKnowledgeIndex(targetDir)
 
       expect(manifest).toMatchObject({
-        formatVersion: 3,
+        formatVersion: 4,
         corpus: {
           sha256: createHash('sha256').update(targetCorpus).digest('hex'),
           documentCount: 2,
@@ -472,6 +690,9 @@ describe('SQLite index construction', () => {
         expect(targetVectors).toEqual(sourceVectors.slice(0, targetVectors.length))
       }
       expect(target.sqlite.denseInputs(-1, 10)).toEqual(source.sqlite.denseInputs(-1, 2))
+      expect(buildStats).toMatchObject(denseIndex === 'exact'
+        ? { cacheHitDocumentCount: 0, recomputedDocumentCount: 2 }
+        : { cacheHitDocumentCount: 2, recomputedDocumentCount: 0 })
       target.sqlite.close()
     }
     source.sqlite.close()
@@ -534,7 +755,20 @@ describe('SQLite index construction', () => {
     })).rejects.toThrow('target Dense input at ordinal 0 does not match the source index prefix')
 
     const database = new DatabaseSync(join(sourceDir, 'knowledge.sqlite'))
-    database.prepare("UPDATE chunks SET document_id = 'doc-z' WHERE ordinal = 0").run()
+    database.exec(`
+      PRAGMA foreign_keys = ON;
+      BEGIN IMMEDIATE;
+      INSERT INTO documents(
+        document_id, title, source, source_version, valid_from, valid_from_ms,
+        valid_until, valid_until_ms, supersedes_document_id
+      ) SELECT
+        'doc-z', title, source, source_version, valid_from, valid_from_ms,
+        valid_until, valid_until_ms, supersedes_document_id
+      FROM documents WHERE document_id = 'doc-a';
+      UPDATE chunks SET document_id = 'doc-z' WHERE ordinal = 0;
+      DELETE FROM documents WHERE document_id = 'doc-a';
+      COMMIT;
+    `)
     database.close()
     await expect(deriveKnowledgeIndexFromExact({
       sourceIndexDir: sourceDir,
@@ -621,7 +855,7 @@ describe('SQLite index construction', () => {
     })).rejects.toThrow('source index must retain dense.f32le')
 
     const bm25Dir = join(root, 'bm25-source')
-    await buildBm25KnowledgeIndex({
+    await buildKnowledgeIndex({
       corpusText: '{"id":"doc","text":"alpha"}',
       outputDir: bm25Dir,
       tokenizer: whitespaceTokenizer,
@@ -661,6 +895,7 @@ describe('SQLite index construction', () => {
   it('rolls back failed SQLite writer batches and closes idempotently', async () => {
     const path = join(await temporaryDirectory(), 'knowledge.sqlite')
     const writer = new KnowledgeSqliteWriter(path, 'english-v1')
+    writer.insertDocuments([{ id: KnowledgeDocumentId('doc'), text: 'alpha' }])
     const chunk = {
       ordinal: 0,
       id: KnowledgeChunkId('doc:0-1'),
@@ -688,12 +923,18 @@ describe('SQLite index construction', () => {
       tokenizer: whitespaceTokenizer,
       chunking: { maxTokens: 2, overlapTokens: 0 },
     }
-    await expect(buildBm25KnowledgeIndex({ ...base })).rejects.toThrow('exactly one of corpusText or corpusPath')
-    await expect(buildBm25KnowledgeIndex({ ...base, outputDir: `${base.outputDir}-both`, corpusText: '', corpusPath: '/x' }))
+    await expect(buildKnowledgeIndex({ ...base })).rejects.toThrow('exactly one of corpusText or corpusPath')
+    await expect(buildKnowledgeIndex({ ...base, outputDir: `${base.outputDir}-both`, corpusText: '', corpusPath: '/x' }))
       .rejects.toThrow('exactly one of corpusText or corpusPath')
-    await expect(buildBm25KnowledgeIndex({ ...base, outputDir: `${base.outputDir}-batch`, corpusText: '', sqliteBatchSize: 0 }))
+    await expect(buildKnowledgeIndex({ ...base, outputDir: `${base.outputDir}-batch`, corpusText: '', sqliteBatchSize: 0 }))
       .rejects.toThrow('sqliteBatchSize must be a positive safe integer')
-    await expect(buildBm25KnowledgeIndex({
+    await expect(buildKnowledgeIndex({
+      ...base,
+      outputDir: `${base.outputDir}-cache`,
+      corpusText: '',
+      derivedCacheDir: ' ',
+    })).rejects.toThrow('derivedCacheDir must be non-empty')
+    await expect(buildKnowledgeIndex({
       ...base,
       outputDir: `${base.outputDir}-missing`,
       corpusPath: `${base.outputDir}-missing.jsonl`,
@@ -878,6 +1119,71 @@ describe('SQLite index construction', () => {
     changed.sqlite.close()
   })
 
+  it('reuses identical Dense inputs when only projected version metadata changes', async () => {
+    const root = await temporaryDirectory()
+    const cacheDir = join(root, 'cache')
+    const stats: DenseVectorBuildStats[] = []
+    const build = (corpusText: string, outputDir: string, embedDocuments: (texts: string[]) => Promise<Float32Array>) =>
+      buildKnowledgeIndex({
+        corpusText,
+        outputDir,
+        tokenizer: whitespaceTokenizer,
+        chunking: { maxTokens: 32, overlapTokens: 0 },
+        dense: {
+          encoder: { embedDocuments },
+          batchSize: 4,
+          modelId: 'test-model',
+          revision: 'a'.repeat(40),
+          dtype: 'q8',
+          dimensions: 4,
+          denseIndex: 'exact',
+          vectorCacheDir: cacheDir,
+          onVectorBuildStats: value => stats.push(value),
+        },
+      })
+    const firstDir = join(root, 'first')
+    const secondDir = join(root, 'second')
+    const firstCorpus = JSON.stringify({
+      id: 'policy',
+      title: 'Policy',
+      source: 'handbook-a',
+      sourceVersion: '1',
+      validFrom: '2025-01-01T00:00:00Z',
+      text: 'alpha body',
+    })
+    const secondCorpus = JSON.stringify({
+      id: 'policy',
+      title: 'Policy',
+      source: 'handbook-b',
+      sourceVersion: '2',
+      validFrom: '2026-01-01T00:00:00Z',
+      validUntil: '2027-01-01T00:00:00Z',
+      supersedes: 'policy-v1',
+      text: 'alpha body',
+    })
+    const encoded: string[][] = []
+    await build(firstCorpus, firstDir, (texts) => {
+      encoded.push(texts)
+      return Promise.resolve(deterministicVectors(texts))
+    })
+    await build(secondCorpus, secondDir, () => Promise.reject(new Error('version metadata must not invalidate vectors')))
+
+    expect(encoded).toEqual([['Policy\nalpha body']])
+    expect(stats).toHaveLength(2)
+    expect(stats[1]).toMatchObject({ totalInputCount: 1, cacheHitCount: 1, encodedInputCount: 0, reuseRatio: 1 })
+    expect(await readFile(join(secondDir, 'dense.f32le'))).toEqual(await readFile(join(firstDir, 'dense.f32le')))
+    const second = await loadKnowledgeIndex(secondDir)
+    expect(second.sqlite.denseInputs(-1, 10).map(row => row.text)).toEqual(['Policy\nalpha body'])
+    expect(second.sqlite.allChunks()[0]).toMatchObject({
+      source: 'handbook-b',
+      sourceVersion: '2',
+      validFrom: '2026-01-01T00:00:00.000Z',
+      validUntil: '2027-01-01T00:00:00.000Z',
+      supersedes: 'policy-v1',
+    })
+    second.sqlite.close()
+  })
+
   it('does not reuse vectors after any Dense configuration change', async () => {
     const root = await temporaryDirectory()
     const cacheDir = join(root, 'cache')
@@ -1057,7 +1363,7 @@ describe('SQLite index construction', () => {
     expect(await readdir(join(root, 'mismatch'))).not.toContain('manifest.json')
 
     const bm25Source = join(root, 'bm25-source')
-    await buildBm25KnowledgeIndex({
+    await buildKnowledgeIndex({
       corpusText,
       outputDir: bm25Source,
       tokenizer: whitespaceTokenizer,

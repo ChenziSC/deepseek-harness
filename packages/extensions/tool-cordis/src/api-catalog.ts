@@ -3603,8 +3603,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type KnowledgeDocumentId = Branded<\'KnowledgeDocumentId\'>;',
   },
   {
+    name: 'KnowledgeDocumentMetadata',
+    declaration: 'export interface KnowledgeDocumentMetadata {\n    readonly sourceVersion?: string;\n    readonly validFrom?: string;\n    readonly validUntil?: string;\n    readonly supersedes?: KnowledgeDocumentId;\n}',
+  },
+  {
     name: 'KnowledgeHit',
-    declaration: 'export interface KnowledgeHit {\n    readonly documentId: KnowledgeDocumentId;\n    readonly chunkId: KnowledgeChunkId;\n    readonly title?: string;\n    readonly sectionPath?: string;\n    readonly text: string;\n    readonly previousText?: string;\n    readonly nextText?: string;\n    readonly source?: string;\n    readonly score: number;\n}',
+    declaration: 'export interface KnowledgeHit extends KnowledgeDocumentMetadata {\n    readonly documentId: KnowledgeDocumentId;\n    readonly chunkId: KnowledgeChunkId;\n    readonly title?: string;\n    readonly sectionPath?: string;\n    readonly text: string;\n    readonly previousText?: string;\n    readonly nextText?: string;\n    readonly source?: string;\n    readonly score: number;\n}',
   },
   {
     name: 'KnowledgeRerank',
@@ -3616,7 +3620,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'KnowledgeSearchRequest',
-    declaration: 'export interface KnowledgeSearchRequest {\n    readonly query: string;\n    readonly maxResults: number;\n    readonly strategy?: KnowledgeSearchStrategy;\n}',
+    declaration: 'export interface KnowledgeSearchRequest {\n    readonly query: string;\n    readonly maxResults: number;\n    readonly strategy?: KnowledgeSearchStrategy;\n    readonly asOf?: string;\n}',
   },
   {
     name: 'KnowledgeSearchResult',

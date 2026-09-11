@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-09T10:40:44.199934Z",
+  "reviewProtocol": {
+    "blindToRetrievalScores": true,
+    "blindToVariantName": true,
+    "criteria": [
+      "source support",
+      "entity or time error",
+      "keyword stuffing"
+    ]
+  },
+  "sampleCount": 100,
+  "prefixCount": 73,
+  "fallbackCount": 27,
+  "passCount": 70,
+  "failCount": 3,
+  "factualPassRate": 0.958904109589041,
+  "failures": [
+    {
+      "itemId": "2728c981c7d2",
+      "verdict": "fail",
+      "unsupportedClaim": true,
+      "entityOrTimeError": false,
+      "keywordStuffing": false,
+      "rationale": "年俗和文革时期小学回忆有依据，但上下文未明确地点为“东北”。",
+      "dataset": "mldr-zh",
+      "chunkId": "doc-zh-8478:4007-4366"
+    },
+    {
+      "itemId": "44673cab8b39",
+      "verdict": "fail",
+      "unsupportedClaim": true,
+      "entityOrTimeError": false,
+      "keywordStuffing": false,
+      "rationale": "净土、灾难迫近、专修放下和往生极乐世界有依据，但“末法”这一特定判断未在上下文出现。",
+      "dataset": "mldr-zh",
+      "chunkId": "doc-zh-8334:758-1142"
+    },
+    {
+      "itemId": "ccd19e7d025d",
+      "verdict": "fail",
+      "unsupportedClaim": true,
+      "entityOrTimeError": false,
+      "keywordStuffing": false,
+      "rationale": "原文描述夜间时刻与求救反应，但未给出“1912年4月14日至15日”这一日期。",
+      "dataset": "mlqa-eng-zho",
+      "chunkId": "C765:313-684"
+    }
+  ],
+  "selection": {
+    "mandatoryCount": 32,
+    "fallbackReviewedCount": 27,
+    "randomSuccessCount": 68
+  },
+  "gate": {
+    "threshold": 0.99,
+    "passed": false
+  }
+}

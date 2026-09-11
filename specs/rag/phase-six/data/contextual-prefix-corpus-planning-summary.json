@@ -1,0 +1,203 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-09",
+  "configuration": {
+    "detector": "strict-v1",
+    "target": "dense",
+    "promptVersion": "context-prefix-v5",
+    "maxCandidateRatio": 0.15,
+    "maxPrefixTokens": 80,
+    "contextWindowTokens": 1024,
+    "maxChunksPerRequest": 4,
+    "chunking": {
+      "strategy": "markdown-structure-v1",
+      "maxTokens": 384,
+      "overlapTokens": 64
+    }
+  },
+  "datasets": {
+    "scifact": {
+      "measurement": "exact",
+      "corpusSha256": "dec31c8182f3d744c7d2c09423756fd1d17cbef75808db13ba01cc0aab4d1ac6",
+      "documentCount": 5183,
+      "tokenizedDocumentCount": 5183,
+      "sampleModulus": 1,
+      "chunkCount": 7230,
+      "detectedCandidateCount": 708,
+      "candidateRatio": 0.0979253112033195,
+      "maxCandidateRatio": 0.15,
+      "selectedCandidateCount": 708,
+      "clippedCandidateCount": 0,
+      "risks": {
+        "1": 60,
+        "2": 474,
+        "3": 28,
+        "4": 146
+      },
+      "signals": {
+        "cross-reference": 146,
+        "leading-reference": 28,
+        "relative-time": 485,
+        "continuation": 61,
+        "weak-structure": 3
+      },
+      "requestCount": 690,
+      "mergedRequestReductionRatio": 0.025423728813559324,
+      "estimatedInputTokensAllCandidates": 637024,
+      "selectedInputTokensUpperBound": 637024,
+      "maximumOutputTokensAllCandidates": 144960,
+      "selectedMaximumOutputTokens": 144960
+    },
+    "mlqa-eng-zho": {
+      "measurement": "exact",
+      "corpusSha256": "e57d063567fe121799dda3fee1f25e17bfa808e2f18f1ac0ddf0b2e936e39f72",
+      "documentCount": 4468,
+      "tokenizedDocumentCount": 4468,
+      "sampleModulus": 1,
+      "chunkCount": 5874,
+      "detectedCandidateCount": 713,
+      "candidateRatio": 0.12138236295539666,
+      "maxCandidateRatio": 0.15,
+      "selectedCandidateCount": 713,
+      "clippedCandidateCount": 0,
+      "risks": {
+        "1": 55,
+        "2": 188,
+        "3": 116,
+        "4": 354
+      },
+      "signals": {
+        "cross-reference": 354,
+        "leading-reference": 123,
+        "relative-time": 205,
+        "continuation": 61,
+        "weak-structure": 713
+      },
+      "requestCount": 686,
+      "mergedRequestReductionRatio": 0.037868162692847124,
+      "estimatedInputTokensAllCandidates": 556126,
+      "selectedInputTokensUpperBound": 556126,
+      "maximumOutputTokensAllCandidates": 144848,
+      "selectedMaximumOutputTokens": 144848
+    },
+    "mldr-en": {
+      "measurement": "sampled-estimate",
+      "corpusSha256": "a95974a06688c3fe4d0f2a268ded99cbd076cb8475867c02af050b261d959d69",
+      "documentCount": 200000,
+      "tokenizedDocumentCount": 198,
+      "sampleModulus": 1000,
+      "chunkCount": 2930303,
+      "detectedCandidateCount": 354545,
+      "candidateRatio": 0.12099276111685625,
+      "maxCandidateRatio": 0.15,
+      "selectedCandidateCount": 354545,
+      "clippedCandidateCount": 0,
+      "risks": {
+        "1": 39394,
+        "2": 54545,
+        "3": 53535,
+        "4": 207071
+      },
+      "signals": {
+        "cross-reference": 207071,
+        "leading-reference": 60606,
+        "relative-time": 60606,
+        "continuation": 45455,
+        "weak-structure": 354545
+      },
+      "requestCount": 268687,
+      "mergedRequestReductionRatio": 0.24216524216524216,
+      "estimatedInputTokensAllCandidates": 447288889,
+      "selectedInputTokensUpperBound": 447288889,
+      "maximumOutputTokensAllCandidates": 62755556,
+      "selectedMaximumOutputTokens": 62755536
+    },
+    "mldr-zh": {
+      "measurement": "sampled-estimate",
+      "corpusSha256": "f3d2ada63242578cbf0d8a28e5ae6784f5a4749815610530c921e127f3285633",
+      "documentCount": 200000,
+      "tokenizedDocumentCount": 201,
+      "sampleModulus": 1000,
+      "chunkCount": 3291542,
+      "detectedCandidateCount": 393035,
+      "candidateRatio": 0.11940749697702539,
+      "maxCandidateRatio": 0.15,
+      "selectedCandidateCount": 393035,
+      "clippedCandidateCount": 0,
+      "risks": {
+        "1": 3980,
+        "2": 232836,
+        "3": 21891,
+        "4": 134328
+      },
+      "signals": {
+        "cross-reference": 134328,
+        "leading-reference": 25871,
+        "relative-time": 255721,
+        "continuation": 4975,
+        "weak-structure": 393035
+      },
+      "requestCount": 275622,
+      "mergedRequestReductionRatio": 0.29873417721518986,
+      "estimatedInputTokensAllCandidates": 447851741,
+      "selectedInputTokensUpperBound": 447851741,
+      "maximumOutputTokensAllCandidates": 66722388,
+      "selectedMaximumOutputTokens": 66722388
+    },
+    "t2ranking": {
+      "measurement": "sampled-estimate",
+      "corpusSha256": "07b84e543e9ba696124a727c00629d5bce586631648c436c98dd6e9b146da212",
+      "documentCount": 2303643,
+      "tokenizedDocumentCount": 2330,
+      "sampleModulus": 1000,
+      "chunkCount": 4317600,
+      "detectedCandidateCount": 613975,
+      "candidateRatio": 0.14220288527593314,
+      "maxCandidateRatio": 0.15,
+      "selectedCandidateCount": 613975,
+      "clippedCandidateCount": 0,
+      "risks": {
+        "1": 1977,
+        "2": 380645,
+        "3": 17796,
+        "4": 213557
+      },
+      "signals": {
+        "cross-reference": 213557,
+        "leading-reference": 19774,
+        "relative-time": 401407,
+        "continuation": 2966,
+        "weak-structure": 613975
+      },
+      "requestCount": 518073,
+      "mergedRequestReductionRatio": 0.15619967793880837,
+      "estimatedInputTokensAllCandidates": 577430363,
+      "selectedInputTokensUpperBound": 577430363,
+      "maximumOutputTokensAllCandidates": 115431299,
+      "selectedMaximumOutputTokens": 115431299
+    }
+  },
+  "totals": {
+    "documentCount": 2713294,
+    "tokenizedDocumentCount": 12380,
+    "estimatedChunkCount": 10552549,
+    "estimatedCandidateCount": 1362976,
+    "estimatedRequestCount": 1063758,
+    "estimatedInputTokens": 1473764143,
+    "maximumOutputTokens": 245199051,
+    "estimatedCandidateRatio": 0.1291608311887488
+  },
+  "samplingCalibration": {
+    "dataset": "t2ranking-100k",
+    "sampleModulus": 100,
+    "tokenizedDocumentCount": 411,
+    "estimatedChunkCount": 98455,
+    "actualChunkCount": 100001,
+    "relativeError": -0.01545984540154599
+  },
+  "constraints": {
+    "fullCorpusLlmCalls": 0,
+    "fullCorpusIndexesBuilt": 0,
+    "largeCorpusMeasurement": "All documents were read, validated, hashed, and counted; chunk-level values use deterministic document-id sampling."
+  }
+}

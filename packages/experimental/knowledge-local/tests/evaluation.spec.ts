@@ -36,20 +36,14 @@ vi.mock('@huggingface/transformers', () => ({
   AutoTokenizer: { from_pretrained: transformerMocks.tokenizerFromPretrained },
   AutoModelForSequenceClassification: { from_pretrained: transformerMocks.modelFromPretrained },
 }))
-import {
-  calculateMetrics,
-  buildBm25KnowledgeIndex,
-  buildKnowledgeIndex,
-  BGE_M3_MODEL_ID,
-  BGE_M3_REVISION,
-  DENSE_DIMENSIONS,
-  evaluateDataset,
-  evaluateMatrix,
-  nearestRank,
-  renderEvaluationReport,
-  type EvaluationReport,
-  type EvaluationQueryDetail,
-} from '@deepseek-ai/dsh-experimental-knowledge-local'
+import { DENSE_DIMENSIONS } from '../src/dense.ts'
+import { evaluateDataset } from '../src/offline/evaluation/dataset.ts'
+import { evaluateMatrix } from '../src/offline/evaluation/matrix.ts'
+import { calculateMetrics, nearestRank } from '../src/offline/evaluation/metrics.ts'
+import { renderEvaluationReport } from '../src/offline/evaluation/report.ts'
+import type { EvaluationQueryDetail, EvaluationReport } from '../src/offline/evaluation/types.ts'
+import { buildKnowledgeIndex } from '../src/index-builder.ts'
+import { BGE_M3_MODEL_ID, BGE_M3_REVISION } from '../src/tokenizer.ts'
 import { KnowledgeChunkId, KnowledgeDocumentId } from '@deepseek-ai/dsh-experimental-knowledge'
 
 const queries = [
@@ -447,7 +441,7 @@ describe('SciFact evaluation', () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evaluation-invalid-'))
     temporaryDirectories.push(root)
     const indexDir = join(root, 'index')
-    await buildBm25KnowledgeIndex({
+    await buildKnowledgeIndex({
       corpusText: '{"id":"doc","text":"alpha"}',
       outputDir: indexDir,
       tokenizer: { countTokens: text => text.match(/\S+/gu)?.length ?? 0 },
@@ -505,7 +499,7 @@ describe('SciFact evaluation', () => {
     const root = await mkdtemp(join(tmpdir(), `dsh-evaluation-${dataset}-`))
     temporaryDirectories.push(root)
     const indexDir = join(root, 'index')
-    await buildBm25KnowledgeIndex({
+    await buildKnowledgeIndex({
       corpusText: '{"id":"doc","text":"alpha"}',
       outputDir: indexDir,
       tokenizer: { countTokens: text => text.match(/\S+/gu)?.length ?? 0 },

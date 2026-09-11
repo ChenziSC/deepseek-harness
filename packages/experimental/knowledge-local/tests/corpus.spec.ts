@@ -10,7 +10,7 @@ import {
   parseT2RankingQrelsTsv,
   parseT2RankingQueriesTsv,
   parseTrecQrelsTsv,
-} from '@deepseek-ai/dsh-experimental-knowledge-local'
+} from '../src/corpus.ts'
 
 describe('generic corpus JSONL', () => {
   it('validates and sorts documents independently of line order', () => {
@@ -32,6 +32,43 @@ describe('generic corpus JSONL', () => {
       .toThrow(new CorpusFormatError('corpus.jsonl', 2, 'duplicate document id "a"'))
     expect(() => parseCorpusJsonl('{"id":"a","text":"one","extra":true}'))
       .toThrow('corpus.jsonl:1: unknown field "extra"')
+  })
+
+  it('normalizes source version, validity, and replacement metadata', () => {
+    expect(parseCorpusJsonl(JSON.stringify({
+      id: 'policy-v2',
+      title: 'Policy',
+      source: 'handbook',
+      sourceVersion: '2026.02',
+      validFrom: '2026-02-01T08:00:00+08:00',
+      validUntil: '2026-06-01T00:00:00Z',
+      supersedes: 'policy-v1',
+      text: 'Current policy.',
+    }))).toEqual([{
+      id: 'policy-v2',
+      title: 'Policy',
+      source: 'handbook',
+      sourceVersion: '2026.02',
+      validFrom: '2026-02-01T00:00:00.000Z',
+      validFromMs: Date.parse('2026-02-01T00:00:00.000Z'),
+      validUntil: '2026-06-01T00:00:00.000Z',
+      validUntilMs: Date.parse('2026-06-01T00:00:00.000Z'),
+      supersedes: 'policy-v1',
+      text: 'Current policy.',
+    }])
+  })
+
+  it.each([
+    [{ sourceVersion: '   ' }, 'sourceVersion must be a non-empty string'],
+    [{ sourceVersion: 1 }, 'sourceVersion must be a string'],
+    [{ validFrom: '2026-02-01' }, 'validFrom must be an RFC 3339 timestamp with an explicit timezone'],
+    [{ validUntil: '2026-02-30T00:00:00Z' }, 'validUntil must be a valid RFC 3339 timestamp'],
+    [{ validFrom: '2026-02-01T00:00:00Z', validUntil: '2026-02-01T00:00:00Z' }, 'validFrom must be earlier than validUntil'],
+    [{ supersedes: 1 }, 'supersedes must be a string'],
+    [{ supersedes: 'doc' }, 'supersedes must differ from id'],
+  ])('rejects invalid version metadata %j', (metadata, message) => {
+    expect(() => parseCorpusJsonl(JSON.stringify({ id: 'doc', text: 'body', ...metadata }), 'fixture.jsonl'))
+      .toThrow(`fixture.jsonl:1: ${message}`)
   })
 
   it.each([

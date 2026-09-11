@@ -333,6 +333,11 @@
     },
     {
       "doc": "docs/subsystems/knowledge.md",
+      "symbol": "KnowledgeDocumentMetadata",
+      "source": "packages/experimental/knowledge/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/knowledge.md",
       "symbol": "KnowledgeRetrieval",
       "source": "packages/experimental/knowledge/src/types.ts"
     },

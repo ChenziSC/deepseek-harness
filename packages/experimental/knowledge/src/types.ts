@@ -38,6 +38,18 @@ export type KnowledgeDenseIndex = 'auto' | 'exact' | 'hnsw'
 /** Provider-neutral reranking preference requested for one search. */
 export type KnowledgeRerank = 'auto' | 'on' | 'off'
 
+/** Optional source-owned version and validity metadata for one document. */
+export interface KnowledgeDocumentMetadata {
+  /** Opaque version label supplied by the source system. */
+  readonly sourceVersion?: string
+  /** Inclusive RFC 3339 instant at which the document becomes effective. */
+  readonly validFrom?: string
+  /** Exclusive RFC 3339 instant at which the document stops being effective. */
+  readonly validUntil?: string
+  /** Optional identifier of the document directly replaced by this document. */
+  readonly supersedes?: KnowledgeDocumentId
+}
+
 /** Optional high-level retrieval choices for one search. */
 export interface KnowledgeSearchStrategy {
   /** Recall preference; `auto` lets the provider route the query. */
@@ -66,10 +78,12 @@ export interface KnowledgeSearchRequest {
   readonly maxResults: number
   /** Optional high-level retrieval choices interpreted by the provider. */
   readonly strategy?: KnowledgeSearchStrategy
+  /** Optional RFC 3339 instant used for validity filtering at a requested time. */
+  readonly asOf?: string
 }
 
 /** One ranked fragment returned by a knowledge provider. */
-export interface KnowledgeHit {
+export interface KnowledgeHit extends KnowledgeDocumentMetadata {
   /** Original source-document identifier. */
   readonly documentId: KnowledgeDocumentId
   /** Stable fragment identifier. */

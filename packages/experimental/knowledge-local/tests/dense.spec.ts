@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  DENSE_DIMENSIONS,
-  searchDense,
-  validateDenseVectors,
-} from '@deepseek-ai/dsh-experimental-knowledge-local'
+import { DENSE_DIMENSIONS, searchDense, validateDenseVectors } from '../src/dense.ts'
 
 function unitVector(dimension: number): Float32Array {
   const vector = new Float32Array(DENSE_DIMENSIONS)
@@ -66,6 +62,26 @@ describe('Dense exact retrieval', () => {
       .toThrow('cancelled')
   })
 
+  it('scores only eligible ordinals', () => {
+    const vectors = new Float32Array(DENSE_DIMENSIONS * 3)
+    vectors.set(unitVector(0), 0)
+    vectors.set(unitVector(1), DENSE_DIMENSIONS)
+    vectors.set(unitVector(0), DENSE_DIMENSIONS * 2)
+
+    expect(searchDense(
+      vectors,
+      unitVector(0),
+      ['a', 'b', 'c'],
+      DENSE_DIMENSIONS,
+      3,
+      undefined,
+      Uint8Array.from([0, 1, 1]),
+    )).toEqual([
+      { ordinal: 2, score: 1 },
+      { ordinal: 1, score: 0 },
+    ])
+  })
+
   it('rejects invalid dimensions, lengths, normalization, and scores', () => {
     expect(() => { validateDenseVectors(new Float32Array(), -1, 1, 'fixture') }).toThrow('row count is invalid')
     expect(() => { validateDenseVectors(new Float32Array(), 0, 0, 'fixture') }).toThrow('dimensions are invalid')
@@ -79,6 +95,8 @@ describe('Dense exact retrieval', () => {
       .toThrow('dense index dimensions do not match its data length')
     expect(() => searchDense(unitVector(0), unitVector(0), [], DENSE_DIMENSIONS, 1))
       .toThrow('dense index dimensions do not match its data length')
+    expect(() => searchDense(unitVector(0), unitVector(0), ['chunk'], DENSE_DIMENSIONS, 1, undefined, new Uint8Array()))
+      .toThrow('dense eligibility mask does not match its row count')
 
     const invalidIndex = unitVector(0)
     invalidIndex[1] = Number.NaN

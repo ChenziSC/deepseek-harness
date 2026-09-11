@@ -8,9 +8,9 @@ import { KnowledgeError } from '@deepseek-ai/dsh-experimental-knowledge'
 import {
   ENGLISH_ANALYZER,
   MIXED_ZH_EN_ANALYZER,
-  compareCodePoints,
   type KnowledgeBm25Analyzer,
 } from './bm25.ts'
+import { compareCodePoints } from './ordering.ts'
 import { validateDenseVectors } from './dense.ts'
 import { BGE_DENSE_MODEL_FILE } from './model-runtime.ts'
 import { HNSW_FILE, USEARCH_VERSION } from './hnsw.ts'
@@ -20,7 +20,7 @@ import {
   type KnowledgeSqliteIndex,
 } from './sqlite-index.ts'
 import type { ChunkingStrategy } from './chunker.ts'
-import type { DenseIndexMode, DenseIndexRequest } from './index-builder.ts'
+import type { DenseIndexMode, DenseIndexRequest } from './build/types.ts'
 import type { TextScriptProfile } from './script-profile.ts'
 
 const MANIFEST_FILE = 'manifest.json'
@@ -54,7 +54,7 @@ export interface DenseIndexManifest {
 }
 
 /** HNSW graph identity and build parameters recorded in an index. */
-export interface HnswIndexManifest {
+interface HnswIndexManifest {
   readonly library: 'usearch'
   readonly libraryVersion: string
   readonly metric: 'cosine'
@@ -63,9 +63,9 @@ export interface HnswIndexManifest {
   readonly expansionAdd: number
 }
 
-/** Version-three local knowledge index manifest. */
+/** Version-four local knowledge index manifest. */
 export interface KnowledgeIndexManifest {
-  readonly formatVersion: 3
+  readonly formatVersion: 4
   readonly createdBy: {
     readonly package: '@deepseek-ai/dsh-experimental-knowledge-local'
     readonly version: string
@@ -76,6 +76,7 @@ export interface KnowledgeIndexManifest {
     readonly documentCount: number
     readonly chunkCount: number
     readonly scriptProfile: TextScriptProfile
+    readonly documentMetadata: 'source-version-validity-v1'
   }
   readonly chunking: {
     readonly tokenizerModelId: string
@@ -243,7 +244,7 @@ function parseManifest(value: unknown): KnowledgeIndexManifest {
     ],
     'manifest',
   )
-  if (value['formatVersion'] !== 3) fail('manifest formatVersion must be 3')
+  if (value['formatVersion'] !== 4) fail('manifest formatVersion must be 4')
   const createdBy = value['createdBy']
   const build = value['build']
   const corpus = value['corpus']
@@ -255,7 +256,7 @@ function parseManifest(value: unknown): KnowledgeIndexManifest {
   }
   exactFields(createdBy, ['package', 'version'], 'manifest createdBy')
   exactFields(build, ['durationMs'], 'manifest build')
-  exactFields(corpus, ['sha256', 'documentCount', 'chunkCount', 'scriptProfile'], 'manifest corpus')
+  exactFields(corpus, ['sha256', 'documentCount', 'chunkCount', 'scriptProfile', 'documentMetadata'], 'manifest corpus')
   exactFields(chunking, ['tokenizerModelId', 'tokenizerRevision', 'maxTokens', 'overlapTokens', 'strategy'], 'manifest chunking')
   exactFields(bm25, ['analyzer', 'implementation'], 'manifest bm25')
   if (createdBy['package'] !== '@deepseek-ai/dsh-experimental-knowledge-local') fail('manifest package is unsupported')
@@ -269,6 +270,7 @@ function parseManifest(value: unknown): KnowledgeIndexManifest {
     maxTokens < 1
     || overlapTokens >= maxTokens
     || !['latin', 'cjk', 'mixed', 'neutral'].includes(corpus['scriptProfile'] as string)
+    || corpus['documentMetadata'] !== 'source-version-validity-v1'
     || (chunking['strategy'] !== 'token-window-v1' && chunking['strategy'] !== 'markdown-structure-v1')
   ) fail('manifest chunking or script profile is invalid')
   if (
@@ -321,7 +323,7 @@ function parseManifest(value: unknown): KnowledgeIndexManifest {
     fail(`${DENSE_FILE} byte length does not match the manifest dimensions`)
   }
   return {
-    formatVersion: 3,
+    formatVersion: 4,
     createdBy: {
       package: '@deepseek-ai/dsh-experimental-knowledge-local',
       version: nonEmptyString(createdBy['version'], 'manifest createdBy.version'),
@@ -332,6 +334,7 @@ function parseManifest(value: unknown): KnowledgeIndexManifest {
       documentCount,
       chunkCount,
       scriptProfile: corpus['scriptProfile'] as TextScriptProfile,
+      documentMetadata: 'source-version-validity-v1',
     },
     chunking: {
       tokenizerModelId: nonEmptyString(chunking['tokenizerModelId'], 'manifest chunking.tokenizerModelId'),

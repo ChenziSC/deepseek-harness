@@ -1,10 +1,10 @@
 /** Persistent content-addressed cache for document embedding vectors. */
 
-import { createHash, type Hash } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { DatabaseSync, type StatementSync } from 'node:sqlite'
 import { validateDenseVectors } from './dense.ts'
+import { inImmediateTransaction, lengthEncodedSha256 } from './storage/cache-primitives.ts'
 
 /** Fixed SQLite filename inside a vector cache directory. */
 export const VECTOR_CACHE_FILE = 'vectors.sqlite'
@@ -37,14 +37,6 @@ interface VectorCacheRow {
   readonly vector: unknown
 }
 
-function lengthEncoded(hash: Hash, value: string): void {
-  const bytes = Buffer.from(value, 'utf8')
-  const length = Buffer.allocUnsafe(BigUint64Array.BYTES_PER_ELEMENT)
-  length.writeBigUInt64BE(BigInt(bytes.length))
-  hash.update(length)
-  hash.update(bytes)
-}
-
 function configValues(config: DenseVectorCacheConfig): readonly string[] {
   return [
     config.modelId,
@@ -66,9 +58,7 @@ function configValues(config: DenseVectorCacheConfig): readonly string[] {
  * @returns SHA-256 digest used to diagnose corrupt or incompatible rows.
  */
 export function denseVectorConfigSha256(config: DenseVectorCacheConfig): string {
-  const hash = createHash('sha256')
-  for (const value of configValues(config)) lengthEncoded(hash, value)
-  return hash.digest('hex')
+  return lengthEncodedSha256(configValues(config))
 }
 
 /**
@@ -78,9 +68,7 @@ export function denseVectorConfigSha256(config: DenseVectorCacheConfig): string 
  * @returns length-delimited SHA-256 cache key.
  */
 export function denseVectorCacheKey(config: DenseVectorCacheConfig, text: string): string {
-  const hash = createHash('sha256')
-  for (const value of [...configValues(config), text]) lengthEncoded(hash, value)
-  return hash.digest('hex')
+  return lengthEncodedSha256([...configValues(config), text])
 }
 
 function vectorBytes(vector: Float32Array): Buffer {
@@ -192,9 +180,8 @@ export class DenseVectorCache {
     for (const entry of entries) {
       validateDenseVectors(entry.vector, 1, this.config.dimensions, 'knowledge-local: vector cache write')
     }
-    let inserted = 0
-    this.database.exec('BEGIN IMMEDIATE')
-    try {
+    return inImmediateTransaction(this.database, () => {
+      let inserted = 0
       for (const entry of entries) {
         const result = this.insert.run(
           entry.key,
@@ -204,12 +191,8 @@ export class DenseVectorCache {
         )
         inserted += Number(result.changes)
       }
-      this.database.exec('COMMIT')
-    } catch (error) {
-      this.database.exec('ROLLBACK')
-      throw error
-    }
-    return inserted
+      return inserted
+    })
   }
 
   /** Close the cache after all committed batches are durable. */

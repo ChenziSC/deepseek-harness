@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
+import { gzipSync } from 'node:zlib'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -30,8 +31,10 @@ vi.mock('../src/index-format.ts', () => ({
   loadKnowledgeIndex: mocks.loadKnowledgeIndex,
   verifyKnowledgeIndex: mocks.verifyKnowledgeIndex,
 }))
-vi.mock('../src/evaluation.ts', () => ({
+vi.mock('../src/offline/evaluation/dataset.ts', () => ({
   evaluateDataset: mocks.evaluateDataset,
+}))
+vi.mock('../src/offline/evaluation/report.ts', () => ({
   renderEvaluationReport: mocks.renderEvaluationReport,
 }))
 vi.mock('../src/model-runtime.ts', () => ({
@@ -158,16 +161,24 @@ beforeEach(() => {
 
 afterEach(async () => {
   await Promise.all(temporaryDirectories.splice(0).map(directory => rm(directory, { recursive: true, force: true })))
+  vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   vi.clearAllMocks()
 })
 
-async function fixtureFile(name: string, content: string): Promise<string> {
+async function fixtureFile(name: string, content: string | Uint8Array): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-knowledge-cli-'))
   temporaryDirectories.push(root)
   const path = join(root, name)
   await writeFile(path, content)
   return path
 }
+
+const contextualPlanOptions = [
+  '--target', 'dense', '--max-candidate-ratio', '1', '--max-input-tokens', '100',
+  '--max-output-tokens', '148', '--max-prefix-tokens', '20', '--context-window-tokens', '384',
+  '--max-chunks-per-request', '1', '--budget-action', 'fail', '--prompt-version', 'prefix-v1',
+] as const
 
 describe('dsh-knowledge command execution', () => {
   it.each([[[]], [['--help']], [['-h']]])('prints help for %j', async (argv) => {
@@ -188,7 +199,25 @@ describe('dsh-knowledge command execution', () => {
 
     mocks.buildKnowledgeIndex.mockImplementationOnce(async (options: {
       dense?: { onVectorBuildStats?: (stats: unknown) => void }
+      onBuildStats?: (stats: unknown) => void
     }) => {
+      options.onBuildStats?.({
+        cacheEnabled: true,
+        cacheQueryCount: 1,
+        cacheHitDocumentCount: 1,
+        recomputedDocumentCount: 0,
+        reusedChunkCount: 1,
+        newChunkCount: 0,
+        timingsMs: {
+          corpusStaging: 1,
+          derivedCacheLookup: 1,
+          chunking: 0,
+          bm25Preprocess: 0,
+          derivedCacheWrite: 0,
+          sqliteWrite: 1,
+          sqliteFinalize: 1,
+        },
+      })
       options.dense?.onVectorBuildStats?.({
         totalInputCount: 1,
         cacheHitCount: 1,
@@ -214,6 +243,7 @@ describe('dsh-knowledge command execution', () => {
       '--overlap-tokens', '0', '--chunking-strategy', 'token-window-v1', '--sqlite-batch-size', '2',
       '--dense-model-id', 'dense-model', '--dense-model-revision', 'b'.repeat(40),
       '--dense-max-tokens', '64', '--embedding-batch-size', '4',
+      '--derived-cache-dir', '/derived',
       '--vector-cache-dir', '/vectors', '--import-vectors-from', '/source-index',
     ], denseStdout, sink())).toBe(0)
     expect(mocks.buildKnowledgeIndex.mock.calls[1]?.[0]).toMatchObject({
@@ -221,6 +251,7 @@ describe('dsh-knowledge command execution', () => {
       corpusPath: corpus,
       chunking: { maxTokens: 8, overlapTokens: 0, strategy: 'token-window-v1' },
       sqliteBatchSize: 2,
+      derivedCacheDir: '/derived',
       dense: {
         batchSize: 4,
         modelId: 'dense-model',
@@ -231,6 +262,11 @@ describe('dsh-knowledge command execution', () => {
       },
     })
     expect(JSON.parse(denseStdout.output)).toMatchObject({
+      documentBuild: {
+        cacheEnabled: true,
+        cacheHitDocumentCount: 1,
+        recomputedDocumentCount: 0,
+      },
       denseBuild: {
         cacheHitCount: 1,
         encodedInputCount: 0,
@@ -249,6 +285,138 @@ describe('dsh-knowledge command execution', () => {
     ], sink(), stderr)).toBe(2)
     expect(stderr.output).toContain('build failed')
     expect(mocks.encoderDispose).not.toHaveBeenCalled()
+  })
+
+  it('plans and generates contextual-prefix evaluation artifacts', async () => {
+    const corpus = await fixtureFile('corpus.jsonl', '{"id":"doc","text":"It needs context."}\n')
+    const root = join(corpus, '..')
+    const planOutput = join(root, 'plan')
+    const planStdout = sink()
+    expect(await runCli([
+      'contextual-plan', '--corpus', corpus, '--output', planOutput, '--model-cache-dir', '/models',
+      ...contextualPlanOptions,
+    ], planStdout, sink())).toBe(0)
+    const planSummary = JSON.parse(planStdout.output) as { readonly plan: string }
+    expect(planSummary.plan).toBe(join(planOutput, 'contextual-prefix-plan.json'))
+
+    const plan = JSON.parse(await readFile(planSummary.plan, 'utf8')) as {
+      readonly plan: { readonly batches: readonly [{ readonly candidateChunkIds: readonly [string] }] }
+    }
+    const chunkId = plan.plan.batches[0].candidateChunkIds[0]
+    const request = vi.fn(async () => new Response(JSON.stringify({
+      output_text: JSON.stringify({ prefixes: [{ chunkId, context: 'The document context.' }] }),
+      usage: { input_tokens: 1, output_tokens: 1 },
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    vi.stubGlobal('fetch', request)
+    vi.stubEnv('PREFIX_TEST_KEY', 'secret')
+    const recordsOutput = join(root, 'records')
+    const recordsStdout = sink()
+    expect(await runCli([
+      'contextual-generate', '--plan', planSummary.plan, '--output', recordsOutput,
+      '--cache-dir', join(root, 'prefix-cache'), '--model-cache-dir', '/models',
+      '--base-url', 'https://example.test/v1', '--api-key-env', 'PREFIX_TEST_KEY',
+      '--model-id', 'prefix-model', '--revision', 'fixed-revision', '--reasoning-effort', 'minimal',
+      '--max-input-tokens', '100', '--max-output-tokens', '148', '--max-retries', '0',
+      '--budget-action', 'fail',
+    ], recordsStdout, sink())).toBe(0)
+    expect(request).toHaveBeenCalledTimes(1)
+    const recordsSummary = JSON.parse(recordsStdout.output) as { readonly records: string }
+
+    expect(JSON.parse(await readFile(recordsSummary.records, 'utf8'))).toMatchObject({
+      generator: { modelId: 'prefix-model', revision: 'fixed-revision' },
+      execution: { generatedCount: 1, inputTokens: 1, outputTokens: 1 },
+    })
+  })
+
+  it('plans gzipped T2Ranking input while skipping its header and blank lines', async () => {
+    const corpus = await fixtureFile('collection.tsv.gz', gzipSync('pid\ttext\n\n1\tIt needs context.\n'))
+    const output = join(corpus, '..', 'plan')
+    expect(await runCli([
+      'contextual-plan', '--corpus', corpus, '--corpus-format', 't2ranking', '--output', output,
+      '--model-cache-dir', '/models', '--target', 'bm25-and-dense', '--max-candidate-ratio', '1',
+      '--max-input-tokens', '100', '--max-output-tokens', '20', '--max-prefix-tokens', '20',
+      '--context-window-tokens', '384', '--max-chunks-per-request', '1',
+      '--budget-action', 'deterministic-fallback', '--prompt-version', 'prefix-v1',
+    ], sink(), sink())).toBe(0)
+    const artifact = JSON.parse(await readFile(join(output, 'contextual-prefix-plan.json'), 'utf8')) as {
+      readonly corpus: { readonly documentCount: number }
+      readonly plan: { readonly target: string }
+    }
+    expect(artifact).toMatchObject({ corpus: { documentCount: 1 }, plan: { target: 'bm25-and-dense' } })
+  })
+
+  it('writes full-corpus contextual statistics without loading an encoder', async () => {
+    const corpus = await fixtureFile('corpus.jsonl', '{"id":"doc","text":"It needs context."}\n')
+    const output = join(corpus, '..', 'statistics')
+    const stdout = sink()
+    expect(await runCli([
+      'contextual-statistics', '--corpus', corpus, '--output', output, '--model-cache-dir', '/models',
+      '--target', 'dense', '--max-candidate-ratio', '0.25', '--max-prefix-tokens', '20',
+      '--context-window-tokens', '384', '--max-chunks-per-request', '1', '--prompt-version', 'prefix-v1',
+      '--diagnostic-sample-limit', '1', '--sample-modulus', '1',
+    ], stdout, sink())).toBe(0)
+    expect(JSON.parse(stdout.output)).toMatchObject({
+      report: join(output, 'contextual-prefix-statistics.json'),
+      documentCount: 1,
+      detectedCandidateCount: 1,
+    })
+    expect(JSON.parse(await readFile(join(output, 'contextual-prefix-statistics.json'), 'utf8')))
+      .toMatchObject({ diagnostics: [expect.objectContaining({ risk: 3 })] })
+    expect(mocks.loadDenseEncoder).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [['contextual-plan', '--target', 'other'], '--target must be dense or bm25-and-dense'],
+    [['contextual-plan', '--target', 'dense', '--budget-action', 'other'], '--budget-action must be fail or deterministic-fallback'],
+    [['contextual-plan', '--target', 'dense', '--budget-action', 'fail', '--max-input-tokens', '1.5'], 'safe integer'],
+  ])('rejects invalid contextual command options %j', async (prefix, message) => {
+    const corpus = await fixtureFile('corpus.jsonl', '{"id":"doc","text":"It needs context."}\n')
+    const root = join(corpus, '..')
+    const base = [
+      '--corpus', corpus, '--output', join(root, `output-${message.length}`), '--model-cache-dir', '/models',
+      '--max-candidate-ratio', '1', '--max-input-tokens', '100', '--max-output-tokens', '20',
+      '--max-prefix-tokens', '20', '--context-window-tokens', '384', '--max-chunks-per-request', '1',
+      '--prompt-version', 'prefix-v1',
+    ]
+    const stderr = sink()
+    expect(await runCli([prefix[0] as string, ...base, ...prefix.slice(1)], sink(), stderr)).toBe(2)
+    expect(stderr.output).toContain(message)
+  })
+
+  it('rejects unsupported contextual generation reasoning effort before reading credentials', async () => {
+    const corpus = await fixtureFile('corpus.jsonl', '{"id":"doc","text":"It needs context."}\n')
+    const planOutput = join(corpus, '..', 'plan')
+    expect(await runCli([
+      'contextual-plan', '--corpus', corpus, '--output', planOutput, '--model-cache-dir', '/models',
+      ...contextualPlanOptions,
+    ], sink(), sink())).toBe(0)
+    const stderr = sink()
+    expect(await runCli([
+      'contextual-generate', '--plan', join(planOutput, 'contextual-prefix-plan.json'),
+      '--output', join(corpus, '..', 'records'), '--cache-dir', join(corpus, '..', 'cache'),
+      '--model-cache-dir', '/models', '--reasoning-effort', 'extreme',
+    ], sink(), stderr)).toBe(2)
+    expect(stderr.output).toContain('--reasoning-effort must be none, minimal, low, medium, or high')
+    const missing = sink()
+    expect(await runCli([
+      'contextual-generate', '--plan', join(planOutput, 'contextual-prefix-plan.json'),
+      '--output', join(corpus, '..', 'records-missing'), '--cache-dir', join(corpus, '..', 'cache'),
+      '--model-cache-dir', '/models',
+    ], sink(), missing)).toBe(2)
+    expect(missing.output).toContain('--reasoning-effort must be none, minimal, low, medium, or high')
+  })
+
+  it('rejects duplicate planning documents', async () => {
+    const corpus = await fixtureFile('corpus.jsonl', [
+      '{"id":"doc","text":"It needs context."}',
+      '{"id":"doc","text":"However, it still needs context."}',
+    ].join('\n'))
+    const stderr = sink()
+    expect(await runCli([
+      'contextual-plan', '--corpus', corpus, '--output', `${corpus}.plan`, '--model-cache-dir', '/models',
+      ...contextualPlanOptions,
+    ], sink(), stderr)).toBe(2)
+    expect(stderr.output).toContain('duplicate document id')
   })
 
   it('emits an interactive build plan and accepts a dual-payload override', async () => {
@@ -479,14 +647,20 @@ describe('dsh-knowledge command execution', () => {
       },
     }
     mocks.loadKnowledgeIndex.mockResolvedValueOnce({ manifest: sourceManifest, sqlite: { close: vi.fn() } })
-    mocks.deriveKnowledgeIndexFromExact.mockResolvedValueOnce({
-      ...sourceManifest,
-      dense: { resolvedIndex: 'both', recommendedIndex: 'exact' },
+    mocks.deriveKnowledgeIndexFromExact.mockImplementationOnce(async (options: {
+      onBuildStats?: (stats: unknown) => void
+    }) => {
+      options.onBuildStats?.({ cacheEnabled: true, cacheHitDocumentCount: 1 })
+      return {
+        ...sourceManifest,
+        dense: { resolvedIndex: 'both', recommendedIndex: 'exact' },
+      }
     })
     const stdout = sink()
     expect(await runCli([
       'derive', '--source-index', '/index-100k', '--corpus', '/slices/chunks-10000/corpus.tsv',
       '--output', '/index-10k', '--model-cache-dir', '/models', '--dense-index', 'both',
+      '--derived-cache-dir', '/derived',
     ], stdout, sink())).toBe(0)
     expect(mocks.deriveKnowledgeIndexFromExact).toHaveBeenCalledWith(expect.objectContaining({
       sourceIndexDir: '/index-100k',
@@ -494,10 +668,15 @@ describe('dsh-knowledge command execution', () => {
       corpusFormat: 't2ranking',
       outputDir: '/index-10k',
       chunking: { maxTokens: 384, overlapTokens: 64, strategy: 'markdown-structure-v1' },
+      derivedCacheDir: '/derived',
       denseIndex: 'both',
     }))
     expect(mocks.loadDenseEncoder).not.toHaveBeenCalled()
-    expect(JSON.parse(stdout.output)).toMatchObject({ denseIndex: 'both', recommendedDenseIndex: 'exact' })
+    expect(JSON.parse(stdout.output)).toMatchObject({
+      denseIndex: 'both',
+      recommendedDenseIndex: 'exact',
+      documentBuild: { cacheEnabled: true, cacheHitDocumentCount: 1 },
+    })
   })
 
   it('passes explicit prefix-index format and HNSW options', async () => {

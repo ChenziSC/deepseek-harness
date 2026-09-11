@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-04-local-rag-retrieval.md
-2026-09-04-local-rag-retrieval.md: 925724292826d7e6a479c5162f9c5eec50e8d96a
-2026-09-04-local-rag-retrieval.zh.md: f5f7daa14ce93c849a52bc2479b1d0660d2438a3
+2026-09-04-local-rag-retrieval.md: 99e30571b811c65e8161c7fa70e7903b9e01d259
+2026-09-04-local-rag-retrieval.zh.md: b8027eafcb94e4717c416a47bb261f8ea4dac981

@@ -14,7 +14,7 @@ export const BGE_DENSE_MODEL_FILE = 'onnx/model_quantized.onnx'
 export const DEFAULT_DENSE_MAX_TOKENS = 512
 
 /** Tensor fields consumed from a feature-extraction result. */
-export interface DenseTensorOutput {
+interface DenseTensorOutput {
   readonly type: string
   readonly dims: readonly number[]
   readonly data: unknown

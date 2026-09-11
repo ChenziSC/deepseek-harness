@@ -29,7 +29,7 @@ import {
   loadReranker,
   type RerankerBackend,
   type RerankerInferenceOptions,
-} from '@deepseek-ai/dsh-experimental-knowledge-local'
+} from '../src/reranker.ts'
 import { KnowledgeChunkId, KnowledgeDocumentId, type KnowledgeHit } from '@deepseek-ai/dsh-experimental-knowledge'
 
 const chunks: KnowledgeHit[] = [

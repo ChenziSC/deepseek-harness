@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-08",
+  "inputs": {
+    "corpus": "version-validity-corpus.jsonl",
+    "corpusSha256": "e212e44db3b4ed1d2b7f69e2d7467554c654edd6b09125d8fe1f4283edd84e68",
+    "documentCount": 9,
+    "query": "common"
+  },
+  "configuration": {
+    "validityInterval": "validFrom <= asOf < validUntil",
+    "retrievalModes": [
+      "bm25",
+      "dense-exact",
+      "dense-hnsw",
+      "hybrid-exact"
+    ],
+    "reranker": false,
+    "adjacentExpansion": false,
+    "denseFixture": "deterministic unit vectors"
+  },
+  "fixedInstants": [
+    {
+      "asOf": "2025-06-01T00:00:00.000Z",
+      "eligibleDocumentIds": [
+        "a-expired",
+        "b-ending",
+        "e-unknown",
+        "f-left-only",
+        "g-right-only",
+        "h-overlap-v1"
+      ]
+    },
+    {
+      "asOf": "2026-06-01T00:00:00.000Z",
+      "eligibleDocumentIds": [
+        "c-starting",
+        "e-unknown",
+        "f-left-only",
+        "g-right-only",
+        "h-overlap-v1",
+        "i-overlap-v2"
+      ]
+    },
+    {
+      "asOf": "2028-01-01T00:00:00.000Z",
+      "eligibleDocumentIds": [
+        "c-starting",
+        "d-future",
+        "e-unknown",
+        "f-left-only",
+        "g-right-only",
+        "i-overlap-v2"
+      ]
+    }
+  ],
+  "results": {
+    "candidateFilteringBeforeLimit": true,
+    "inclusiveValidFrom": true,
+    "exclusiveValidUntil": true,
+    "unknownValidityEligible": true,
+    "oneSidedIntervalsEligible": true,
+    "overlappingReplacementEvidencePreserved": true,
+    "supersedesDoesNotChangeEligibility": true,
+    "allRetrievalModesAgreeAtBoundary": true,
+    "noEligibleDenseQuerySkipsModelLoad": true,
+    "metadataOnlyDenseInputsIdentical": true,
+    "metadataOnlyExactPayloadByteIdentical": true,
+    "toolRendersVersionValidityAndSupersedes": true,
+    "citationParseRate": 1
+  },
+  "verification": {
+    "command": "pnpm exec vitest run packages/experimental/knowledge-local/tests/provider.spec.ts packages/experimental/knowledge-local/tests/index-builder.spec.ts packages/experimental/tool-knowledge/tests/search.spec.ts packages/experimental/tool-knowledge/tests/integration.spec.ts",
+    "status": "passed"
+  },
+  "conclusion": "Version and validity filtering is a correctness feature. The fixed regression verifies consistent candidate-stage filtering and evidence metadata; it does not claim a retrieval-quality gain."
+}

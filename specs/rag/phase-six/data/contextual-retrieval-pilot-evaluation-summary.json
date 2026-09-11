@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-08",
+  "inputs": {
+    "samples": "contextual-retrieval-pilot-samples.jsonl",
+    "samplesSha256": "94223a73bf78905a11c27572e447579cecfe853ea2bab8529688769fb38a8694",
+    "sampleCount": 60,
+    "chunkCount": 72,
+    "ambiguityCounts": {
+      "pronoun-reference": 12,
+      "relative-time": 12,
+      "same-name-entity": 12,
+      "cross-section-ownership": 12,
+      "weak-title": 12
+    }
+  },
+  "configuration": {
+    "denseModelId": "onnx-community/bge-m3-ONNX",
+    "denseModelRevision": "25b9af8e87a38eb120cfe87125383677b9cd309e",
+    "prefixModelId": "gpt-5.6-sol",
+    "prefixModelRevision": "gpt-5.6-sol",
+    "prefixApi": "responses",
+    "llmRunCount": 3,
+    "generationConcurrency": 4,
+    "candidateCount": 50,
+    "maxResults": 10,
+    "retrievalModes": [
+      "bm25",
+      "dense-exact",
+      "hybrid-exact"
+    ],
+    "reranker": false,
+    "adjacentExpansion": false,
+    "rrfK": 60
+  },
+  "aggregateMetrics": {
+    "baseline": {
+      "completeEvidenceCoverage": 0.5277777777777778,
+      "recallAt10": 0.5916666666666667,
+      "ndcgAt10": 0.427502524633941,
+      "mrrAt10": 0.38987654320987647,
+      "indexTokens": 12219,
+      "indexTokenIncreaseRatio": 0
+    },
+    "deterministic": {
+      "completeEvidenceCoverage": 0.6055555555555556,
+      "recallAt10": 0.6722222222222222,
+      "ndcgAt10": 0.459322058033809,
+      "mrrAt10": 0.40324955908289234,
+      "indexTokens": 13299,
+      "indexTokenIncreaseRatio": 0.0883869383746625
+    },
+    "llmMean": {
+      "completeEvidenceCoverage": 0.9666666666666667,
+      "recallAt10": 0.9666666666666667,
+      "ndcgAt10": 0.9368555884518279,
+      "mrrAt10": 0.9323941798941798,
+      "meanIndexTokens": 15822.666666666666,
+      "meanIndexTokenIncreaseRatio": 0.2949232070273072
+    }
+  },
+  "llmRuns": [
+    {
+      "id": "llm-01",
+      "completeEvidenceCoverage": 0.9722222222222222,
+      "recallAt10": 0.9722222222222222,
+      "ndcgAt10": 0.9457483088198945,
+      "mrrAt10": 0.9397288359788359,
+      "indexTokens": 15845,
+      "indexTokenIncreaseRatio": 0.29675096161715353,
+      "generationSuccessRate": 1,
+      "generationInputTokens": 36681,
+      "generationOutputTokens": 5365,
+      "generationLatencyMs": 235358.7641260001,
+      "fallbackCount": 0
+    },
+    {
+      "id": "llm-02",
+      "completeEvidenceCoverage": 0.9777777777777777,
+      "recallAt10": 0.9777777777777777,
+      "ndcgAt10": 0.9498794507494079,
+      "mrrAt10": 0.9484259259259259,
+      "indexTokens": 15811,
+      "indexTokenIncreaseRatio": 0.2939684098535069,
+      "generationSuccessRate": 1,
+      "generationInputTokens": 36681,
+      "generationOutputTokens": 4927,
+      "generationLatencyMs": 296902.4628290001,
+      "fallbackCount": 0
+    },
+    {
+      "id": "llm-03",
+      "completeEvidenceCoverage": 0.95,
+      "recallAt10": 0.95,
+      "ndcgAt10": 0.9149390057861814,
+      "mrrAt10": 0.9090277777777778,
+      "indexTokens": 15812,
+      "indexTokenIncreaseRatio": 0.29405024961126114,
+      "generationSuccessRate": 0.9861111111111112,
+      "generationInputTokens": 36681,
+      "generationOutputTokens": 5214,
+      "generationLatencyMs": 405089.22345600015,
+      "fallbackCount": 1,
+      "failures": {
+        "token-limit": 1
+      }
+    }
+  ],
+  "deltas": {
+    "deterministicMinusBaseline": {
+      "completeEvidenceCoverage": 0.07777777777777783,
+      "recallAt10": 0.08055555555555549,
+      "ndcgAt10": 0.03181953339986798,
+      "mrrAt10": 0.01337301587301587
+    },
+    "llmMeanMinusBaseline": {
+      "completeEvidenceCoverage": 0.4388888888888889,
+      "recallAt10": 0.375,
+      "ndcgAt10": 0.5093530638178869,
+      "mrrAt10": 0.5425176366843034
+    },
+    "llmMeanMinusDeterministic": {
+      "completeEvidenceCoverage": 0.36111111111111105,
+      "recallAt10": 0.2944444444444445,
+      "ndcgAt10": 0.47753353041801894,
+      "mrrAt10": 0.5291446208112875
+    }
+  },
+  "blindReview": {
+    "model": "gpt-5.6-sol",
+    "reviewedSampleCount": 60,
+    "validQrelsCount": 60,
+    "allRunPrefixesFactualCount": 45,
+    "queryIndependentCount": 60,
+    "templateArtifactCount": 54,
+    "samplesWithPrefixIssueCount": 15
+  },
+  "gates": {
+    "deterministicOutputsStable": true,
+    "qualityGainOverBaseline": true,
+    "qualityGainOverDeterministic": true,
+    "ndcgRegressionWithinOnePercentagePoint": true,
+    "meanIndexTokenIncreaseAtMost25Percent": false,
+    "eachRunGenerationSuccessAtLeast99Percent": false
+  },
+  "decision": "stop-and-keep-current-default",
+  "conclusion": "The isolated pilot shows large retrieval gains on the fixed synthetic sample, but it fails the index-token and per-run generation-success thresholds. Blind review also finds substantial template artifacts and prefix-quality issues, so the result is controlled evidence of mechanism potential rather than production benefit. The production retrieval text and defaults remain unchanged."
+}

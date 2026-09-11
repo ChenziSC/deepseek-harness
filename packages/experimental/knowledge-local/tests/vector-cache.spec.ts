@@ -10,7 +10,7 @@ import {
   denseVectorConfigSha256,
   VECTOR_CACHE_FILE,
   type DenseVectorCacheConfig,
-} from '@deepseek-ai/dsh-experimental-knowledge-local'
+} from '../src/vector-cache.ts'
 
 const temporaryDirectories: string[] = []
 const config: DenseVectorCacheConfig = {

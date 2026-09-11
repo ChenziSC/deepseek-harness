@@ -1,11 +1,12 @@
 /** Explicit dataset and local model preparation for offline experiments. */
 
 import { createHash } from 'node:crypto'
-import { mkdir, open, readdir, unlink, writeFile } from 'node:fs/promises'
+import { mkdir, open, unlink, writeFile } from 'node:fs/promises'
 import { isAbsolute, join, resolve, sep } from 'node:path'
 import { unzipSync } from 'fflate'
 import { asyncBufferFromFile, parquetReadObjects } from 'hyparquet'
-import { compareCodePoints } from './bm25.ts'
+import { compareCodePoints } from './ordering.ts'
+import { prepareEmptyDirectory } from './filesystem.ts'
 import { parseCorpusJsonl, parseSciFactQrelsTsv, parseSciFactQueriesJsonl } from './corpus.ts'
 import { loadDenseEncoder } from './model-runtime.ts'
 import {
@@ -16,17 +17,17 @@ import {
 import { BGE_M3_MODEL_ID, BGE_M3_REVISION } from './tokenizer.ts'
 
 /** Fixed BEIR SciFact archive URL. */
-export const SCIFACT_URL = 'https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/scifact.zip'
+const SCIFACT_URL = 'https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/scifact.zip'
 /** MD5 digest published by BEIR for the SciFact archive. */
-export const SCIFACT_MD5 = '5f7d1de60b170fc8027bb7898e2efca1'
+const SCIFACT_MD5 = '5f7d1de60b170fc8027bb7898e2efca1'
 /** Immutable MLDR dataset revision used by the phase-two benchmark. */
-export const MLDR_REVISION = 'd67138e705d963e346253a80e59676ddb418810a'
+const MLDR_REVISION = 'd67138e705d963e346253a80e59676ddb418810a'
 /** Immutable T2Ranking dataset revision used by the phase-two benchmark. */
-export const T2RANKING_REVISION = '2a369a430a70979223f1b9a41b1919774d46b432'
+const T2RANKING_REVISION = '2a369a430a70979223f1b9a41b1919774d46b432'
 /** Immutable MTEB MLQA Retrieval revision used by the cross-language benchmark. */
-export const MLQA_RETRIEVAL_REVISION = 'cf59ddd8f4aaf39ce1869361e09252698c340945'
+const MLQA_RETRIEVAL_REVISION = 'cf59ddd8f4aaf39ce1869361e09252698c340945'
 /** Default Hugging Face endpoint used by dataset preparation. */
-export const HUGGING_FACE_ENDPOINT = 'https://huggingface.co'
+const HUGGING_FACE_ENDPOINT = 'https://huggingface.co'
 
 /** Successful local preparation summary. */
 export interface PrepareResult {
@@ -107,15 +108,6 @@ async function download(url: string): Promise<Uint8Array> {
   return new Uint8Array(await response.arrayBuffer())
 }
 
-async function prepareEmptyDirectory(path: string): Promise<void> {
-  try {
-    if ((await readdir(path)).length > 0) throw new TypeError(`knowledge-local: dataset directory is not empty: ${path}`)
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-    await mkdir(path, { recursive: true })
-  }
-}
-
 /**
  * Download one dataset file without buffering it in memory.
  * @param url - immutable source URL.
@@ -167,7 +159,7 @@ async function prepareDataset(
   if (dataDir.trim().length === 0) throw new TypeError('knowledge-local: dataDir must be non-empty')
   if (endpoint.trim().length === 0) throw new TypeError('knowledge-local: endpoint must be non-empty')
   const datasetDir = join(dataDir, dataset)
-  await prepareEmptyDirectory(datasetDir)
+  await prepareEmptyDirectory(datasetDir, `knowledge-local: dataset directory is not empty: ${datasetDir}`)
   const files: PreparedDatasetFile[] = []
   for (const source of sources) {
     const url = datasetUrl(endpoint, source.repository, revision, source.sourcePath)

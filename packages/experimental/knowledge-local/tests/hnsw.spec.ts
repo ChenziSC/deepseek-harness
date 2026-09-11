@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Index } from 'usearch'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { HnswBuilder, HnswIndex } from '@deepseek-ai/dsh-experimental-knowledge-local'
+import { HnswBuilder, HnswIndex } from '../src/hnsw.ts'
 
 const directories: string[] = []
 

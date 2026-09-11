@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import { analyzeEnglishV1, analyzeMixedZhEnV1 } from '../src/bm25.ts'
+import { compareCodePoints } from '../src/ordering.ts'
 import {
-  analyzeEnglishV1,
-  analyzeMixedZhEnV1,
   buildBm25Index,
-  compareCodePoints,
   explainBm25,
   searchBm25,
   type Bm25Index,
-} from '@deepseek-ai/dsh-experimental-knowledge-local'
+} from '../src/offline/evaluation/in-memory-bm25.ts'
 
 describe('english-v1', () => {
   it('normalizes case, compatibility characters, letters, and numbers', () => {

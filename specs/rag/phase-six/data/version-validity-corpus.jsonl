@@ -1,0 +1,9 @@
+{"id":"a-expired","title":"Policy history","source":"fixture","text":"common expired policy evidence","sourceVersion":"2025.1","validUntil":"2026-01-01T00:00:00Z"}
+{"id":"b-ending","title":"Boundary policy","source":"fixture","text":"common ending policy evidence","sourceVersion":"2026.1","validUntil":"2026-06-01T00:00:00Z"}
+{"id":"c-starting","title":"Boundary policy","source":"fixture","text":"common starting policy evidence","sourceVersion":"2026.2","validFrom":"2026-06-01T08:00:00+08:00","supersedes":"a-expired"}
+{"id":"d-future","title":"Future policy","source":"fixture","text":"common future policy evidence","sourceVersion":"2027.1","validFrom":"2027-01-01T00:00:00Z"}
+{"id":"e-unknown","title":"Unversioned guidance","source":"fixture","text":"common unknown validity evidence"}
+{"id":"f-left-only","title":"Long-lived policy","source":"fixture","text":"common left bounded evidence","validFrom":"2020-01-01T00:00:00Z"}
+{"id":"g-right-only","title":"Retiring policy","source":"fixture","text":"common right bounded evidence","validUntil":"2030-01-01T00:00:00Z"}
+{"id":"h-overlap-v1","title":"Travel policy","source":"fixture","text":"common overlapping travel evidence","sourceVersion":"1","validFrom":"2025-01-01T00:00:00Z","validUntil":"2027-01-01T00:00:00Z"}
+{"id":"i-overlap-v2","title":"Travel policy","source":"fixture","text":"common overlapping travel evidence","sourceVersion":"2","validFrom":"2026-01-01T00:00:00Z","supersedes":"h-overlap-v1"}

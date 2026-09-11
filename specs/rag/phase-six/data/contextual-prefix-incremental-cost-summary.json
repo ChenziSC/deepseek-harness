@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-09",
+  "scope": {
+    "dataset": "scifact",
+    "documentCount": 1299,
+    "baselineChunkCount": 1815,
+    "denseIndex": "exact",
+    "fullCorpusBuild": false,
+    "note": "The measurements use the bounded 6.1 evaluation subset; no complete benchmark corpus was indexed."
+  },
+  "coldBuild": {
+    "durationMs": 463580.838042,
+    "wallClockSeconds": 465.66,
+    "peakRssBytes": 5073420288,
+    "recomputedDocumentCount": 1299,
+    "encodedInputCount": 1815
+  },
+  "scenarios": {
+    "zeroPercent": {
+      "prefixCache": {
+        "candidateCount": 193,
+        "cacheHitCount": 193,
+        "requestCount": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cacheSavedInputTokens": 152796,
+        "cacheSavedOutputTokens": 10182
+      },
+      "indexBuild": {
+        "durationMs": 2506.792833,
+        "wallClockSeconds": 4.03,
+        "peakRssBytes": 727515136,
+        "cacheHitDocumentCount": 1299,
+        "recomputedDocumentCount": 0,
+        "reusedChunkCount": 1815,
+        "newChunkCount": 0,
+        "vectorCacheHitCount": 1815,
+        "encodedInputCount": 0,
+        "durationReductionVsCold": 0.9945925443260601
+      }
+    },
+    "approximatelyOnePercent": {
+      "changedDocumentCount": 13,
+      "prefixCache": {
+        "candidateCount": 193,
+        "cacheHitCount": 191,
+        "generatedCount": 2,
+        "requestCount": 2,
+        "retryCount": 0,
+        "inputTokens": 2340,
+        "outputTokens": 120,
+        "cacheSavedInputTokens": 150496,
+        "cacheSavedOutputTokens": 10058
+      },
+      "indexBuild": {
+        "chunkCount": 1828,
+        "durationMs": 6187.295791,
+        "wallClockSeconds": 8.04,
+        "peakRssBytes": 2465710080,
+        "cacheHitDocumentCount": 1286,
+        "recomputedDocumentCount": 13,
+        "reusedChunkCount": 1793,
+        "newChunkCount": 35,
+        "vectorCacheHitCount": 1814,
+        "encodedInputCount": 14,
+        "durationReductionVsCold": 0.9866532537946716
+      }
+    },
+    "approximatelyTenPercent": {
+      "changedDocumentCount": 130,
+      "prefixCache": {
+        "candidateCount": 193,
+        "cacheHitCount": 173,
+        "generatedCount": 20,
+        "requestCount": 21,
+        "retryCount": 1,
+        "inputTokens": 19417,
+        "outputTokens": 1036,
+        "cacheSavedInputTokens": 133779,
+        "cacheSavedOutputTokens": 9116
+      },
+      "indexBuild": {
+        "chunkCount": 1945,
+        "durationMs": 32813.381,
+        "wallClockSeconds": 34.69,
+        "peakRssBytes": 3234643968,
+        "cacheHitDocumentCount": 1169,
+        "recomputedDocumentCount": 130,
+        "reusedChunkCount": 1629,
+        "newChunkCount": 316,
+        "vectorCacheHitCount": 1799,
+        "encodedInputCount": 146,
+        "durationReductionVsCold": 0.9292175639989952
+      }
+    },
+    "promptUpgrade": {
+      "candidateCount": 193,
+      "cacheHitCount": 0,
+      "cacheMissCount": 193,
+      "requestCount": 190,
+      "estimatedInputTokens": 173908,
+      "maximumOutputTokens": 39760,
+      "executed": false,
+      "reason": "The prompt identity invalidates every prefix cache entry; the evaluation stopped after planning to avoid unnecessary model use."
+    }
+  },
+  "conclusion": "Content-addressed prefix, document-derivation, and vector caches localize ordinary document changes, but a prompt upgrade invalidates every selected prefix. These cost properties do not override the failed quality and factuality thresholds, so production index integration is withdrawn."
+}

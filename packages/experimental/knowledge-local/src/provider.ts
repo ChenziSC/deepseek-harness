@@ -16,7 +16,8 @@ import { loadDenseVectors, loadKnowledgeIndex, type LoadedKnowledgeIndex } from 
 import { DenseEncoder, loadDenseEncoder } from './model-runtime.ts'
 import { loadReranker, Reranker, type RerankMatch } from './reranker.ts'
 import { resolveKnowledgeSearchStrategy } from './strategy.ts'
-import { compareCodePoints } from './bm25.ts'
+import { compareCodePoints } from './ordering.ts'
+import { parseRfc3339Instant } from './rfc3339.ts'
 
 function cancelled(): KnowledgeError {
   return new KnowledgeError('Knowledge search was cancelled.', 'KNOWLEDGE_CANCELLED')
@@ -270,6 +271,14 @@ export class LocalKnowledgeProvider extends Knowledge {
     if (request.maxResults > this.config.candidateCount) {
       throw new KnowledgeError('Knowledge search result limit exceeds the configured candidate count.', 'KNOWLEDGE_INVALID_REQUEST')
     }
+    let asOfMs: number
+    try {
+      asOfMs = request.asOf === undefined
+        ? Date.now()
+        : parseRfc3339Instant(request.asOf, 'Knowledge search asOf').epochMs
+    } catch (error) {
+      throw new KnowledgeError((error as Error).message, 'KNOWLEDGE_INVALID_REQUEST', { cause: error })
+    }
     const index = this.index
     /* v8 ignore next -- Cordis publishes the service only after Service.init completes. */
     if (index === undefined) throw new KnowledgeError('Knowledge index is not ready.', 'KNOWLEDGE_SEARCH_FAILED')
@@ -281,23 +290,30 @@ export class LocalKnowledgeProvider extends Knowledge {
           ...(index.hnsw === undefined ? [] : ['hnsw' as const]),
         ],
       })
-      const searchBm25Candidates = () => index.sqlite.searchBm25(query, this.config.candidateCount)
+      const eligibility = index.sqlite.eligibleOrdinals(asOfMs, index.manifest.corpus.chunkCount)
+      const searchBm25Candidates = () => index.sqlite.searchBm25(query, this.config.candidateCount, asOfMs)
       const matches = plan.retrieval === 'bm25'
         ? searchBm25Candidates()
         : plan.retrieval === 'dense'
-          ? await this.searchDense(index, query, plan.denseIndex as 'exact' | 'hnsw', signal)
+          ? await this.searchDense(index, query, plan.denseIndex as 'exact' | 'hnsw', eligibility, signal)
           : await searchHybrid(
             searchBm25Candidates,
-            () => this.searchDense(index, query, plan.denseIndex as 'exact' | 'hnsw', signal),
+            () => this.searchDense(index, query, plan.denseIndex as 'exact' | 'hnsw', eligibility, signal),
             undefined,
             this.config.rrfK,
             this.config.candidateCount,
           )
+      if (matches.some(match => eligibility.mask[match.ordinal] !== 1)) {
+        throw new TypeError('knowledge-local: retrieval returned an ineligible document')
+      }
       const rerank = shouldRerank(plan.rerank, matches, this.config.adaptiveRerankMinScoreGapRatio)
       const finalMatches = rerank
         ? await this.rerank(query, matches, index, signal)
         : matches
       const selected = finalMatches.slice(0, request.maxResults)
+      if (selected.some(match => eligibility.mask[match.ordinal] !== 1)) {
+        throw new TypeError('knowledge-local: retrieval returned an ineligible document')
+      }
       const chunks = index.sqlite.chunks(selected.map(match => match.ordinal))
       const selectedChunkIds = new Set(chunks.map(chunk => chunk.chunkId))
       const hits = chunks.map((chunk, position): KnowledgeHit => {
@@ -351,11 +367,13 @@ export class LocalKnowledgeProvider extends Knowledge {
     index: LoadedKnowledgeIndex,
     query: string,
     denseIndex: 'exact' | 'hnsw',
+    eligibility: { readonly mask: Uint8Array; readonly count: number },
     signal: AbortSignal | undefined,
   ): Promise<Array<{ ordinal: number; score: number }>> {
     const dense = index.manifest.dense
     /* v8 ignore next -- activation verifies a Dense payload for every Dense-capable mode. */
     if (dense === undefined) throw new KnowledgeError('Knowledge index does not contain Dense embeddings.', 'KNOWLEDGE_SEARCH_FAILED')
+    if (eligibility.count === 0) return []
     throwIfCancelled(signal)
     const encoder = await this.getDenseEncoder()
     throwIfCancelled(signal)
@@ -364,12 +382,27 @@ export class LocalKnowledgeProvider extends Knowledge {
     if (denseIndex === 'hnsw') {
       const hnsw = await this.getHnsw(index)
       throwIfCancelled(signal)
-      const matches = hnsw.search(queryVector, this.config.candidateCount, index.manifest.corpus.chunkCount)
+      const vectorCount = index.manifest.corpus.chunkCount
+      let requested = Math.min(this.config.candidateCount, vectorCount)
+      let matches: Array<{ ordinal: number; score: number }> = []
+      for (;;) {
+        const byOrdinal = new Map<number, { ordinal: number; score: number }>()
+        for (const match of hnsw.search(queryVector, requested, vectorCount)) {
+          if (eligibility.mask[match.ordinal] !== 1) continue
+          const existing = byOrdinal.get(match.ordinal)
+          if (existing === undefined || match.score > existing.score) byOrdinal.set(match.ordinal, match)
+        }
+        matches = [...byOrdinal.values()]
+        if (matches.length >= this.config.candidateCount || requested === vectorCount) break
+        requested = Math.min(vectorCount, requested * 2)
+        throwIfCancelled(signal)
+      }
       throwIfCancelled(signal)
       const chunks = index.sqlite.chunks(matches.map(match => match.ordinal))
       return matches
         .map((match, position) => ({ ...match, chunkId: chunks[position]?.chunkId as string }))
         .sort((left, right) => right.score - left.score || compareCodePoints(left.chunkId, right.chunkId))
+        .slice(0, this.config.candidateCount)
         .map(({ ordinal, score }) => ({ ordinal, score }))
     }
     /* v8 ignore next -- strategy resolution rejects Exact before this method when the Exact payload is absent. */
@@ -378,7 +411,15 @@ export class LocalKnowledgeProvider extends Knowledge {
     }
     const vectors = await this.getDenseVectors(index)
     throwIfCancelled(signal)
-    return searchDense(vectors, queryVector, undefined, dense.dimensions, this.config.candidateCount, signal)
+    return searchDense(
+      vectors,
+      queryVector,
+      undefined,
+      dense.dimensions,
+      this.config.candidateCount,
+      signal,
+      eligibility.mask,
+    )
   }
 }
 

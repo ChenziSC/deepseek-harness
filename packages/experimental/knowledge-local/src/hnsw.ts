@@ -3,7 +3,7 @@
 import { Index, MetricKind, ScalarKind } from 'usearch'
 import type { DenseMatch } from './dense.ts'
 
-/** Fixed HNSW payload name in index format version 2. */
+/** Fixed HNSW payload name in the current knowledge index format. */
 export const HNSW_FILE = 'dense.usearch'
 /** USearch version pinned by the package dependency. */
 export const USEARCH_VERSION = '2.26.2'

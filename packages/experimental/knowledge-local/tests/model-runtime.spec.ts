@@ -13,17 +13,16 @@ const transformerMocks = vi.hoisted(() => {
 })
 
 vi.mock('@huggingface/transformers', () => ({ pipeline: transformerMocks.pipeline }))
+import { DENSE_DIMENSIONS } from '../src/dense.ts'
 import {
   BGE_DENSE_DTYPE,
   BGE_QUERY_PREFIX,
-  BGE_M3_MODEL_ID,
-  BGE_M3_REVISION,
-  DENSE_DIMENSIONS,
   DenseEncoder,
   loadDenseEncoder,
   type DenseFeatureExtractionOptions,
   type DenseFeatureExtractor,
-} from '@deepseek-ai/dsh-experimental-knowledge-local'
+} from '../src/model-runtime.ts'
+import { BGE_M3_MODEL_ID, BGE_M3_REVISION } from '../src/tokenizer.ts'
 
 function normalizedRows(rowCount: number): Float32Array {
   const vectors = new Float32Array(rowCount * DENSE_DIMENSIONS)

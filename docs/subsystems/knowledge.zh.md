@@ -45,6 +45,20 @@ type KnowledgeRerank = 'auto' | 'on' | 'off'
 ```
 
 ```ts type-equiv
+/** Optional source-owned version and validity metadata for one document. */
+interface KnowledgeDocumentMetadata {
+  /** Opaque version label supplied by the source system. */
+  readonly sourceVersion?: string
+  /** Inclusive RFC 3339 instant at which the document becomes effective. */
+  readonly validFrom?: string
+  /** Exclusive RFC 3339 instant at which the document stops being effective. */
+  readonly validUntil?: string
+  /** Optional identifier of the document directly replaced by this document. */
+  readonly supersedes?: KnowledgeDocumentId
+}
+```
+
+```ts type-equiv
 /** Optional high-level retrieval choices for one search. */
 interface KnowledgeSearchStrategy {
   /** Recall preference; `auto` lets the provider route the query. */
@@ -70,7 +84,7 @@ interface ResolvedKnowledgeSearchStrategy {
 
 ## 检索请求
 
-调用方提供非空自然语言查询、最大排序命中数量和可选的高层检索选项。提供方通过 [Service Definition README](../../packages/experimental/knowledge/README.zh.md) 记录的错误码拒绝无效或不允许的请求。
+调用方提供非空自然语言查询、最大排序命中数量、可选的高层检索选项，并可提供用于历史有效期过滤的明确 RFC 3339 时点。提供方通过 [Service Definition README](../../packages/experimental/knowledge/README.zh.md) 记录的错误码拒绝无效或不允许的请求。
 
 ```ts type-equiv
 /** One provider-neutral retrieval request. */
@@ -81,16 +95,18 @@ interface KnowledgeSearchRequest {
   readonly maxResults: number
   /** Optional high-level retrieval choices interpreted by the provider. */
   readonly strategy?: KnowledgeSearchStrategy
+  /** Optional RFC 3339 instant used for validity filtering at a requested time. */
+  readonly asOf?: string
 }
 ```
 
 ## 检索结果
 
-命中结果按提供方排序降序排列。分数是有限数值，且只能在同一次响应内比较；消费方应使用提供的顺序，不应跨调用或跨提供方比较分数。可选的相邻文本提供局部阅读上下文，但不会形成额外的排序命中。
+命中结果按提供方排序降序排列。分数是有限数值，且只能在同一次响应内比较；消费方应使用提供的顺序，不应跨调用或跨提供方比较分数。可选的来源元数据描述版本、包含式生效时间、排除式失效时间和直接替代关系。可选的相邻文本提供局部阅读上下文，但不会形成额外的排序命中。
 
 ```ts type-equiv
 /** One ranked fragment returned by a knowledge provider. */
-interface KnowledgeHit {
+interface KnowledgeHit extends KnowledgeDocumentMetadata {
   /** Original source-document identifier. */
   readonly documentId: KnowledgeDocumentId
   /** Stable fragment identifier. */

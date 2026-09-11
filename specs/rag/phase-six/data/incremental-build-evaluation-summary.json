@@ -1,0 +1,249 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-08",
+  "platform": {
+    "model": "Mac16,7",
+    "memoryBytes": 51539607552,
+    "logicalCpuCount": 14,
+    "os": "macOS 26.6.2 (25G83)",
+    "arch": "arm64",
+    "node": "v22.22.0",
+    "pnpm": "11.7.0"
+  },
+  "inputs": {
+    "documentCount": 800,
+    "chunkCount": 1096,
+    "corpusSha256": "ff1e3fbc2cc7268220b335e8b513b6dfea77eb11814064635d678e2ebe4a1ba0",
+    "rawSelectedResultsSha256": "01bba1c59d53940dae7b044736955a30bd6c41c3676a6d2de49daca537c8f58d",
+    "phaseFourSummary": "specs/rag/phase-four/data/vector-build-evaluation-summary.json"
+  },
+  "configuration": {
+    "modelId": "onnx-community/bge-m3-ONNX",
+    "revision": "25b9af8e87a38eb120cfe87125383677b9cd309e",
+    "dtype": "q8",
+    "chunkMaxTokens": 384,
+    "chunkOverlapTokens": 64,
+    "denseMaxTokens": 512,
+    "embeddingBatchSize": 32,
+    "denseIndex": "exact",
+    "repeatCount": 3,
+    "documentCacheSchemaVersion": 1,
+    "documentDerivationImplementation": "knowledge-local-document-derivation-v1",
+    "bm25PreprocessImplementation": "knowledge-local-bm25-preprocess-v1"
+  },
+  "groups": {
+    "0": {
+      "runCount": 3,
+      "meanDurationMs": 128.07330566666664,
+      "minDurationMs": 124.38674999999989,
+      "maxDurationMs": 131.80179199999998,
+      "standardDeviationMs": 3.02732341638029,
+      "meanWallClockSeconds": 2.15,
+      "meanPeakRssBytes": 562823168,
+      "documentBuild": {
+        "cacheQueryCount": 800,
+        "cacheHitDocumentCount": 800,
+        "recomputedDocumentCount": 0,
+        "reusedChunkCount": 1096,
+        "newChunkCount": 0
+      },
+      "meanDocumentTimingsMs": {
+        "corpusStaging": 30.021263999999974,
+        "derivedCacheLookup": 15.81556900000002,
+        "chunking": 0,
+        "bm25Preprocess": 0,
+        "derivedCacheWrite": 0,
+        "sqliteWrite": 27.20548599999999,
+        "sqliteFinalize": 6.187403000000056
+      },
+      "denseBuild": {
+        "cacheHitCount": 1096,
+        "encodedInputCount": 0,
+        "reuseRatio": 1,
+        "meanTimingsMs": {
+          "cacheLookup": 9.593513666666846,
+          "embedding": 0,
+          "cacheWrite": 0,
+          "exactWrite": 6.400514666666974,
+          "modelLoad": 0
+        }
+      },
+      "relativeToPhaseFour": {
+        "phaseFourMeanDurationMs": 65679.891861,
+        "durationReductionRatio": 0.9980500378116074,
+        "phaseFourMeanPeakRssBytes": 1129725952,
+        "peakRssChangeRatio": -0.5018055777123548
+      }
+    },
+    "1": {
+      "runCount": 3,
+      "meanDurationMs": 4591.755083,
+      "minDurationMs": 4569.64875,
+      "maxDurationMs": 4634.827333,
+      "standardDeviationMs": 30.460238313908505,
+      "meanWallClockSeconds": 6.756666666666667,
+      "meanPeakRssBytes": 2484207616,
+      "documentBuild": {
+        "cacheQueryCount": 800,
+        "cacheHitDocumentCount": 792,
+        "recomputedDocumentCount": 8,
+        "reusedChunkCount": 1082,
+        "newChunkCount": 14
+      },
+      "meanDocumentTimingsMs": {
+        "corpusStaging": 29.878624666666685,
+        "derivedCacheLookup": 15.317000000000084,
+        "chunking": 1197.8172363333333,
+        "bm25Preprocess": 2.0193613333334874,
+        "derivedCacheWrite": 1.8727913333332253,
+        "sqliteWrite": 27.39048633333353,
+        "sqliteFinalize": 6.411221666666734
+      },
+      "denseBuild": {
+        "cacheHitCount": 1082,
+        "encodedInputCount": 14,
+        "reuseRatio": 0.9872262773722628,
+        "meanTimingsMs": {
+          "cacheLookup": 10.288931333331675,
+          "embedding": 2510.1530143333334,
+          "cacheWrite": 3.560846000000614,
+          "exactWrite": 10.561750333333597,
+          "modelLoad": 737.8160973333332
+        }
+      },
+      "relativeToPhaseFour": {
+        "phaseFourMeanDurationMs": 68035.59658333333,
+        "durationReductionRatio": 0.9325095198162069,
+        "phaseFourMeanPeakRssBytes": 2871001088,
+        "peakRssChangeRatio": -0.13472425127830534
+      }
+    },
+    "10": {
+      "runCount": 3,
+      "meanDurationMs": 32783.5035,
+      "minDurationMs": 31587.052084,
+      "maxDurationMs": 34613.264458000005,
+      "standardDeviationMs": 1314.1032595472034,
+      "meanWallClockSeconds": 35.056666666666665,
+      "meanPeakRssBytes": 2706112512,
+      "documentBuild": {
+        "cacheQueryCount": 800,
+        "cacheHitDocumentCount": 720,
+        "recomputedDocumentCount": 80,
+        "reusedChunkCount": 982,
+        "newChunkCount": 114
+      },
+      "meanDocumentTimingsMs": {
+        "corpusStaging": 30.582763999999923,
+        "derivedCacheLookup": 14.719597333333317,
+        "chunking": 7384.5636939999995,
+        "bm25Preprocess": 8.843359333335002,
+        "derivedCacheWrite": 5.3640836666663745,
+        "sqliteWrite": 27.17988900000061,
+        "sqliteFinalize": 6.025694666666216
+      },
+      "denseBuild": {
+        "cacheHitCount": 982,
+        "encodedInputCount": 114,
+        "reuseRatio": 0.8959854014598541,
+        "meanTimingsMs": {
+          "cacheLookup": 22.465901333328173,
+          "embedding": 24412.03551333333,
+          "cacheWrite": 18.025334333334587,
+          "exactWrite": 16.679124666661664,
+          "modelLoad": 709.1273473333337
+        }
+      },
+      "relativeToPhaseFour": {
+        "phaseFourMeanDurationMs": 83444.451875,
+        "durationReductionRatio": 0.607121830590849,
+        "phaseFourMeanPeakRssBytes": 2960195584,
+        "peakRssChangeRatio": -0.08583320418871354
+      }
+    },
+    "100": {
+      "runCount": 3,
+      "meanDurationMs": 280844.81643066666,
+      "minDurationMs": 278802.96379199997,
+      "maxDurationMs": 282070.96650000004,
+      "standardDeviationMs": 1453.4988673511648,
+      "meanWallClockSeconds": 283.41,
+      "meanPeakRssBytes": 5015781376,
+      "documentBuild": {
+        "cacheQueryCount": 800,
+        "cacheHitDocumentCount": 0,
+        "recomputedDocumentCount": 800,
+        "reusedChunkCount": 0,
+        "newChunkCount": 1096
+      },
+      "meanDocumentTimingsMs": {
+        "corpusStaging": 32.072653000000024,
+        "derivedCacheLookup": 1.0479446666696124,
+        "chunking": 69155.41188066662,
+        "bm25Preprocess": 80.19262799996515,
+        "derivedCacheWrite": 44.69512499999837,
+        "sqliteWrite": 26.208305333333556,
+        "sqliteFinalize": 5.957541666667869
+      },
+      "denseBuild": {
+        "cacheHitCount": 0,
+        "encodedInputCount": 1096,
+        "reuseRatio": 0,
+        "meanTimingsMs": {
+          "cacheLookup": 1.882486999980756,
+          "embedding": 210597.47269566666,
+          "cacheWrite": 64.92591633338695,
+          "exactWrite": 12.996153333355323,
+          "modelLoad": 729.8950413333368
+        }
+      },
+      "relativeToPhaseFour": {
+        "phaseFourMeanDurationMs": 277684.25752833334,
+        "durationReductionRatio": -0.011381844006806308,
+        "phaseFourMeanPeakRssBytes": 5214005930.666667,
+        "peakRssChangeRatio": -0.03801770793945414
+      }
+    }
+  },
+  "correctness": {
+    "allGroupsMatchPhaseFourChunkRows": true,
+    "allGroupsMatchPhaseFourFtsRows": true,
+    "allGroupsMatchPhaseFourExactPayloadBytes": true,
+    "exactPayloadSha256ByChange": {
+      "0": "849b933cfaeee75dfd91d67824f6c136b5255809da1747420e64b09a5eaad9bb",
+      "1": "7499ef0f26128e2fa66fc2763b7822c75f1874e6fe97b92f646e2be02893fa32",
+      "10": "2a6c0bf14b25da6cd11f522512565db33e231dffd13d11849127f54b6ca9bfa2",
+      "100": "fd67017a76a6401d33db082062ce4cd7cd78eec7fd23a3207513569d9be46b9c"
+    },
+    "unchangedRetrievalMetricsIdentical": true,
+    "qualityMetrics": {
+      "recallAt1": 0.6190476190476191,
+      "recallAt5": 0.8095238095238095,
+      "recallAt10": 0.8571428571428571,
+      "recallAt20": 0.8571428571428571,
+      "recallAt100": 0.8571428571428571,
+      "mrrAt10": 0.7142857142857143,
+      "ndcgAt10": 0.7499522118010665,
+      "successAt1": 0.6190476190476191,
+      "successAt5": 0.8095238095238095,
+      "successAt10": 0.8571428571428571,
+      "successAt20": 0.8571428571428571,
+      "successAt100": 0.8571428571428571
+    },
+    "unitCoverage": {
+      "insertDeleteReorderMatchesColdBuild": true,
+      "metadataOnlyChangesSkipTokenizerAndAnalyzer": true,
+      "interruptedBuildReusesCommittedDocuments": true,
+      "corruptedCacheFailsWithEntryKey": true
+    }
+  },
+  "acceptance": {
+    "zeroPercentDurationReductionAtLeast30Percent": true,
+    "onePercentDurationReductionAtLeast30Percent": true,
+    "fullChangeDurationRegressionAtMost5Percent": true,
+    "fullChangePeakRssRegressionAtMost10Percent": true,
+    "correctnessPassed": true,
+    "performanceBenefitAccepted": true
+  },
+  "conclusion": "The document derivation cache removes unchanged-document tokenization and BM25 preprocessing while preserving index content and retrieval metrics. It passes the 0%, approximately 1%, and full-change duration and memory thresholds."
+}

@@ -40,14 +40,14 @@ vi.mock('hyparquet', () => ({
   parquetReadObjects: mocks.parquetReadObjects,
 }))
 import {
-  extractSciFactArchive,
   convertMlqaRetrievalRows,
   downloadDatasetFile,
+  extractSciFactArchive,
   prepareMldr,
   prepareMlqaEngZho,
   prepareSciFact,
   prepareT2Ranking,
-} from '@deepseek-ai/dsh-experimental-knowledge-local'
+} from '../src/prepare.ts'
 
 const temporaryDirectories: string[] = []
 

@@ -16,7 +16,7 @@ interface Knowledge {
 }
 ```
 
-`request.query` 必须非空，`request.maxResults` 必须是正整数。`request.strategy` 可以请求自动路由或 BM25、Dense、Hybrid 召回、自动或具体的 Dense 索引，以及自动、开启或关闭重排序。提供方应用部署策略，并随排序命中返回实际执行的高层策略。每条命中包含来源文档与分片标识、可选标题、Markdown 章节路径、来源标签、去重后的相邻文本、原始分片正文，以及仅能在本次响应内比较的有限分数。
+`request.query` 必须非空，`request.maxResults` 必须是正整数。`request.strategy` 可以请求自动路由或 BM25、Dense、Hybrid 召回、自动或具体的 Dense 索引，以及自动、开启或关闭重排序。可选的 `request.asOf` 为支持历史有效期过滤的提供方指定明确的 RFC 3339 时点。提供方应用部署策略，并随排序命中返回实际执行的高层策略。每条命中包含来源文档与分片标识、可选标题、Markdown 章节路径、来源标签、来源版本、包含式生效时间、排除式失效时间、被直接替代的文档、去重后的相邻文本、原始分片正文，以及仅能在本次响应内比较的有限分数。
 
 `KnowledgeError` 提供 `KNOWLEDGE_INVALID_REQUEST`、`KNOWLEDGE_STRATEGY_NOT_ALLOWED`、`KNOWLEDGE_CANCELLED` 和 `KNOWLEDGE_SEARCH_FAILED`。提供方内部的文件与模型细节不会进入公共错误类型。
 

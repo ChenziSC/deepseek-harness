@@ -3,7 +3,7 @@ import {
   resolveKnowledgeSearchStrategy,
   type KnowledgeSearchCapabilities,
   type KnowledgeSearchPolicy,
-} from '@deepseek-ai/dsh-experimental-knowledge-local'
+} from '../src/strategy.ts'
 import { describe, expect, it } from 'vitest'
 
 const policy: KnowledgeSearchPolicy = {

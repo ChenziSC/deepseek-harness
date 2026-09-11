@@ -2,16 +2,42 @@
 
 import {
   KnowledgeDocumentId,
+  type KnowledgeDocumentMetadata,
   type KnowledgeDocumentId as KnowledgeDocumentIdType,
 } from '@deepseek-ai/dsh-experimental-knowledge'
-import { compareCodePoints } from './bm25.ts'
+import { compareCodePoints } from './ordering.ts'
+import { parseRfc3339Instant } from './rfc3339.ts'
 
 /** One validated source document before chunking. */
-export interface CorpusDocument {
+export interface CorpusDocument extends KnowledgeDocumentMetadata {
   readonly id: KnowledgeDocumentIdType
   readonly text: string
   readonly title?: string
   readonly source?: string
+  readonly validFromMs?: number
+  readonly validUntilMs?: number
+}
+
+/** Source identity and display metadata shared by offline projections. */
+export type CorpusDocumentSourceMetadata = Pick<
+  CorpusDocument,
+  'id' | 'title' | 'source' | 'sourceVersion' | 'validFrom' | 'validUntil'
+>
+
+/**
+ * Project source metadata without text, parsed timestamps, or replacement links.
+ * @param document - validated source document.
+ * @returns fields used to identify and describe the source.
+ */
+export function corpusDocumentSourceMetadata(document: CorpusDocument): CorpusDocumentSourceMetadata {
+  return {
+    id: document.id,
+    ...(document.title === undefined ? {} : { title: document.title }),
+    ...(document.source === undefined ? {} : { source: document.source }),
+    ...(document.sourceVersion === undefined ? {} : { sourceVersion: document.sourceVersion }),
+    ...(document.validFrom === undefined ? {} : { validFrom: document.validFrom }),
+    ...(document.validUntil === undefined ? {} : { validUntil: document.validUntil }),
+  }
 }
 
 /** One validated SciFact query. */
@@ -21,7 +47,7 @@ export interface SciFactQuery {
 }
 
 /** One relevant source document and its graded relevance. */
-export interface SciFactRelevance {
+interface SciFactRelevance {
   readonly documentId: KnowledgeDocumentIdType
   readonly relevance: number
 }
@@ -91,7 +117,9 @@ export function parseCorpusDocumentLine(
     value,
     sciFact
       ? new Set(['_id', 'text', 'title', 'metadata'])
-      : mldr ? new Set(['docid', 'text']) : new Set(['id', 'text', 'title', 'source']),
+      : mldr
+        ? new Set(['docid', 'text'])
+        : new Set(['id', 'text', 'title', 'source', 'sourceVersion', 'validFrom', 'validUntil', 'supersedes']),
     source,
     line,
   )
@@ -102,11 +130,26 @@ export function parseCorpusDocumentLine(
   const id = requiredString(value[idField], idField, source, line)
   const title = optionalString(value['title'], 'title', source, line)
   const documentSource = sciFact || mldr ? undefined : optionalString(value['source'], 'source', source, line)
+  const sourceVersion = sciFact || mldr ? undefined : optionalString(value['sourceVersion'], 'sourceVersion', source, line)
+  if (sourceVersion !== undefined && sourceVersion.trim().length === 0) {
+    throw new CorpusFormatError(source, line, 'sourceVersion must be a non-empty string')
+  }
+  const validFrom = sciFact || mldr ? undefined : optionalInstant(value['validFrom'], 'validFrom', source, line)
+  const validUntil = sciFact || mldr ? undefined : optionalInstant(value['validUntil'], 'validUntil', source, line)
+  if (validFrom !== undefined && validUntil !== undefined && validFrom.epochMs >= validUntil.epochMs) {
+    throw new CorpusFormatError(source, line, 'validFrom must be earlier than validUntil')
+  }
+  const supersedes = sciFact || mldr ? undefined : optionalString(value['supersedes'], 'supersedes', source, line)
+  if (supersedes === id) throw new CorpusFormatError(source, line, 'supersedes must differ from id')
   return {
     id: KnowledgeDocumentId(id),
     text: requiredString(value['text'], 'text', source, line),
     ...(title === undefined ? {} : { title }),
     ...(documentSource === undefined ? {} : { source: documentSource }),
+    ...(sourceVersion === undefined ? {} : { sourceVersion }),
+    ...(validFrom === undefined ? {} : { validFrom: validFrom.text, validFromMs: validFrom.epochMs }),
+    ...(validUntil === undefined ? {} : { validUntil: validUntil.text, validUntilMs: validUntil.epochMs }),
+    ...(supersedes === undefined ? {} : { supersedes: KnowledgeDocumentId(supersedes) }),
   }
 }
 
@@ -172,6 +215,21 @@ function optionalString(value: unknown, field: string, source: string, line: num
   if (value === undefined) return undefined
   if (typeof value !== 'string') throw new CorpusFormatError(source, line, `${field} must be a string`)
   return value
+}
+
+function optionalInstant(
+  value: unknown,
+  field: string,
+  source: string,
+  line: number,
+): { readonly text: string; readonly epochMs: number } | undefined {
+  const text = optionalString(value, field, source, line)
+  if (text === undefined) return undefined
+  try {
+    return parseRfc3339Instant(text, field)
+  } catch (error) {
+    throw new CorpusFormatError(source, line, (error as Error).message, { cause: error })
+  }
 }
 
 function nonBlankLines(text: string): Array<{ line: number; text: string }> {

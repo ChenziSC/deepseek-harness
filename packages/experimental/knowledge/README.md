@@ -16,7 +16,7 @@ interface Knowledge {
 }
 ```
 
-`request.query` must be non-empty and `request.maxResults` must be a positive integer. `request.strategy` may request automatic routing or BM25, Dense, or Hybrid recall, an automatic or concrete Dense index, and automatic, enabled, or disabled reranking. Providers apply deployment policy and return the executed high-level strategy with the ranked hits. A hit carries its source document and chunk identifiers, optional title, Markdown section path, source label, de-duplicated adjacent text, original chunk text, and a finite score comparable only within that response.
+`request.query` must be non-empty and `request.maxResults` must be a positive integer. `request.strategy` may request automatic routing or BM25, Dense, or Hybrid recall, an automatic or concrete Dense index, and automatic, enabled, or disabled reranking. Optional `request.asOf` selects an explicit RFC 3339 instant for providers that support historical validity filtering. Providers apply deployment policy and return the executed high-level strategy with the ranked hits. A hit carries its source document and chunk identifiers, optional title, Markdown section path, source label, source-owned version, inclusive start time, exclusive end time, directly superseded document, de-duplicated adjacent text, original chunk text, and a finite score comparable only within that response.
 
 `KnowledgeError` exposes `KNOWLEDGE_INVALID_REQUEST`, `KNOWLEDGE_STRATEGY_NOT_ALLOWED`, `KNOWLEDGE_CANCELLED`, and `KNOWLEDGE_SEARCH_FAILED`. Provider-specific file and model details remain internal.
 

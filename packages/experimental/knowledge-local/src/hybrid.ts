@@ -1,7 +1,7 @@
 /** Deterministic Reciprocal Rank Fusion for BM25 and Dense candidates. */
 
 import type { Bm25Match } from './bm25.ts'
-import { compareCodePoints } from './bm25.ts'
+import { compareCodePoints } from './ordering.ts'
 import type { DenseMatch } from './dense.ts'
 
 /** Default Reciprocal Rank Fusion constant. */

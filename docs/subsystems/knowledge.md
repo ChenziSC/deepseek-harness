@@ -45,6 +45,20 @@ type KnowledgeRerank = 'auto' | 'on' | 'off'
 ```
 
 ```ts type-equiv
+/** Optional source-owned version and validity metadata for one document. */
+interface KnowledgeDocumentMetadata {
+  /** Opaque version label supplied by the source system. */
+  readonly sourceVersion?: string
+  /** Inclusive RFC 3339 instant at which the document becomes effective. */
+  readonly validFrom?: string
+  /** Exclusive RFC 3339 instant at which the document stops being effective. */
+  readonly validUntil?: string
+  /** Optional identifier of the document directly replaced by this document. */
+  readonly supersedes?: KnowledgeDocumentId
+}
+```
+
+```ts type-equiv
 /** Optional high-level retrieval choices for one search. */
 interface KnowledgeSearchStrategy {
   /** Recall preference; `auto` lets the provider route the query. */
@@ -70,7 +84,7 @@ interface ResolvedKnowledgeSearchStrategy {
 
 ## Search request
 
-The caller supplies a non-empty natural-language query, the maximum number of ranked hits, and optional high-level retrieval choices. Providers reject invalid or disallowed requests through the error codes documented by the [Service Definition README](../../packages/experimental/knowledge/README.md).
+The caller supplies a non-empty natural-language query, the maximum number of ranked hits, optional high-level retrieval choices, and optionally an explicit RFC 3339 instant for historical validity filtering. Providers reject invalid or disallowed requests through the error codes documented by the [Service Definition README](../../packages/experimental/knowledge/README.md).
 
 ```ts type-equiv
 /** One provider-neutral retrieval request. */
@@ -81,16 +95,18 @@ interface KnowledgeSearchRequest {
   readonly maxResults: number
   /** Optional high-level retrieval choices interpreted by the provider. */
   readonly strategy?: KnowledgeSearchStrategy
+  /** Optional RFC 3339 instant used for validity filtering at a requested time. */
+  readonly asOf?: string
 }
 ```
 
 ## Search result
 
-Hits are ordered by descending provider rank. Scores are finite and comparable only within one response; consumers use the supplied order rather than comparing scores across calls or providers. Optional adjacent text supplies local reading context without creating additional ranked hits.
+Hits are ordered by descending provider rank. Scores are finite and comparable only within one response; consumers use the supplied order rather than comparing scores across calls or providers. Optional source-owned metadata describes a version, its inclusive start, exclusive end, and direct replacement relation. Optional adjacent text supplies local reading context without creating additional ranked hits.
 
 ```ts type-equiv
 /** One ranked fragment returned by a knowledge provider. */
-interface KnowledgeHit {
+interface KnowledgeHit extends KnowledgeDocumentMetadata {
   /** Original source-document identifier. */
   readonly documentId: KnowledgeDocumentId
   /** Stable fragment identifier. */

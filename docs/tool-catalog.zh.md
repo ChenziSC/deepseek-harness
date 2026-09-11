@@ -2047,6 +2047,10 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
       "type": "string",
       "description": "Natural-language evidence search query."
     },
+    "asOf": {
+      "type": "string",
+      "description": "Optional explicit-timezone RFC 3339 instant for a user-requested historical or future search."
+    },
     "retrieval": {
       "type": "string",
       "description": "Optional high-level recall choice. Omit or use auto for provider routing.",

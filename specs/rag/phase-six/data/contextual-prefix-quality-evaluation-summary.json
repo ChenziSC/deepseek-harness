@@ -1,0 +1,1283 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-09T10:43:15.637472Z",
+  "configuration": {
+    "queryCount": 200,
+    "chunkCount": 11273,
+    "maxChunkCount": 50000,
+    "reranker": "off",
+    "denseIndex": "exact",
+    "maxResults": 20,
+    "candidateCount": 50,
+    "analyzer": "mixed-zh-en-v1",
+    "promptVersion": "context-prefix-v5"
+  },
+  "generation": {
+    "scifact": {
+      "cacheQueryCount": 190,
+      "cacheHitCount": 11,
+      "generatedCount": 182,
+      "fallbackCount": 0,
+      "requestCount": 180,
+      "retryCount": 1,
+      "plannedInputTokens": 161988,
+      "plannedMaximumOutputTokens": 37472,
+      "inputTokens": 142512,
+      "outputTokens": 9544,
+      "cacheSavedInputTokens": 10284,
+      "cacheSavedOutputTokens": 638,
+      "latencyMs": 5354011.453122,
+      "candidateCount": 193
+    },
+    "mlqa-eng-zho": {
+      "cacheQueryCount": 195,
+      "cacheHitCount": 0,
+      "generatedCount": 204,
+      "fallbackCount": 0,
+      "requestCount": 196,
+      "retryCount": 1,
+      "plannedInputTokens": 160329,
+      "plannedMaximumOutputTokens": 41280,
+      "inputTokens": 145479,
+      "outputTokens": 10190,
+      "cacheSavedInputTokens": 0,
+      "cacheSavedOutputTokens": 0,
+      "latencyMs": 6279145.535830004,
+      "candidateCount": 204
+    },
+    "mldr-zh": {
+      "cacheQueryCount": 196,
+      "cacheHitCount": 230,
+      "generatedCount": 44,
+      "fallbackCount": 0,
+      "requestCount": 34,
+      "retryCount": 0,
+      "plannedInputTokens": 54357,
+      "plannedMaximumOutputTokens": 7872,
+      "inputTokens": 61700,
+      "outputTokens": 2439,
+      "cacheSavedInputTokens": 293428,
+      "cacheSavedOutputTokens": 12921,
+      "latencyMs": 1967237.7920820003,
+      "candidateCount": 274
+    },
+    "mldr-en": {
+      "cacheQueryCount": 248,
+      "cacheHitCount": 248,
+      "generatedCount": 95,
+      "fallbackCount": 0,
+      "requestCount": 77,
+      "retryCount": 0,
+      "plannedInputTokens": 127144,
+      "plannedMaximumOutputTokens": 17456,
+      "inputTokens": 111200,
+      "outputTokens": 5094,
+      "cacheSavedInputTokens": 258205,
+      "cacheSavedOutputTokens": 12567,
+      "latencyMs": 2383477.277753,
+      "candidateCount": 343
+    },
+    "t2ranking": {
+      "cacheQueryCount": 349,
+      "cacheHitCount": 216,
+      "generatedCount": 213,
+      "fallbackCount": 27,
+      "requestCount": 187,
+      "retryCount": 2,
+      "plannedInputTokens": 233166,
+      "plannedMaximumOutputTokens": 40800,
+      "inputTokens": 253688,
+      "outputTokens": 11317,
+      "cacheSavedInputTokens": 224100,
+      "cacheSavedOutputTokens": 10635,
+      "latencyMs": 3075453.4952020007,
+      "candidateCount": 456
+    }
+  },
+  "quality": {
+    "scifact": {
+      "queryCount": 40,
+      "ambiguousQueryCount": 20,
+      "documentCount": 1299,
+      "chunkCount": 1815,
+      "variants": {
+        "baseline": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 0.8041666666666666,
+              "completeEvidenceCoverage": 0.775,
+              "ndcgAt10": 0.7421635020152122,
+              "mrrAt10": 0.7402777777777778
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.875,
+              "completeEvidenceCoverage": 0.875,
+              "ndcgAt10": 0.7917538585579431,
+              "mrrAt10": 0.7791666666666667
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 0.8916666666666666,
+              "completeEvidenceCoverage": 0.875,
+              "ndcgAt10": 0.7856560493551827,
+              "mrrAt10": 0.7641666666666667
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 20,
+              "recallAt10": 0.8333333333333334,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.7395771102232219,
+              "mrrAt10": 0.7305555555555555
+            },
+            "dense": {
+              "queryCount": 20,
+              "recallAt10": 0.8,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.7432521091954823,
+              "mrrAt10": 0.7333333333333334
+            },
+            "hybrid": {
+              "queryCount": 20,
+              "recallAt10": 0.8333333333333334,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.7849700003597038,
+              "mrrAt10": 0.7833333333333334
+            }
+          }
+        },
+        "deterministic": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 0.8041666666666666,
+              "completeEvidenceCoverage": 0.775,
+              "ndcgAt10": 0.7237099896937851,
+              "mrrAt10": 0.7152777777777778
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.8666666666666668,
+              "completeEvidenceCoverage": 0.85,
+              "ndcgAt10": 0.8000748471837881,
+              "mrrAt10": 0.7958333333333333
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 0.8416666666666666,
+              "completeEvidenceCoverage": 0.825,
+              "ndcgAt10": 0.7686977043107456,
+              "mrrAt10": 0.7569444444444444
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 20,
+              "recallAt10": 0.8333333333333334,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.7395771102232219,
+              "mrrAt10": 0.7305555555555555
+            },
+            "dense": {
+              "queryCount": 20,
+              "recallAt10": 0.7833333333333333,
+              "completeEvidenceCoverage": 0.75,
+              "ndcgAt10": 0.7598940864471723,
+              "mrrAt10": 0.7666666666666667
+            },
+            "hybrid": {
+              "queryCount": 20,
+              "recallAt10": 0.7833333333333333,
+              "completeEvidenceCoverage": 0.75,
+              "ndcgAt10": 0.7664405741257452,
+              "mrrAt10": 0.775
+            }
+          }
+        },
+        "llm-dense": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 0.8041666666666666,
+              "completeEvidenceCoverage": 0.775,
+              "ndcgAt10": 0.7421635020152122,
+              "mrrAt10": 0.7402777777777778
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.8666666666666668,
+              "completeEvidenceCoverage": 0.85,
+              "ndcgAt10": 0.7875748471837881,
+              "mrrAt10": 0.7791666666666667
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 0.8166666666666667,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.7540514730026657,
+              "mrrAt10": 0.745625
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 20,
+              "recallAt10": 0.8333333333333334,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.7395771102232219,
+              "mrrAt10": 0.7305555555555555
+            },
+            "dense": {
+              "queryCount": 20,
+              "recallAt10": 0.7833333333333333,
+              "completeEvidenceCoverage": 0.75,
+              "ndcgAt10": 0.7348940864471722,
+              "mrrAt10": 0.7333333333333334
+            },
+            "hybrid": {
+              "queryCount": 20,
+              "recallAt10": 0.7333333333333333,
+              "completeEvidenceCoverage": 0.7,
+              "ndcgAt10": 0.7348940864471722,
+              "mrrAt10": 0.75
+            }
+          },
+          "indexTokens": {
+            "denseTokens": 537129,
+            "baselineDenseTokens": 531462,
+            "denseIncreaseRatio": 0.010663038937873237,
+            "bm25Tokens": 321616,
+            "baselineBm25Tokens": 321616,
+            "bm25IncreaseRatio": 0
+          }
+        },
+        "llm-both": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 0.8041666666666666,
+              "completeEvidenceCoverage": 0.775,
+              "ndcgAt10": 0.7237099896937851,
+              "mrrAt10": 0.7152777777777778
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.8666666666666668,
+              "completeEvidenceCoverage": 0.85,
+              "ndcgAt10": 0.7875748471837881,
+              "mrrAt10": 0.7791666666666667
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 0.8166666666666667,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.7516067734797495,
+              "mrrAt10": 0.743125
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 20,
+              "recallAt10": 0.8333333333333334,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.7395771102232219,
+              "mrrAt10": 0.7305555555555555
+            },
+            "dense": {
+              "queryCount": 20,
+              "recallAt10": 0.7833333333333333,
+              "completeEvidenceCoverage": 0.75,
+              "ndcgAt10": 0.7348940864471722,
+              "mrrAt10": 0.7333333333333334
+            },
+            "hybrid": {
+              "queryCount": 20,
+              "recallAt10": 0.7333333333333333,
+              "completeEvidenceCoverage": 0.7,
+              "ndcgAt10": 0.7348940864471722,
+              "mrrAt10": 0.75
+            }
+          },
+          "indexTokens": {
+            "denseTokens": 537129,
+            "baselineDenseTokens": 531462,
+            "denseIncreaseRatio": 0.010663038937873237,
+            "bm25Tokens": 324692,
+            "baselineBm25Tokens": 321616,
+            "bm25IncreaseRatio": 0.009564200786030597
+          }
+        }
+      }
+    },
+    "mlqa-eng-zho": {
+      "queryCount": 40,
+      "ambiguousQueryCount": 20,
+      "documentCount": 1153,
+      "chunkCount": 1529,
+      "variants": {
+        "baseline": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 0.125,
+              "completeEvidenceCoverage": 0.125,
+              "ndcgAt10": 0.07969707007246307,
+              "mrrAt10": 0.0661111111111111
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.85,
+              "completeEvidenceCoverage": 0.85,
+              "ndcgAt10": 0.755616522146919,
+              "mrrAt10": 0.7262500000000001
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 0.85,
+              "completeEvidenceCoverage": 0.85,
+              "ndcgAt10": 0.7463897659862054,
+              "mrrAt10": 0.71375
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 20,
+              "recallAt10": 0.05,
+              "completeEvidenceCoverage": 0.05,
+              "ndcgAt10": 0.05,
+              "mrrAt10": 0.05
+            },
+            "dense": {
+              "queryCount": 20,
+              "recallAt10": 0.85,
+              "completeEvidenceCoverage": 0.85,
+              "ndcgAt10": 0.7152333152993707,
+              "mrrAt10": 0.6725
+            },
+            "hybrid": {
+              "queryCount": 20,
+              "recallAt10": 0.85,
+              "completeEvidenceCoverage": 0.85,
+              "ndcgAt10": 0.6967798029779436,
+              "mrrAt10": 0.6475
+            }
+          }
+        },
+        "deterministic": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 0.125,
+              "completeEvidenceCoverage": 0.125,
+              "ndcgAt10": 0.07969707007246307,
+              "mrrAt10": 0.0661111111111111
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.85,
+              "completeEvidenceCoverage": 0.85,
+              "ndcgAt10": 0.755616522146919,
+              "mrrAt10": 0.7262500000000001
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 0.85,
+              "completeEvidenceCoverage": 0.85,
+              "ndcgAt10": 0.7463897659862054,
+              "mrrAt10": 0.71375
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 20,
+              "recallAt10": 0.05,
+              "completeEvidenceCoverage": 0.05,
+              "ndcgAt10": 0.05,
+              "mrrAt10": 0.05
+            },
+            "dense": {
+              "queryCount": 20,
+              "recallAt10": 0.85,
+              "completeEvidenceCoverage": 0.85,
+              "ndcgAt10": 0.7152333152993707,
+              "mrrAt10": 0.6725
+            },
+            "hybrid": {
+              "queryCount": 20,
+              "recallAt10": 0.85,
+              "completeEvidenceCoverage": 0.85,
+              "ndcgAt10": 0.6967798029779436,
+              "mrrAt10": 0.6475
+            }
+          }
+        },
+        "llm-dense": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 0.125,
+              "completeEvidenceCoverage": 0.125,
+              "ndcgAt10": 0.07969707007246307,
+              "mrrAt10": 0.0661111111111111
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.825,
+              "completeEvidenceCoverage": 0.825,
+              "ndcgAt10": 0.7260031440665623,
+              "mrrAt10": 0.6960416666666667
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 0.825,
+              "completeEvidenceCoverage": 0.825,
+              "ndcgAt10": 0.7167763879058487,
+              "mrrAt10": 0.6835416666666667
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 20,
+              "recallAt10": 0.05,
+              "completeEvidenceCoverage": 0.05,
+              "ndcgAt10": 0.05,
+              "mrrAt10": 0.05
+            },
+            "dense": {
+              "queryCount": 20,
+              "recallAt10": 0.8,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.6560065591386572,
+              "mrrAt10": 0.6120833333333333
+            },
+            "hybrid": {
+              "queryCount": 20,
+              "recallAt10": 0.8,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.6375530468172301,
+              "mrrAt10": 0.5870833333333334
+            }
+          },
+          "indexTokens": {
+            "denseTokens": 321847,
+            "baselineDenseTokens": 317128,
+            "denseIncreaseRatio": 0.014880426830806481,
+            "bm25Tokens": 219342,
+            "baselineBm25Tokens": 219342,
+            "bm25IncreaseRatio": 0
+          }
+        },
+        "llm-both": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 0.125,
+              "completeEvidenceCoverage": 0.125,
+              "ndcgAt10": 0.0779639840242979,
+              "mrrAt10": 0.06402777777777777
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.825,
+              "completeEvidenceCoverage": 0.825,
+              "ndcgAt10": 0.7260031440665623,
+              "mrrAt10": 0.6960416666666667
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 0.825,
+              "completeEvidenceCoverage": 0.825,
+              "ndcgAt10": 0.7167763879058487,
+              "mrrAt10": 0.6835416666666667
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 20,
+              "recallAt10": 0.05,
+              "completeEvidenceCoverage": 0.05,
+              "ndcgAt10": 0.05,
+              "mrrAt10": 0.05
+            },
+            "dense": {
+              "queryCount": 20,
+              "recallAt10": 0.8,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.6560065591386572,
+              "mrrAt10": 0.6120833333333333
+            },
+            "hybrid": {
+              "queryCount": 20,
+              "recallAt10": 0.8,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.6375530468172301,
+              "mrrAt10": 0.5870833333333334
+            }
+          },
+          "indexTokens": {
+            "denseTokens": 321847,
+            "baselineDenseTokens": 317128,
+            "denseIncreaseRatio": 0.014880426830806481,
+            "bm25Tokens": 222248,
+            "baselineBm25Tokens": 219342,
+            "bm25IncreaseRatio": 0.013248716616060863
+          }
+        }
+      }
+    },
+    "mldr-zh": {
+      "queryCount": 40,
+      "ambiguousQueryCount": 20,
+      "documentCount": 133,
+      "chunkCount": 2722,
+      "variants": {
+        "baseline": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 0.925,
+              "completeEvidenceCoverage": 0.925,
+              "ndcgAt10": 0.8782732438392864,
+              "mrrAt10": 0.8625
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.95,
+              "completeEvidenceCoverage": 0.95,
+              "ndcgAt10": 0.8796204733733639,
+              "mrrAt10": 0.85625
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 0.975,
+              "completeEvidenceCoverage": 0.975,
+              "ndcgAt10": 0.9187786708021551,
+              "mrrAt10": 0.9014880952380953
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 20,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.95,
+              "mrrAt10": 0.9333333333333333
+            },
+            "dense": {
+              "queryCount": 20,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.8961479713895819,
+              "mrrAt10": 0.8625
+            },
+            "hybrid": {
+              "queryCount": 20,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.9715338279036697,
+              "mrrAt10": 0.9625
+            }
+          }
+        },
+        "deterministic": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 0.925,
+              "completeEvidenceCoverage": 0.925,
+              "ndcgAt10": 0.8782732438392864,
+              "mrrAt10": 0.8625
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.95,
+              "completeEvidenceCoverage": 0.95,
+              "ndcgAt10": 0.8796204733733639,
+              "mrrAt10": 0.85625
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 0.975,
+              "completeEvidenceCoverage": 0.975,
+              "ndcgAt10": 0.9187786708021551,
+              "mrrAt10": 0.9014880952380953
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 20,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.95,
+              "mrrAt10": 0.9333333333333333
+            },
+            "dense": {
+              "queryCount": 20,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.8961479713895819,
+              "mrrAt10": 0.8625
+            },
+            "hybrid": {
+              "queryCount": 20,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.9715338279036697,
+              "mrrAt10": 0.9625
+            }
+          }
+        },
+        "llm-dense": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 0.925,
+              "completeEvidenceCoverage": 0.925,
+              "ndcgAt10": 0.8782732438392864,
+              "mrrAt10": 0.8625
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.95,
+              "completeEvidenceCoverage": 0.95,
+              "ndcgAt10": 0.8796204733733639,
+              "mrrAt10": 0.85625
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 0.975,
+              "completeEvidenceCoverage": 0.975,
+              "ndcgAt10": 0.9201166576496854,
+              "mrrAt10": 0.9029166666666667
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 20,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.95,
+              "mrrAt10": 0.9333333333333333
+            },
+            "dense": {
+              "queryCount": 20,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.8961479713895819,
+              "mrrAt10": 0.8625
+            },
+            "hybrid": {
+              "queryCount": 20,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.9715338279036697,
+              "mrrAt10": 0.9625
+            }
+          },
+          "indexTokens": {
+            "denseTokens": 899838,
+            "baselineDenseTokens": 893695,
+            "denseIncreaseRatio": 0.006873709710807363,
+            "bm25Tokens": 1776066,
+            "baselineBm25Tokens": 1776066,
+            "bm25IncreaseRatio": 0
+          }
+        },
+        "llm-both": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 0.925,
+              "completeEvidenceCoverage": 0.925,
+              "ndcgAt10": 0.8782732438392864,
+              "mrrAt10": 0.8625
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.95,
+              "completeEvidenceCoverage": 0.95,
+              "ndcgAt10": 0.8796204733733639,
+              "mrrAt10": 0.85625
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 0.975,
+              "completeEvidenceCoverage": 0.975,
+              "ndcgAt10": 0.9201166576496854,
+              "mrrAt10": 0.9029166666666667
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 20,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.95,
+              "mrrAt10": 0.9333333333333333
+            },
+            "dense": {
+              "queryCount": 20,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.8961479713895819,
+              "mrrAt10": 0.8625
+            },
+            "hybrid": {
+              "queryCount": 20,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.9715338279036697,
+              "mrrAt10": 0.9625
+            }
+          },
+          "indexTokens": {
+            "denseTokens": 899838,
+            "baselineDenseTokens": 893695,
+            "denseIncreaseRatio": 0.006873709710807363,
+            "bm25Tokens": 1789481,
+            "baselineBm25Tokens": 1776066,
+            "bm25IncreaseRatio": 0.007553210297364998
+          }
+        }
+      }
+    },
+    "mldr-en": {
+      "queryCount": 40,
+      "ambiguousQueryCount": 34,
+      "documentCount": 135,
+      "chunkCount": 2336,
+      "variants": {
+        "baseline": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.9754445640201499,
+              "mrrAt10": 0.9675
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.975,
+              "completeEvidenceCoverage": 0.975,
+              "ndcgAt10": 0.9625,
+              "mrrAt10": 0.9583333333333334
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.9640401577911213,
+              "mrrAt10": 0.9520833333333334
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 34,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 1.0,
+              "mrrAt10": 1.0
+            },
+            "dense": {
+              "queryCount": 34,
+              "recallAt10": 0.9705882352941176,
+              "completeEvidenceCoverage": 0.9705882352941176,
+              "ndcgAt10": 0.9705882352941176,
+              "mrrAt10": 0.9705882352941176
+            },
+            "hybrid": {
+              "queryCount": 34,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.9832551928845116,
+              "mrrAt10": 0.9779411764705882
+            }
+          }
+        },
+        "deterministic": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.9754445640201499,
+              "mrrAt10": 0.9675
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.975,
+              "completeEvidenceCoverage": 0.975,
+              "ndcgAt10": 0.9625,
+              "mrrAt10": 0.9583333333333334
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.9640401577911213,
+              "mrrAt10": 0.9520833333333334
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 34,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 1.0,
+              "mrrAt10": 1.0
+            },
+            "dense": {
+              "queryCount": 34,
+              "recallAt10": 0.9705882352941176,
+              "completeEvidenceCoverage": 0.9705882352941176,
+              "ndcgAt10": 0.9705882352941176,
+              "mrrAt10": 0.9705882352941176
+            },
+            "hybrid": {
+              "queryCount": 34,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.9832551928845116,
+              "mrrAt10": 0.9779411764705882
+            }
+          }
+        },
+        "llm-dense": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.9754445640201499,
+              "mrrAt10": 0.9675
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.975,
+              "completeEvidenceCoverage": 0.975,
+              "ndcgAt10": 0.9625,
+              "mrrAt10": 0.9583333333333334
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.9662178078594363,
+              "mrrAt10": 0.9550000000000001
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 34,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 1.0,
+              "mrrAt10": 1.0
+            },
+            "dense": {
+              "queryCount": 34,
+              "recallAt10": 0.9705882352941176,
+              "completeEvidenceCoverage": 0.9705882352941176,
+              "ndcgAt10": 0.9705882352941176,
+              "mrrAt10": 0.9705882352941176
+            },
+            "hybrid": {
+              "queryCount": 34,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.98196625903631,
+              "mrrAt10": 0.9764705882352942
+            }
+          },
+          "indexTokens": {
+            "denseTokens": 705907,
+            "baselineDenseTokens": 697390,
+            "denseIncreaseRatio": 0.012212678702017588,
+            "bm25Tokens": 450488,
+            "baselineBm25Tokens": 450488,
+            "bm25IncreaseRatio": 0
+          }
+        },
+        "llm-both": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.9721713201808635,
+              "mrrAt10": 0.9633333333333335
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.975,
+              "completeEvidenceCoverage": 0.975,
+              "ndcgAt10": 0.9625,
+              "mrrAt10": 0.9583333333333334
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.9662178078594363,
+              "mrrAt10": 0.9550000000000001
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 34,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 1.0,
+              "mrrAt10": 1.0
+            },
+            "dense": {
+              "queryCount": 34,
+              "recallAt10": 0.9705882352941176,
+              "completeEvidenceCoverage": 0.9705882352941176,
+              "ndcgAt10": 0.9705882352941176,
+              "mrrAt10": 0.9705882352941176
+            },
+            "hybrid": {
+              "queryCount": 34,
+              "recallAt10": 1.0,
+              "completeEvidenceCoverage": 1.0,
+              "ndcgAt10": 0.98196625903631,
+              "mrrAt10": 0.9764705882352942
+            }
+          },
+          "indexTokens": {
+            "denseTokens": 705907,
+            "baselineDenseTokens": 697390,
+            "denseIncreaseRatio": 0.012212678702017588,
+            "bm25Tokens": 455741,
+            "baselineBm25Tokens": 450488,
+            "bm25IncreaseRatio": 0.011660687965051153
+          }
+        }
+      }
+    },
+    "t2ranking": {
+      "queryCount": 40,
+      "ambiguousQueryCount": 20,
+      "documentCount": 1174,
+      "chunkCount": 2871,
+      "variants": {
+        "baseline": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 0.8260497835497835,
+              "completeEvidenceCoverage": 0.55,
+              "ndcgAt10": 0.7630430149283678,
+              "mrrAt10": 0.8416666666666666
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.9421717171717173,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.9285283018114345,
+              "mrrAt10": 0.96875
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 0.9010606060606061,
+              "completeEvidenceCoverage": 0.725,
+              "ndcgAt10": 0.8726930880274095,
+              "mrrAt10": 0.9416666666666667
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 20,
+              "recallAt10": 0.8287662337662336,
+              "completeEvidenceCoverage": 0.5,
+              "ndcgAt10": 0.7995738108280522,
+              "mrrAt10": 0.8916666666666668
+            },
+            "dense": {
+              "queryCount": 20,
+              "recallAt10": 0.9551767676767676,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.9381796295692967,
+              "mrrAt10": 0.9625
+            },
+            "hybrid": {
+              "queryCount": 20,
+              "recallAt10": 0.9287878787878787,
+              "completeEvidenceCoverage": 0.75,
+              "ndcgAt10": 0.8828814527258004,
+              "mrrAt10": 0.9166666666666667
+            }
+          }
+        },
+        "deterministic": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 0.8260497835497835,
+              "completeEvidenceCoverage": 0.55,
+              "ndcgAt10": 0.7630430149283678,
+              "mrrAt10": 0.8416666666666666
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.9421717171717173,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.9285283018114345,
+              "mrrAt10": 0.96875
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 0.9010606060606061,
+              "completeEvidenceCoverage": 0.725,
+              "ndcgAt10": 0.8726930880274095,
+              "mrrAt10": 0.9416666666666667
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 20,
+              "recallAt10": 0.8287662337662336,
+              "completeEvidenceCoverage": 0.5,
+              "ndcgAt10": 0.7995738108280522,
+              "mrrAt10": 0.8916666666666668
+            },
+            "dense": {
+              "queryCount": 20,
+              "recallAt10": 0.9551767676767676,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.9381796295692967,
+              "mrrAt10": 0.9625
+            },
+            "hybrid": {
+              "queryCount": 20,
+              "recallAt10": 0.9287878787878787,
+              "completeEvidenceCoverage": 0.75,
+              "ndcgAt10": 0.8828814527258004,
+              "mrrAt10": 0.9166666666666667
+            }
+          }
+        },
+        "llm-dense": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 0.8260497835497835,
+              "completeEvidenceCoverage": 0.55,
+              "ndcgAt10": 0.7630430149283678,
+              "mrrAt10": 0.8416666666666666
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.9421717171717173,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.9289447636735625,
+              "mrrAt10": 0.9645833333333332
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 0.9010606060606061,
+              "completeEvidenceCoverage": 0.725,
+              "ndcgAt10": 0.8796946393840696,
+              "mrrAt10": 0.9541666666666666
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 20,
+              "recallAt10": 0.8287662337662336,
+              "completeEvidenceCoverage": 0.5,
+              "ndcgAt10": 0.7995738108280522,
+              "mrrAt10": 0.8916666666666668
+            },
+            "dense": {
+              "queryCount": 20,
+              "recallAt10": 0.9551767676767676,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.9430265138361429,
+              "mrrAt10": 0.9625
+            },
+            "hybrid": {
+              "queryCount": 20,
+              "recallAt10": 0.9287878787878787,
+              "completeEvidenceCoverage": 0.75,
+              "ndcgAt10": 0.8959450416415642,
+              "mrrAt10": 0.9416666666666668
+            }
+          },
+          "indexTokens": {
+            "denseTokens": 841876,
+            "baselineDenseTokens": 832567,
+            "denseIncreaseRatio": 0.011181082123120412,
+            "bm25Tokens": 1644721,
+            "baselineBm25Tokens": 1644721,
+            "bm25IncreaseRatio": 0
+          }
+        },
+        "llm-both": {
+          "full": {
+            "bm25": {
+              "queryCount": 40,
+              "recallAt10": 0.8239664502164503,
+              "completeEvidenceCoverage": 0.55,
+              "ndcgAt10": 0.7590993772085803,
+              "mrrAt10": 0.8375
+            },
+            "dense": {
+              "queryCount": 40,
+              "recallAt10": 0.9421717171717173,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.9289447636735625,
+              "mrrAt10": 0.9645833333333332
+            },
+            "hybrid": {
+              "queryCount": 40,
+              "recallAt10": 0.9010606060606061,
+              "completeEvidenceCoverage": 0.725,
+              "ndcgAt10": 0.8789553388294518,
+              "mrrAt10": 0.9541666666666666
+            }
+          },
+          "highAmbiguity": {
+            "bm25": {
+              "queryCount": 20,
+              "recallAt10": 0.8245995670995672,
+              "completeEvidenceCoverage": 0.5,
+              "ndcgAt10": 0.7955179360388145,
+              "mrrAt10": 0.8916666666666668
+            },
+            "dense": {
+              "queryCount": 20,
+              "recallAt10": 0.9551767676767676,
+              "completeEvidenceCoverage": 0.8,
+              "ndcgAt10": 0.9430265138361429,
+              "mrrAt10": 0.9625
+            },
+            "hybrid": {
+              "queryCount": 20,
+              "recallAt10": 0.9287878787878787,
+              "completeEvidenceCoverage": 0.75,
+              "ndcgAt10": 0.8944664405323287,
+              "mrrAt10": 0.9416666666666668
+            }
+          },
+          "indexTokens": {
+            "denseTokens": 841876,
+            "baselineDenseTokens": 832567,
+            "denseIncreaseRatio": 0.011181082123120412,
+            "bm25Tokens": 1665420,
+            "baselineBm25Tokens": 1644721,
+            "bm25IncreaseRatio": 0.012585113219810484
+          }
+        }
+      }
+    }
+  },
+  "gates": {
+    "boundedSubsetPassed": true,
+    "inputReduction": {
+      "threshold": 0.8,
+      "actual": 0.797586901575954,
+      "passed": false
+    },
+    "indexTokenIncrease": {
+      "threshold": 0.1,
+      "maximumDense": 0.014880426830806481,
+      "maximumBm25": 0.013248716616060863,
+      "passed": true
+    },
+    "highAmbiguityGain": {
+      "threshold": 0.05,
+      "maximumRecallOrCoverageGain": 0.0,
+      "passed": false
+    },
+    "ndcgGuard": {
+      "maximumAllowedDrop": -0.01,
+      "violations": [
+        {
+          "dataset": "scifact",
+          "variant": "llm-dense",
+          "route": "hybrid",
+          "delta": -0.03160457635251701
+        },
+        {
+          "dataset": "scifact",
+          "variant": "llm-both",
+          "route": "bm25",
+          "delta": -0.018453512321427112
+        },
+        {
+          "dataset": "scifact",
+          "variant": "llm-both",
+          "route": "hybrid",
+          "delta": -0.03404927587543327
+        },
+        {
+          "dataset": "mlqa-eng-zho",
+          "variant": "llm-dense",
+          "route": "dense",
+          "delta": -0.02961337808035669
+        },
+        {
+          "dataset": "mlqa-eng-zho",
+          "variant": "llm-dense",
+          "route": "hybrid",
+          "delta": -0.02961337808035669
+        },
+        {
+          "dataset": "mlqa-eng-zho",
+          "variant": "llm-both",
+          "route": "dense",
+          "delta": -0.02961337808035669
+        },
+        {
+          "dataset": "mlqa-eng-zho",
+          "variant": "llm-both",
+          "route": "hybrid",
+          "delta": -0.02961337808035669
+        }
+      ],
+      "passed": false
+    },
+    "directionalHybridNdcg": {
+      "requiredDatasetCount": 2,
+      "positiveDatasets": [
+        {
+          "dataset": "mldr-zh",
+          "delta": 0.0013379868475302814
+        },
+        {
+          "dataset": "mldr-en",
+          "delta": 0.0021776500683150513
+        },
+        {
+          "dataset": "t2ranking",
+          "delta": 0.00700155135666003
+        }
+      ],
+      "passed": true
+    },
+    "generationSuccess": {
+      "threshold": 0.99,
+      "allCandidateRate": 0.9816326530612245,
+      "selectedCandidateRate": 0.9993074792243767,
+      "candidateCount": 1470,
+      "fallbackCount": 27,
+      "plannedRatioFallbackCount": 26,
+      "operationalFallbackCount": 1,
+      "passed": false
+    },
+    "factualReview": {
+      "threshold": 0.99,
+      "actual": 0.958904109589041,
+      "sampleCount": 100,
+      "reviewedPrefixCount": 73,
+      "failCount": 3,
+      "passed": false
+    }
+  },
+  "decision": "stop-and-withdraw-contextual-prefix-indexing"
+}

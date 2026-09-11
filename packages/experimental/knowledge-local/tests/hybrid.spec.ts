@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fuseRrf } from '@deepseek-ai/dsh-experimental-knowledge-local'
+import { fuseRrf } from '../src/hybrid.ts'
 import { searchHybrid } from '../src/hybrid.ts'
 
 describe('Hybrid Reciprocal Rank Fusion', () => {
